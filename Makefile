@@ -7,7 +7,7 @@ OUTPUT=main
 LIBS_INCLUDE=
 SANITIZER_FLAG=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
 CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O0 -std=c17 -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
-LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/
+LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc
 
 C_COMPILER=clang
 LINKER=clang
@@ -18,18 +18,27 @@ OBJS=$(SRCS:.c=.o)
 
 .PHONY: link
 .SUFFIXES: .c .o
-link: $(OBJS)
+link: libfoxgc $(OBJS)
 	@echo Linking '$(OUTPUT)'
 	@$(LINKER) $(OBJS) $(LFLAGS) -o $(OUTPUT)
+
+libfoxgc:
+	@echo Compiling libfoxgc.so
+	@cd libs/FoxGC/ && $(MAKE)
+	@cp libs/FoxGC/libfoxgc.so libs/libfoxgc.so
 
 .c.o:
 	@echo 'Compiling "$<"'
 	@$(C_COMPILER) $(CFLAGS) -c -o $@ $<
 
 clean:
+	@cd libs/FoxGC/ && $(MAKE) clean || true
 	rm $(OBJS) $(OUTPUT) 
 
-
+run: link
+	@echo Running...
+	@echo -------------
+	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ ./main
 
 
 
