@@ -1,0 +1,8 @@
+*.o
+main
+game
+solve.lua
+libs1
+testrun_directory
+libfoxgc.so
+*.swp

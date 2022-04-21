@@ -1,0 +1,58 @@
+VM documentation for FluffyVM
+
+Registers: 65,280 general purpose
+           2 special purpose
+           254 reserved
+
+Minimum stack sizes: 512 general purpose stack
+                     256 calls
+
+Register	Usage
+0xFFFF		Always nil (silently fail any write)
+0xFFFE		Nillable environment table here (behave like _ENV variable from Lua)
+0xFFFD		0xFF00 - 0xFFFD is reserved
+...
+0xFEFF		0x0000 - 0xFEFF is general purpose
+...
+0x0000
+
+Opcode	Mnemonic		Description
+0x00	nop()			No operation
+0x01	mov(A, B)		R(A) = R(B)
+0x02	table_get(A, B, C)	R(A) = R(B)[R(C)]
+				Note:
+				 * R(C) must be non nil
+0x03	table_set(A, B, C)	R(A)[R(B)] = R(C)
+				Note:
+				 * R(B) must be non nil
+0x04	call(A, B, C, D, E)	S(B)..S(B+C-1) = R(A)(S(D)..S(D+E-2))
+				Note:
+				 * If C == 0 then no result is returned
+				 * If E == 0 then no parameter is passed 
+				 * If E == 1 then pass all argument up to S.top
+0x05	stack_push(A)		S(S.top) = R(A); S.top++
+0x06	stack_pop(A)		S.top--; R(A) = S(S.top)
+0x07	stack_set_top(A)	S.top = A
+0x08	stack_set_top2(A)	S.top = R(A)
+				Note:
+				 * R(A) must contain
+				   positive integer that less
+				   or equal to 65,536
+				 * Implicit cast on R(A) value
+				   is disabled
+0x09	stack_get_top(A)	R(A) = S.top
+0x0A	get_constant(A, B)	R(A) = ConstPool[B]
+0x0B	ret(A, B)		Return R(A)..R(A+B-2)
+				Note:
+				 * If B == 0 then return nothing
+				 * If B == 1 then return up to S.top
+
+Note:
+ * All operands is 16 bit unsigned integers unless noted
+ * All ranges is inclusive unless noted
+ * R(n) represent register access at 'n'
+ * S(n) represent stack access at 'n'
+ * Constant pool is indexed from 0
+
+
+
