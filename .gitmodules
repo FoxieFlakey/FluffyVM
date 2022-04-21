@@ -1,0 +1,3 @@
+[submodule "libs/FoxGC"]
+	path = libs/FoxGC
+	url = https://github.com/NickWilde263/FoxGC
