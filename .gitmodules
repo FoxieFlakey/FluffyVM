@@ -1,3 +1,15 @@
 [submodule "libs/FoxGC"]
 	path = libs/FoxGC
 	url = https://github.com/NickWilde263/FoxGC
+[submodule "libs/nxjson"]
+	path = libs/nxjson
+	url = https://github.com/thestr4ng3r/nxjson/
+[submodule "libs/semver.c"]
+	path = libs/semver.c
+	url = https://github.com/h2non/semver.c
+[submodule "libs/iniparser"]
+	path = libs/iniparser
+	url = https://github.com/ndevilla/iniparser.git
+[submodule "libs/cJSON"]
+	path = libs/cJSON
+	url = https://github.com/DaveGamble/cJSON.git
