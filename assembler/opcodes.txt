@@ -16,6 +16,24 @@ Register	Usage
 ...
 0x0000
 
+Instruction format
+
+Single instruction is 64-bit or 8 bytes long
+Instruction is little endian
+
+Byte offset	Field
+0		Opcode
+1		Conditional flag
+2-3		Operand A
+4-5		Operand B
+6-7		Operand C
+
+Note:
+ * Byte offset counted from MSB to LSB
+ * Currently the reference assembler
+   does not make use of the the conditional
+   flag field
+
 Opcode	Mnemonic		Description
 0x00	nop()			No operation
 0x01	mov(A, B)		R(A) = R(B)
@@ -30,6 +48,10 @@ Opcode	Mnemonic		Description
 				 * If C == 0 then no result is returned
 				 * If E == 0 then no parameter is passed 
 				 * If E == 1 then pass all argument up to S.top
+				 * Field D and E stored in 'extra' 
+				   instruction's A and B operands (this 
+				   instruction must be present or the code
+				   is considered invalid) 
 0x05	stack_push(A)		S(S.top) = R(A); S.top++
 0x06	stack_pop(A)		S.top--; R(A) = S(S.top)
 0x07	stack_set_top(A)	S.top = A
@@ -46,6 +68,9 @@ Opcode	Mnemonic		Description
 				Note:
 				 * If B == 0 then return nothing
 				 * If B == 1 then return up to S.top
+0x0C	extra()			Throw undefined instruction error 
+				(the A, B, C operand are used by some 
+				instruction)
 
 Note:
  * All operands is 16 bit unsigned integers unless noted
@@ -53,6 +78,5 @@ Note:
  * R(n) represent register access at 'n'
  * S(n) represent stack access at 'n'
  * Constant pool is indexed from 0
-
 
 
