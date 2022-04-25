@@ -5,6 +5,7 @@
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "value.h"
+#include "fluffyvm_types.h"
 
 // Make current thread managed
 static void initThread(struct fluffyvm* this) {
@@ -32,6 +33,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   struct fluffyvm* this = malloc(sizeof(*this));
   this->heap = heap;
   this->numberOfManagedThreads = 0;
+  this->valueStaticData = malloc(sizeof(*this->valueStaticData));
   pthread_key_create(&this->currentThreadRootKey, NULL);
   initThread(this);
   
@@ -54,6 +56,7 @@ void fluffyvm_free(struct fluffyvm* this) {
 
   cleanThread(this);
   pthread_key_delete(this->currentThreadRootKey);
+  free(this->valueStaticData);
   free(this);
 }
 

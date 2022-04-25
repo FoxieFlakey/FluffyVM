@@ -20,6 +20,8 @@ struct fluffyvm {
   pthread_key_t currentThreadRootKey;
   
   atomic_int numberOfManagedThreads;
+  
+  struct value_static_data* valueStaticData;
 };
 
 typedef void* (^fluffyvm_thread_routine_t)(void*);
