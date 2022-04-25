@@ -23,7 +23,6 @@ link: libfoxgc $(OBJS)
 	@$(LINKER) $(OBJS) $(LFLAGS) -o $(OUTPUT)
 
 libfoxgc:
-	@echo Compiling libfoxgc.so
 	@cd libs/FoxGC/ && $(MAKE)
 	@cp libs/FoxGC/libfoxgc.so libs/libfoxgc.so
 
@@ -40,7 +39,10 @@ run: link
 	@echo -------------
 	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ ./main
 
-
+gdb: link
+	@echo Running with gdb...
+	@echo -------------
+	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ gdb ./main
 
 
 

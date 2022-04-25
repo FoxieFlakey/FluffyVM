@@ -1,6 +1,3 @@
-[submodule "libs/FoxGC"]
-	path = libs/FoxGC
-	url = https://github.com/NickWilde263/FoxGC
 [submodule "libs/nxjson"]
 	path = libs/nxjson
 	url = https://github.com/thestr4ng3r/nxjson/
@@ -13,3 +10,9 @@
 [submodule "libs/cJSON"]
 	path = libs/cJSON
 	url = https://github.com/DaveGamble/cJSON.git
+[submodule "libs/list"]
+	path = libs/list
+	url = https://github.com/clibs/list
+[submodule "libs/FoxGC"]
+	path = libs/FoxGC
+	url = https://github.com/NickWilde263/FoxGC
