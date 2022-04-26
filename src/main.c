@@ -37,17 +37,30 @@ int main() {
   printMemUsage("After VM creation but before test");
   
   if (1) {
-    struct value integer = value_new_integer(F, 3892);
+    {
+      struct value integer = value_new_integer(F, 3892);
     
-    struct value errorMessage = {0};
-    struct value string = value_tostring(F, integer, &errorMessage);
-    if (string.type == FLUFFYVM_NOT_PRESENT) {
-      printf("Conversion error: %s\n", (const char*) foxgc_api_object_get_data(errorMessage.data.str));
-      goto error;
+      struct value errorMessage = {0};
+      struct value string = value_tostring(F, integer, &errorMessage);
+      if (string.type == FLUFFYVM_NOT_PRESENT) {
+        printf("Conversion error: %s\n", (const char*) foxgc_api_object_get_data(errorMessage.data.str));
+        goto error;
+      }
+
+      value_try_decrement_ref(string);
+
+      printf("Result: '%s'\n", (const char*) foxgc_api_object_get_data(string.data.str));
     }
 
-    printf("Result: '%s'\n", (const char*) foxgc_api_object_get_data(string.data.str));
-    value_try_decrement_ref(string);
+    // Test 2
+    {
+      struct value string = value_new_string(F, "3892");
+      struct value number = value_todouble(F, string, NULL);
+      
+      printf("Result: %lf\n", number.data.doubleData);
+
+      value_try_decrement_ref(string);
+    }
   }
 
   foxgc_api_do_full_gc(heap);

@@ -1,6 +1,8 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <errno.h>
+#include <Block.h>
 
 #include "value.h"
 #include "fluffyvm.h"
@@ -10,12 +12,17 @@
 
 #define value_copy(dest, src) do { \
   memcpy((dest), (src), sizeof(struct value)); \
-} while(0);
+} while(0)
 
 static struct value valueNotPresent = {
   .type = FLUFFYVM_NOT_PRESENT,
   .data = {0}
 };
+
+static struct value valueNil = {
+  .type = FLUFFYVM_TVALUE_NIL,
+  .data = {0}
+}; 
 
 #define value_new_static_string(name, string) do { \
   struct value tmp = value_new_string(vm, (string)); \
@@ -32,7 +39,7 @@ void value_cleanup(struct fluffyvm* vm) {
   value_try_decrement_ref(vm->valueStaticData->outOfMemoryString);
 }
 
-struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len) {
+static struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len) {
   foxgc_root_reference_t* rootRef = NULL;
   foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &rootRef, 1, len);
   if (!strObj) {
@@ -55,7 +62,7 @@ struct value value_new_string(struct fluffyvm* vm, const char* cstr) {
   return value_new_string2(vm, cstr, strlen(cstr) + 1);
 }
 
-struct value value_new_integer(struct fluffyvm* vm, int integer) {
+struct value value_new_integer(struct fluffyvm* vm, int64_t integer) {
   struct value value = {
    .data.integer = integer,
    .type = FLUFFYVM_TVALUE_INTEGER
@@ -63,6 +70,29 @@ struct value value_new_integer(struct fluffyvm* vm, int integer) {
 
   return value;
 }
+
+/*
+struct value value_new_table(struct fluffyvm* vm) {
+  foxgc_root_reference_t* rootRef = NULL;
+  foxgc_object_t* obj = foxgc_api_new_object_opaque(vm->heap, fluffyvm_get_root(vm), &rootRef, sizeof(table_t), Block_copy(^(foxgc_object_t* obj) {
+    
+  }));
+  
+  if (obj == NULL)
+    return valueNotPresent;
+
+  foxgc_api_increment_ref(obj);
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
+  
+
+
+  struct value value = {
+    .type = FLUFFYVM_TVALUE_TABLE,
+    .data.table = obj
+  };
+  return value;
+}
+*/
 
 struct value value_new_double(struct fluffyvm* vm, double number) {
   struct value value = {
@@ -126,7 +156,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
       return value;
     
     case FLUFFYVM_TVALUE_INTEGER:
-      bufLen = snprintf(NULL, 0, "%d", value.data.integer);
+      bufLen = snprintf(NULL, 0, "%ld", value.data.integer);
       break;
 
     case FLUFFYVM_TVALUE_DOUBLE:
@@ -152,7 +182,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
 
   switch (value.type) { 
     case FLUFFYVM_TVALUE_INTEGER:
-      sprintf(buffer, "%d", value.data.integer);
+      sprintf(buffer, "%ld", value.data.integer);
       break;
 
     case FLUFFYVM_TVALUE_DOUBLE:
@@ -170,26 +200,42 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
   return result;
   
   no_memory:
-  value_copy(errorMessage, &vm->valueStaticData->outOfMemoryString);
-  value_try_increment_ref(vm->valueStaticData->outOfMemoryString);
+  if (errorMessage) {
+    value_copy(errorMessage, &vm->valueStaticData->outOfMemoryString);
+    value_try_increment_ref(vm->valueStaticData->outOfMemoryString);
+  }
   return valueNotPresent;
 }
 
-struct value value_tonumber(struct fluffyvm* vm, struct value value, struct value* errorMessage) {
+struct value value_todouble(struct fluffyvm* vm, struct value value, struct value* errorMessage) {
   checkPresent(&value);
   
+  char* lastChar = NULL;
+  double number = 0.0f;
   switch (value.type) {
     case FLUFFYVM_TVALUE_STRING:
-      return valueNotPresent;
-    
-    case FLUFFYVM_TVALUE_INTEGER:
-    case FLUFFYVM_TVALUE_DOUBLE:
-    case FLUFFYVM_TVALUE_NIL:
+      errno = 0;
+      number = strtod(foxgc_api_object_get_data(value.data.str), &lastChar);
+      if (*lastChar != '\0' || errno != 0) {
+        return valueNil;
+      }
       break;
+
+    case FLUFFYVM_TVALUE_INTEGER:
+      number = (double) value.data.integer;
+      break;
+
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return value;
+
+    case FLUFFYVM_TVALUE_NIL:
+      return valueNil;
     
     case FLUFFYVM_NOT_PRESENT:
       abort(); /* Can't happen */
   }
+
+  return value_new_double(vm, number);
 }
 
 
@@ -203,13 +249,11 @@ void* value_get_unique_ptr(struct value value) {
     case FLUFFYVM_TVALUE_INTEGER:
     case FLUFFYVM_TVALUE_DOUBLE:
     case FLUFFYVM_TVALUE_NIL:
-      break;
+      return NULL;
     
     case FLUFFYVM_NOT_PRESENT:
       abort(); /* Can't happen */
   }
-
-  return NULL;
 }
 
 

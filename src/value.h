@@ -1,7 +1,10 @@
 #ifndef header_1650698040_value_h
 #define header_1650698040_value_h
 
+#include <stdint.h>
+
 #include "fluffyvm.h"
+#include "foxgc.h"
 #include "ref_counter.h"
 
 typedef enum value_types {
@@ -22,17 +25,35 @@ typedef struct value {
     // const char*
     foxgc_object_t* str;
 
+    // table_t
+    foxgc_object_t* table;
+
     double doubleData;
-    int integer;
+    int64_t integer;
   } data;
 } value_t;
+
+static inline const char* value_get_string(struct value value) {
+  if (value.type != FLUFFYVM_TVALUE_STRING) 
+    return NULL;
+  
+  return (const char*) foxgc_api_object_get_data(value.data.str);
+}
+
+static inline size_t value_get_len(struct value value) {
+  if (value.type != FLUFFYVM_TVALUE_STRING) 
+    return -1;
+  
+  return foxgc_api_get_array_length(value.data.str);
+}
 
 void value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
 
 struct value value_new_string(struct fluffyvm* vm, const char* cstr);
-struct value value_new_integer(struct fluffyvm* vm, int integer);
+struct value value_new_integer(struct fluffyvm* vm, int64_t integer);
 struct value value_new_double(struct fluffyvm* vm, double number);
+struct value value_new_table(struct fluffyvm* vm);
 
 // Don't access the pointer
 // Return NULL if its not by reference
@@ -49,7 +70,7 @@ void value_try_decrement_ref(struct value value);
 // if error occured
 // and set *errorMessage to reason
 struct value value_tostring(struct fluffyvm* vm, struct value value, struct value* errorMessage);
-struct value value_tonumber(struct fluffyvm* vm, struct value value, struct value* errorMessage);
+struct value value_todouble(struct fluffyvm* vm, struct value value, struct value* errorMessage);
 
 #endif
 
