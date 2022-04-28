@@ -22,6 +22,7 @@ struct fluffyvm {
   atomic_int numberOfManagedThreads;
   
   struct value_static_data* valueStaticData;
+  struct hashtable_static_data* hashTableStaticData;
 };
 
 typedef void* (^fluffyvm_thread_routine_t)(void*);

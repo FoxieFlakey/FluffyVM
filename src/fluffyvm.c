@@ -4,6 +4,7 @@
 
 #include "fluffyvm.h"
 #include "foxgc.h"
+#include "hashtable.h"
 #include "value.h"
 #include "fluffyvm_types.h"
 
@@ -33,12 +34,12 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   struct fluffyvm* this = malloc(sizeof(*this));
   this->heap = heap;
   this->numberOfManagedThreads = 0;
-  this->valueStaticData = malloc(sizeof(*this->valueStaticData));
   pthread_key_create(&this->currentThreadRootKey, NULL);
   initThread(this);
   
   // Start initializing stuffs
   value_init(this);
+  hashtable_init(this);
 
   return this;
 }
@@ -52,11 +53,11 @@ void fluffyvm_free(struct fluffyvm* this) {
     abort();
   }
 
+  hashtable_cleanup(this);
   value_cleanup(this);
 
   cleanThread(this);
   pthread_key_delete(this->currentThreadRootKey);
-  free(this->valueStaticData);
   free(this);
 }
 
