@@ -33,7 +33,7 @@ static struct value tostring(struct fluffyvm* F, struct value val, foxgc_root_re
   foxgc_root_reference_t* originalValRef = *rootRef;
   struct value errorMessage = {0};
   struct value tmp = value_tostring(F, val, &errorMessage, rootRef);
-        
+   
   if (tmp.type == FLUFFYVM_NOT_PRESENT) {
     printf("Error: '%s' while converting key to string\n", value_get_string(errorMessage));
     abort();
@@ -70,6 +70,7 @@ int main() {
   foxgc_api_do_full_gc(heap);
   printMemUsage("After VM creation but before test");
  
+  /*
   foxgc_root_reference_t* tmpRootRef;
   int test = 3;
 
@@ -150,7 +151,7 @@ int main() {
     }
 
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tableRootRef);
-  }
+  }*/
   
   /*
   // Testing hashtable (old)
