@@ -37,6 +37,8 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   pthread_key_create(&this->currentThreadRootKey, NULL);
   initThread(this);
   
+  this->staticDataRoot = foxgc_api_new_root(heap);
+
   // Start initializing stuffs
   value_init(this);
   hashtable_init(this);
@@ -55,6 +57,8 @@ void fluffyvm_free(struct fluffyvm* this) {
 
   hashtable_cleanup(this);
   value_cleanup(this);
+
+  foxgc_api_delete_root(this->heap, this->staticDataRoot);
 
   cleanThread(this);
   pthread_key_delete(this->currentThreadRootKey);

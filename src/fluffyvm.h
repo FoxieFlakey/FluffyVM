@@ -23,6 +23,8 @@ struct fluffyvm {
   
   struct value_static_data* valueStaticData;
   struct hashtable_static_data* hashTableStaticData;
+  
+  foxgc_root_t* staticDataRoot;
 };
 
 typedef void* (^fluffyvm_thread_routine_t)(void*);

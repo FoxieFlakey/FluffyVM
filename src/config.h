@@ -5,7 +5,7 @@
 // xxHash options                     //
 ////////////////////////////////////////
 // https://github.com/Cyan4973/xxHash
-//#define FLUFFYVM_HASH_USE_XXHASH
+#define FLUFFYVM_HASH_USE_XXHASH
 #define FLUFFYVM_XXHASH_SEED (0x55775520)
 
 
@@ -32,7 +32,7 @@
 ////////////////////////////////////////
 // Intentional weak hashing
 // DO NOT USE THIS IN PRODUCTION
-#define FLUFFYVM_HASH_USE_TEST_MODE
+//#define FLUFFYVM_HASH_USE_TEST_MODE
 
 ////////////////////////////////////////
 // Config validity check here         //
