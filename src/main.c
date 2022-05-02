@@ -75,13 +75,20 @@ int main2() {
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   printMemUsage("After VM creation but before test");
-    
-  static const char* code = "{'constants':[{'type':'string','data':'Hello World!'},{'type':'string','data':'print'}],'version':[1,0,0],'type':'fluffyvm_bytecode','mainPrototype':{'instructions':[{'low':255,'high':16581385},{'low':0,'high':33162760},{'low':16646400,'high':16581377},{'low':0,'high':3},{'low':0,'high':33162755},{'low':0,'high':16581379},{'low':510,'high':12},{'low':0,'high':11}],'prototypes':[{'instructions':[{'low':0,'high':0},{'low':0,'high':1},{'low':0,'high':3},{'low':0,'high':7},{'low':0,'high':8},{'low':0,'high':9}],'prototypes':[{'instructions':[{'low':0,'high':5},{'low':0,'high':6}],'prototypes':[]}]}]}}";
+  
+  // Bootloader  
+  static const char bootloader[] = 
+    "{\"constants\":[{\"data\":\"Hello World!\",\"type\":\"string\"},{\"data\":\"print\",\"type\":\"string\"}],\"mainPrototype\":{\"instructions\":[{\"low\":255,\"high\":16581385},{\"low\":0,\"high\":33162760},{\"low\":16646400,\"high\":16581377},{\"low\":0,\"high\":3},{\"low\":0,\"high\":33162755},{\"low\":0,\"high\":16581379},{\"low\":510,\"high\":12},{\"low\":0,\"high\":11}],\"prototypes\":[{\"instructions\":[{\"low\":0,\"high\":0},{\"low\":0,\"high\":1},{\"low\":0,\"high\":3},{\"low\":0,\"high\":7},{\"low\":0,\"high\":8},{\"low\":0,\"high\":9}],\"prototypes\":[{\"instructions\":[{\"low\":0,\"high\":5},{\"low\":0,\"high\":6}],\"prototypes\":[]}]}]}}"
+    ;
 
-  foxgc_api_do_full_gc(heap);
-  foxgc_api_do_full_gc(heap);
+  foxgc_root_reference_t* rootRef = NULL;
+  struct bytecode* bytecode = bytecode_load_json(F, &rootRef, bootloader, sizeof(bootloader) - 1);
+  if (bytecode == NULL)
+    goto error;
+
   printMemUsage("Middle of test");
-   
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+
   /*foxgc_root_reference_t* tmpRootRef;
   int test = 3;
 

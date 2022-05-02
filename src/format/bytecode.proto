@@ -1,26 +1,31 @@
 syntax = "proto3";
-package FluffyVmFormat;
+package FluffyVmFormat.Bytecode;
 
 enum ConstantType {
   NIL = 0;
   STRING = 1;
   DOUBLE = 2;
-  INTEGER = 3;
+  LONG = 3;
 }
 
 message Constant {
   ConstantType type = 1;
   oneof data {
-    bytes str = 2;
-    sint64 integer = 3;
-    double doubleNum = 4;
+    bytes data_str = 2;
+    sint64 data_longNum = 3;
+    double data_doubleNum = 4;
   }
 }
 
-// Bytecode format for FluffyVM
+message Prototype {
+  repeated uint64 instructions = 1;
+  repeated Prototype prototypes = 2;
+}
+
 message Bytecode {
   uint32 version = 1;
   repeated Constant constants = 2;
+  Prototype mainPrototype = 3;
 }
 
 

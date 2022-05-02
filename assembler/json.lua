@@ -32,7 +32,7 @@ local encode
 
 local escape_char_map = {
   [ "\\" ] = "\\",
-  [ "\'" ] = "\'",
+  [ "\\\"" ] = "\\\"",
   [ "\b" ] = "b",
   [ "\f" ] = "f",
   [ "\n" ] = "n",
@@ -99,7 +99,7 @@ end
 
 
 local function encode_string(val)
-  return '"' .. val:gsub('[%z\1-\31\\\']', escape_char) .. '"'
+  return '\\\"' .. val:gsub('[%z\1-\31\\\"]', escape_char) .. '\\\"'
 end
 
 

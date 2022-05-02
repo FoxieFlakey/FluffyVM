@@ -307,7 +307,7 @@ processPrototype(topLevelPrototype)
 -- Generate bytecode
 
 function preparePrototype(proto)
-  --[[local newInstructions = {}
+  local newInstructions = {}
   for i=0,proto.pc - 2 do
     local low, high = 0, 0
     for j=0,3 do
@@ -316,13 +316,14 @@ function preparePrototype(proto)
     for j=0,3 do
       low = low + (proto.instructions[i * 8 + j + 5] * math.floor(0xFF^j))
     end
+    print(string.format("%08X %08X", low, high))
     table.insert(newInstructions, {low=low, high=high})
-  end]]
+  end
   
   proto.bytePointer = nil
   proto.pc = nil
   proto.labels = nil
-  --proto.instructions = newInstructions
+  proto.instructions = newInstructions
   
   for _, proto2 in pairs(proto.prototypes) do
     preparePrototype(proto2)
@@ -338,14 +339,13 @@ end
 
 local JSON = require("json")
 print(JSON.encode({
-  type = "fluffyvm_bytecode",
-  version = {1, 0, 0},
+  --type = "fluffyvm_bytecode",
+  --version = {1, 0, 0},
   constants = constantsTable,
   mainPrototype = topLevelPrototype
 }))
 
-if true then return end
-
+--[[
 local constants = constantsTable
 
 -- Result bytecode
@@ -383,6 +383,6 @@ local fp = io.open("bytecode.bin", "w")
 assert(fp)
 fp:write(table.concat(bytecode))
 fp:close()
-
+]]
 
 

@@ -8,3 +8,5 @@ libfoxgc.so
 *.swp
 *.pb-c.c
 *.pb-c.h
+data.bin
+*.swo
