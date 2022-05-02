@@ -7,7 +7,7 @@ OUTPUT=main
 LIBS_INCLUDE=-I libs/hashmap/include
 SANITIZER_FLAG=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
 CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O0 -std=c17 -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
-LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc -lxxhash
+LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc -lxxhash -lprotobuf-c
 
 C_COMPILER=clang
 LINKER=clang
@@ -16,8 +16,12 @@ LINKER=clang
 SRCS=$(shell find $(SRC_DIR) -regex .+[.]c)
 OBJS=$(SRCS:.c=.o)
 
-.PHONY: link
+.PHONY: all
 .SUFFIXES: .c .o
+all:
+	@cd src/format && $(MAKE)
+	@$(MAKE) link
+
 link: libfoxgc $(OBJS)
 	@echo Linking '$(OUTPUT)'
 	@$(LINKER) $(OBJS) $(LFLAGS) -o $(OUTPUT)
@@ -32,7 +36,8 @@ libfoxgc:
 
 clean:
 	@cd libs/FoxGC/ && $(MAKE) clean || true
-	rm $(OBJS) $(OUTPUT) 
+	@cd src/format && $(MAKE) clean || true
+	@rm $(OBJS) $(OUTPUT) 
 
 run: link
 	@echo Running...

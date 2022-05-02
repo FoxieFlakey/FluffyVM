@@ -45,16 +45,7 @@ void bytecode_cleanup(struct fluffyvm* vm) {
   free(vm->bytecodeStaticData);
 } 
 
-struct fluffyvm_bytecode* bytecode_from_json(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* string, size_t len) {
-  foxgc_object_t* thisObj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_bytecode, NULL);
-  struct fluffyvm_bytecode* this = foxgc_api_object_get_data(thisObj);
-  
-  pthread_mutex_lock(&cjson_lock);
 
-  pthread_mutex_unlock(&cjson_lock);
-
-  return this;
-}
 
 
 

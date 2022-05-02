@@ -30,8 +30,7 @@ struct fluffyvm_bytecode {
 bool bytecode_init(struct fluffyvm* vm); 
 void bytecode_cleanup(struct fluffyvm* vm); 
 
-// Load bytecode from JSON
-struct fluffyvm_bytecode* bytecode_from_json(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* string, size_t len);
+struct bytecode* bytecode_load(struct fluffyvm* vm, void* bytecode, size_t len);
 
 #endif
 

@@ -6,3 +6,5 @@ libs1
 testrun_directory
 libfoxgc.so
 *.swp
+*.pb-c.c
+*.pb-c.h

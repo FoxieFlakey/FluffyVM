@@ -87,7 +87,7 @@ function isValidShort(reg)
 end
 
 function checkShort(reg)
-  assert(isValidShort(reg), ("Invalid short integer flag '%s'"):format(tostring(ref)))
+  assert(isValidShort(reg), ("Invalid short integer flag '%s'"):format(tostring(reg)))
 end
 
 function isValidConst(const)
@@ -260,7 +260,7 @@ local global2 = setmetatable({}, {
     error("Modification restricted")
   end,
   
-  __index = function(self, k)
+  __index = function(_, k)
     return global[k]
   end
 })
@@ -294,8 +294,8 @@ function processPrototype(proto)
   end
   print()
   
-  for _, proto in pairs(proto.prototypes) do
-    processPrototype(proto)
+  for _, proto2 in pairs(proto.prototypes) do
+    processPrototype(proto2)
   end
   
   print("~~~~~~~~~~~~~~~~~~~~~~~~~~~")
@@ -307,7 +307,7 @@ processPrototype(topLevelPrototype)
 -- Generate bytecode
 
 function preparePrototype(proto)
-  local newInstructions = {}
+  --[[local newInstructions = {}
   for i=0,proto.pc - 2 do
     local low, high = 0, 0
     for j=0,3 do
@@ -317,15 +317,15 @@ function preparePrototype(proto)
       low = low + (proto.instructions[i * 8 + j + 5] * math.floor(0xFF^j))
     end
     table.insert(newInstructions, {low=low, high=high})
-  end
+  end]]
   
   proto.bytePointer = nil
   proto.pc = nil
   proto.labels = nil
-  proto.instructions = newInstructions
+  --proto.instructions = newInstructions
   
-  for _, proto in pairs(proto.prototypes) do
-    preparePrototype(proto)
+  for _, proto2 in pairs(proto.prototypes) do
+    preparePrototype(proto2)
   end
 end
 
@@ -343,5 +343,46 @@ print(JSON.encode({
   constants = constantsTable,
   mainPrototype = topLevelPrototype
 }))
+
+if true then return end
+
+local constants = constantsTable
+
+-- Result bytecode
+local bytecode = {}
+
+function writeU8(byte)
+  table.insert(bytecode, table.pack("<B", byte))
+end
+
+function writeS8(byte)
+  table.insert(bytecode, table.pack("<b", byte))
+end
+
+function writeU16(byte)
+  table.insert(bytecode, table.pack("<I3", byte))
+end
+
+function writeS16(byte)
+  table.insert(bytecode, table.pack("<i2", byte))
+end
+
+function writeU32(byte)
+  table.insert(bytecode, table.pack("<I4", byte))
+end
+
+function writeS32(byte)
+  table.insert(bytecode, table.pack("<i4", byte))
+end
+
+--------------------------------------------
+
+--------------------------------------------
+
+local fp = io.open("bytecode.bin", "w")
+assert(fp)
+fp:write(table.concat(bytecode))
+fp:close()
+
 
 
