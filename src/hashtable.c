@@ -60,6 +60,9 @@ struct pair {
 
 bool hashtable_init(struct fluffyvm* vm) {
   vm->hashTableStaticData = malloc(sizeof(*vm->hashTableStaticData));
+  if (vm->hashTableStaticData == NULL)
+    return false;
+  
   create_descriptor(desc_hashTable, struct hashtable, {
     offsetof(struct hashtable, gc_this),
     offsetof(struct hashtable, gc_table)
@@ -79,6 +82,9 @@ bool hashtable_init(struct fluffyvm* vm) {
 }
 
 void hashtable_cleanup(struct fluffyvm* vm) {
+  if (!vm->hashTableStaticData)
+    return;
+
   clean_static_string(error_badKey);
   clean_static_string(error_invalidCapacity);
 

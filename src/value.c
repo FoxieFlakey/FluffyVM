@@ -44,6 +44,9 @@ static struct value valueNil = {
 
 bool value_init(struct fluffyvm* vm) {
   vm->valueStaticData = malloc(sizeof(*vm->valueStaticData));
+  if (!vm->valueStaticData)
+      return false;
+
   vm->valueStaticData->outOfMemoryStringRootRef = NULL;
   vm->valueStaticData->outOfMemoryWhileAnErrorOccuredRootRef = NULL;
   vm->valueStaticData->outOfMemoryWhileHandlingErrorRootRef = NULL;
@@ -72,6 +75,9 @@ bool value_init(struct fluffyvm* vm) {
 }
 
 void value_cleanup(struct fluffyvm* vm) {
+  if (!vm->valueStaticData)
+    return;
+
   clean_static_string(outOfMemoryString);
   clean_static_string(outOfMemoryWhileAnErrorOccured);
   clean_static_string(outOfMemoryWhileHandlingError);
@@ -93,6 +99,12 @@ static void commonStringInit(struct value_string* str, foxgc_object_t* strObj) {
 
 static struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
   struct value_string* strStruct = malloc(sizeof(*strStruct));
+  if (!strStruct) {
+    if (vm->valueStaticData->hasInit)
+      fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    return valueNotPresent;
+  }
+
   foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, len, Block_copy(^void (foxgc_object_t* obj) {
     free(strStruct);
   }));
