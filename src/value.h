@@ -3,14 +3,15 @@
 
 #include <stdint.h>
 #include <string.h>
+#include <stdbool.h>
 
-#include "fluffyvm.h"
 #include "foxgc.h"
 
+struct fluffyvm;
 typedef enum value_types {
   // Call abort when trying to use value
   // with this type
-  FLUFFYVM_NOT_PRESENT,
+  FLUFFYVM_TVALUE_NOT_PRESENT,
 
   FLUFFYVM_TVALUE_NIL,
   FLUFFYVM_TVALUE_DOUBLE,
@@ -41,25 +42,14 @@ typedef struct value {
   } data;
 } value_t;
 
-static inline const char* value_get_string(struct value value) {
-  if (value.type != FLUFFYVM_TVALUE_STRING) 
-    return NULL;
-  
-  return (const char*) foxgc_api_object_get_data(value.data.str->str);
-}
-
-static inline size_t value_get_len(struct value value) {
-  if (value.type != FLUFFYVM_TVALUE_STRING) 
-    return -1;
-   
-  return foxgc_api_get_array_length(value.data.str->str);
-}
+const char* value_get_string(struct value value);
+size_t value_get_len(struct value value);
 
 static inline void value_copy(struct value* dest, struct value* src) {
   memcpy(dest, src, sizeof(struct value));
 }
 
-void value_init(struct fluffyvm* vm);
+bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
 
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
@@ -85,11 +75,9 @@ bool value_hash_code(struct value value, uintptr_t* hashCode);
 bool value_equals(struct value op1, struct value op2);
 
 // Action you can do with value
-// return value with type of FLUFFYVM_NOT_PRESENT
-// if error occured
-// and set *errorMessage to reason
-struct value value_tostring(struct fluffyvm* vm, struct value value, struct value* errorMessage, foxgc_root_reference_t** rootRef);
-struct value value_todouble(struct fluffyvm* vm, struct value value, struct value* errorMessage);
+// Sets errmsg on error with message of error
+struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_reference_t** rootRef);
+struct value value_todouble(struct fluffyvm* vm, struct value value);
 
 // Action to do if this table
 bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, struct value value);

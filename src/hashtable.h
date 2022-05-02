@@ -3,8 +3,10 @@
 
 // Open addressing hash table
 // Behaviour is identical to lua's table
-// but return FLUFFYVM_NOT_PRESENT when key
+// but return FLUFFYVM_TVALUE_NOT_PRESENT when key
 // doesn't have any corresponding value
+
+#include <stdbool.h>
 
 #include "fluffyvm.h"
 #include "foxgc.h"
@@ -25,7 +27,7 @@ struct hashtable {
   foxgc_object_t* gc_table;
 };
 
-void hashtable_init(struct fluffyvm* vm);
+bool hashtable_init(struct fluffyvm* vm);
 void hashtable_cleanup(struct fluffyvm* vm);
 
 struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_t* root, foxgc_root_reference_t** rootRef);

@@ -2,11 +2,13 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
+#include <string.h>
 
 #include "foxgc.h"
 #include "fluffyvm.h"
 #include "value.h"
 #include "hashtable.h"
+#include "bytecode.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -27,15 +29,15 @@ static void printMemUsage(const char* msg) {
 }
 
 static struct value tostring(struct fluffyvm* F, struct value val, foxgc_root_reference_t** rootRef) { 
-  if (val.type == FLUFFYVM_NOT_PRESENT)
+  if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT)
     return value_not_present();
 
   foxgc_root_reference_t* originalValRef = *rootRef;
-  struct value errorMessage = {0};
-  struct value tmp = value_tostring(F, val, &errorMessage, rootRef);
+  fluffyvm_clear_errmsg(F);
+  struct value tmp = value_tostring(F, val, rootRef);
    
-  if (tmp.type == FLUFFYVM_NOT_PRESENT) {
-    printf("Error: '%s' while converting key to string\n", value_get_string(errorMessage));
+  if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
+    printf("Error: '%s' while converting key to string\n", value_get_string(fluffyvm_get_errmsg(F)));
     abort();
   }
 
@@ -45,7 +47,7 @@ static struct value tostring(struct fluffyvm* F, struct value val, foxgc_root_re
 }
 
 static struct value add_to_root_and_return(struct fluffyvm* F, struct value val, foxgc_root_reference_t** rootRef) { 
-  if (val.type == FLUFFYVM_NOT_PRESENT)
+  if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT)
     return value_not_present();
 
   foxgc_object_t* ptr;
@@ -55,7 +57,7 @@ static struct value add_to_root_and_return(struct fluffyvm* F, struct value val,
   return val;
 }
 
-int main() {
+int main2() {
   heap = foxgc_api_new(1 * MB, 4 * MB, 16 * MB,
                                  5, 5, 
 
@@ -65,26 +67,41 @@ int main() {
   printMemUsage("Before VM creation");
 
   struct fluffyvm* F = fluffyvm_new(heap);
-  
+  if (!F) {
+    printf("FATAL: can't create VM\n");
+    goto cannotCreateVm;
+  }
+
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   printMemUsage("After VM creation but before test");
- 
-  /*
+  
+  /*  
+  static const char* code = "{'constants':[{'type':'string','data':'Hello World!'},{'type':'string','data':'print'}],'version':[1,0,0],'type':'fluffyvm_bytecode','mainPrototype':{'instructions':[{'low':255,'high':16581385},{'low':0,'high':33162760},{'low':16646400,'high':16581377},{'low':0,'high':3},{'low':0,'high':33162755},{'low':0,'high':16581379},{'low':510,'high':12},{'low':0,'high':11}],'prototypes':[{'instructions':[{'low':0,'high':0},{'low':0,'high':1},{'low':0,'high':3},{'low':0,'high':7},{'low':0,'high':8},{'low':0,'high':9}],'prototypes':[{'instructions':[{'low':0,'high':5},{'low':0,'high':6}],'prototypes':[]}]}]}}";
+
+  foxgc_root_reference_t* bytecodeRef = NULL;
+  struct fluffyvm_bytecode* bytecode = bytecode_from_json(F, &bytecodeRef, code, strlen(code));
+   
+    
+
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  printMemUsage("Middle of test");
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), bytecodeRef);
+  */
+
   foxgc_root_reference_t* tmpRootRef;
   int test = 3;
 
   // Testing tostring
   if (test == 1) {
     struct value integer = value_new_long(F, 3892);
-    
-    struct value errorMessage = {0};
-    struct value string = value_tostring(F, integer, &errorMessage, &tmpRootRef);
-    if (string.type == FLUFFYVM_NOT_PRESENT) {
-      printf("Conversion error: %s\n", value_get_string(errorMessage));
+     
+    fluffyvm_clear_errmsg(F);
+    struct value string = value_tostring(F, integer, &tmpRootRef);
+    if (string.type == FLUFFYVM_TVALUE_NOT_PRESENT)
       goto error;
-    }
-
+    
     printf("Result: '%s'\n", value_get_string(string));
     uintptr_t hash = -1;
     value_hash_code(string, &hash);
@@ -95,18 +112,23 @@ int main() {
 
   // Testing todouble
   if (test == 2)  {
-    struct value string = value_new_string(F, "3892", &tmpRootRef);
-    struct value number = value_todouble(F, string, NULL);
-     
-    printf("Result: %lf\n", number.data.doubleData);
+    struct value string = value_new_string(F, "3j892", &tmpRootRef);
+    fluffyvm_clear_errmsg(F);
+    struct value number = value_todouble(F, string);
+    
+    if (number.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+      goto error;
+    else
+      printf("Result: %lf\n", number.data.doubleData);
+
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
 
   if (test == 3) {
     foxgc_root_reference_t* tableRootRef = NULL;
     struct value table = value_new_table(F, 75, 16, &tableRootRef);
-    if (table.type == FLUFFYVM_NOT_PRESENT)
-      goto no_memory;
+    if (table.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+      goto error;
     
     // Setting
     {
@@ -139,11 +161,13 @@ int main() {
       struct value keyAsString = tostring(F, key, &keyRef);
       struct value value = value_table_get(F, table, key, &valRef);
       
-      if (value.type == FLUFFYVM_NOT_PRESENT) {
+      if (value.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
         printf("table[%s] = not present\n", value_get_string(keyAsString));
       } else {
         struct value valueAsString = tostring(F, value, &valRef);
-        printf("table[%s] = %s '%s'\n", value_get_string(keyAsString), value_get_string(value_typename(F, value)), value_get_string(valueAsString));
+        printf("table[%s] = %s '%s'\n", value_get_string(keyAsString), 
+            value_get_string(value_typename(F, value)), 
+            value_get_string(valueAsString));
         foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), valRef);
       }
  
@@ -151,13 +175,13 @@ int main() {
     }
 
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tableRootRef);
-  }*/
+  }
   
   /*
   // Testing hashtable (old)
   if (test == 3) {
     struct value table = value_new_table(F, 75, 16);
-    if (table.type == FLUFFYVM_NOT_PRESENT) {
+    if (table.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
       goto no_memory;
     }
 
@@ -246,7 +270,7 @@ int main() {
       {value_not_present(), value_not_present()}
     };
 
-    for (int i = 0; pairs[i][0].type != FLUFFYVM_NOT_PRESENT; i++) {
+    for (int i = 0; pairs[i][0].type != FLUFFYVM_TVALUE_NOT_PRESENT; i++) {
       struct value key = pairs[i][0];
       struct value value = pairs[i][1];
  
@@ -276,13 +300,13 @@ int main() {
       value_not_present()
     };
 
-    for (int i = 0; keyToRead[i].type != FLUFFYVM_NOT_PRESENT; i++) {
+    for (int i = 0; keyToRead[i].type != FLUFFYVM_TVALUE_NOT_PRESENT; i++) {
       struct value key = keyToRead[i];
       struct value result = value_table_get(F, table, key);
       struct value errorMessage = value_not_present();
       struct value keyAsString = value_tostring(F, key, &errorMessage);
       
-      if (errorMessage.type != FLUFFYVM_NOT_PRESENT) {
+      if (errorMessage.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
         if (errorMessage.type != FLUFFYVM_TVALUE_STRING) {
           printf("Unexpected error message type: %d\n", errorMessage.type);
         } else {
@@ -292,12 +316,12 @@ int main() {
         goto error;
       }
             
-      if (result.type != FLUFFYVM_NOT_PRESENT) {
+      if (result.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
         struct value tmp = value_not_present();
         value_copy(&errorMessage, &tmp);
         struct value resultAsString = value_tostring(F, result, &errorMessage);
 
-        if (errorMessage.type != FLUFFYVM_NOT_PRESENT) {
+        if (errorMessage.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
           if (errorMessage.type != FLUFFYVM_TVALUE_STRING) {
             printf("Unexpected error message type: %d\n", errorMessage.type);
           } else {
@@ -313,7 +337,7 @@ int main() {
         printf("table[%s] = not present\n", value_get_string(keyAsString));
       }
       
-      if (result.type != FLUFFYVM_NOT_PRESENT)
+      if (result.type != FLUFFYVM_TVALUE_NOT_PRESENT)
         value_try_decrement_ref(result);
       value_try_decrement_ref(keyAsString);
       value_try_decrement_ref(key);
@@ -323,21 +347,31 @@ int main() {
   }
   */
 
-  abort_test:
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   printMemUsage("Before VM destruction but after test");
 
+  fluffyvm_clear_errmsg(F);
+
   error:
-  no_memory:
+  if (fluffyvm_is_errmsg_present(F))
+    printf("Error: %s\n", value_get_string(fluffyvm_get_errmsg(F)));
+
   fluffyvm_free(F);
 
+  cannotCreateVm:
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   printMemUsage("After VM destruction");
   foxgc_api_free(heap);
-  puts("Exiting :3");
+
+  return 0;
 }
 
+int main() {
+  int ret = main2();
 
+  puts("Exiting :3");
+  return ret;
+}
 

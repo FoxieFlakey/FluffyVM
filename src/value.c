@@ -18,7 +18,7 @@
 #endif
 
 static struct value valueNotPresent = {
-  .type = FLUFFYVM_NOT_PRESENT,
+  .type = FLUFFYVM_TVALUE_NOT_PRESENT,
   .data = {0}
 };
 
@@ -30,32 +30,58 @@ static struct value valueNil = {
 #define new_static_string(name, string) do { \
   foxgc_root_reference_t* tmpRef;\
   struct value tmp = value_new_string(vm, (string), &tmpRef); \
+  if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
+    return false; \
   value_copy(&vm->valueStaticData->name, &tmp); \
   foxgc_api_root_add(vm->heap, value_get_object_ptr(tmp), vm->staticDataRoot, &vm->valueStaticData->name ## RootRef); \
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRef); \
 } while (0)
 
-#define GET_STATIC(vm, name) (vm->valueStaticData->name)
+#define clean_static_string(name) do { \
+  if (vm->valueStaticData->name ## RootRef) \
+    foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, vm->valueStaticData->name ## RootRef); \
+} while (0)
 
-void value_init(struct fluffyvm* vm) {
+bool value_init(struct fluffyvm* vm) {
   vm->valueStaticData = malloc(sizeof(*vm->valueStaticData));
+  vm->valueStaticData->outOfMemoryStringRootRef = NULL;
+  vm->valueStaticData->outOfMemoryWhileAnErrorOccuredRootRef = NULL;
+  vm->valueStaticData->outOfMemoryWhileHandlingErrorRootRef = NULL;
+  vm->valueStaticData->strtodDidNotProcessAllTheDataRootRef = NULL;
+  vm->valueStaticData->hasInit = false;
+
+  vm->valueStaticData->typenames.nilRootRef = NULL;
+  vm->valueStaticData->typenames.stringRootRef = NULL;
+  vm->valueStaticData->typenames.tableRootRef = NULL;
+  vm->valueStaticData->typenames.longNumRootRef = NULL;
+  vm->valueStaticData->typenames.doubleNumRootRef = NULL;
+
   new_static_string(outOfMemoryString, "out of memory");
+  new_static_string(outOfMemoryWhileHandlingError, "out of memory while handling another error");
+  new_static_string(outOfMemoryWhileAnErrorOccured, "out of memory while another error occured");
+  new_static_string(strtodDidNotProcessAllTheData, "strtod did not process all the data");
   
   new_static_string(typenames.nil, "nil");
   new_static_string(typenames.string, "string");
   new_static_string(typenames.doubleNum, "double");
   new_static_string(typenames.longNum, "long");
   new_static_string(typenames.table, "table");
+  
+  vm->valueStaticData->hasInit = true;
+  return true;
 }
 
 void value_cleanup(struct fluffyvm* vm) {
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, outOfMemoryStringRootRef));
-  
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, typenames.nilRootRef));
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, typenames.stringRootRef));
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, typenames.longNumRootRef));
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, typenames.doubleNumRootRef));
-  foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, GET_STATIC(vm, typenames.tableRootRef));
+  clean_static_string(outOfMemoryString);
+  clean_static_string(outOfMemoryWhileAnErrorOccured);
+  clean_static_string(outOfMemoryWhileHandlingError);
+  clean_static_string(strtodDidNotProcessAllTheData);
+
+  clean_static_string(typenames.nil);
+  clean_static_string(typenames.string);
+  clean_static_string(typenames.longNum);
+  clean_static_string(typenames.doubleNum);
+  clean_static_string(typenames.table);
 
   free(vm->valueStaticData);
 }
@@ -72,6 +98,8 @@ static struct value value_new_string2(struct fluffyvm* vm, const char* str, size
   }));
 
   if (!strObj) {
+    if (vm->valueStaticData->hasInit)
+      fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
     free(strStruct);
     return valueNotPresent;
   }
@@ -105,9 +133,12 @@ struct value value_new_long(struct fluffyvm* vm, int64_t integer) {
 struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef) {
   struct hashtable* hashtable = hashtable_new(vm, loadFactor, initialCapacity, fluffyvm_get_root(vm), rootRef);
 
-  if (!hashtable)
+  if (!hashtable) {
+    if (vm->valueStaticData->hasInit)
+      fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
     return valueNotPresent;
-  
+  }
+
   struct value value = {
     .data.table = hashtable->gc_this,
     .type = FLUFFYVM_TVALUE_TABLE
@@ -128,7 +159,7 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
     case FLUFFYVM_TVALUE_NIL:
       return NULL;
     
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
 }
@@ -198,7 +229,7 @@ bool value_hash_code(struct value value, uintptr_t* hashCode) {
     case FLUFFYVM_TVALUE_NIL:
       break;
     
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
     case FLUFFYVM_TVALUE_TABLE:
       hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
@@ -219,11 +250,32 @@ struct value value_new_double(struct fluffyvm* vm, double number) {
 }
 
 static void checkPresent(struct value* value) {
-  if (value->type == FLUFFYVM_NOT_PRESENT)
+  if (value->type == FLUFFYVM_TVALUE_NOT_PRESENT)
     abort();
 }
 
-struct value value_tostring(struct fluffyvm* vm, struct value value, struct value* errorMessage, foxgc_root_reference_t** rootRef) {
+const char* value_get_string(struct value value) {
+  checkPresent(&value);
+  if (value.type != FLUFFYVM_TVALUE_STRING)
+    return NULL;
+  
+  return (const char*) foxgc_api_object_get_data(value.data.str->str);
+}
+
+size_t value_get_len(struct value value) {
+  checkPresent(&value); 
+
+  switch (value.type) {
+    case FLUFFYVM_TVALUE_STRING:
+      return foxgc_api_get_array_length(value.data.str->str);
+    case FLUFFYVM_TVALUE_TABLE:
+      return ((struct hashtable*) foxgc_api_object_get_data(value.data.table))->usage;
+    default:
+      return -1;
+  }
+}
+
+struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_reference_t** rootRef) {
   checkPresent(&value);
 
   size_t bufLen = 0;
@@ -244,6 +296,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
       break;
 
     case FLUFFYVM_TVALUE_NIL:
+      foxgc_api_root_add(vm->heap, vm->valueStaticData->typenames.nil.data.str->str, fluffyvm_get_root(vm), rootRef);
       return vm->valueStaticData->typenames.nil;
     
     case FLUFFYVM_TVALUE_TABLE:
@@ -251,11 +304,14 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
       bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
       break;
 
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
   
   struct value_string* strStruct = malloc(sizeof(*strStruct));
+  if (strStruct == NULL)
+    goto no_memory;
+
   foxgc_object_t* obj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, bufLen, Block_copy(^void (foxgc_object_t* obj) {
     free(strStruct); 
   }));
@@ -280,32 +336,41 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, struct valu
       break;
     
     case FLUFFYVM_TVALUE_TABLE:
-      bufLen = sprintf(buffer, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
+      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
       break;
 
     case FLUFFYVM_TVALUE_STRING:
     case FLUFFYVM_TVALUE_NIL:  
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
   return result;
   
   no_memory:
   free(strStruct);
-  if (errorMessage) {
-    value_copy(errorMessage, &vm->valueStaticData->outOfMemoryString);
-    foxgc_object_t* ptr;
-    if ((ptr = value_get_object_ptr(*errorMessage))) 
-      foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
-  }
+  if (vm->valueStaticData->hasInit)
+    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
   return valueNotPresent;
 }
 
 struct value value_typename(struct fluffyvm* vm, struct value value) {
-  return valueNotPresent;
+  switch (value.type) {
+    case FLUFFYVM_TVALUE_STRING:
+      return vm->valueStaticData->typenames.string;
+    case FLUFFYVM_TVALUE_LONG:
+      return vm->valueStaticData->typenames.longNum;
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return vm->valueStaticData->typenames.doubleNum;
+    case FLUFFYVM_TVALUE_NIL:
+      return vm->valueStaticData->typenames.nil;
+    case FLUFFYVM_TVALUE_TABLE:
+      return vm->valueStaticData->typenames.table;
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
+      abort();
+  };
 }
 
-struct value value_todouble(struct fluffyvm* vm, struct value value, struct value* errorMessage) {
+struct value value_todouble(struct fluffyvm* vm, struct value value) {
   checkPresent(&value);
   
   char* lastChar = NULL;
@@ -314,9 +379,35 @@ struct value value_todouble(struct fluffyvm* vm, struct value value, struct valu
     case FLUFFYVM_TVALUE_STRING:
       errno = 0;
       number = strtod(foxgc_api_object_get_data(value.data.str->str), &lastChar);
-      if (*lastChar != '\0' || errno != 0) {
-        return valueNil;
+      if (errno != 0) {
+        static const char* format = "strtod errored with %d (%d)";
+        
+        int currentErrno = errno;
+        char errorMessage[256] = {0};
+        int err = strerror_r(currentErrno, errorMessage, sizeof(errorMessage));
+
+        size_t len = 0;
+        char* errMsg = malloc(len = snprintf(NULL, 0, format, currentErrno, err == 0 ? errorMessage : "error converting errno to string"));
+        if (!errMsg) {
+          fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryWhileAnErrorOccured);
+          return valueNotPresent;
+        }
+        snprintf(errMsg, len, format, currentErrno, err == 0 ? errorMessage : "error converting errno to string");
+        
+        foxgc_root_reference_t* ref = NULL;
+        struct value errorString = value_new_string(vm, errMsg, &ref);
+        if (errorString.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
+          fluffyvm_set_errmsg(vm, errorString);
+          foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
+        }
+
+        free(errMsg);
+        return valueNotPresent;
+      } else if (*lastChar != '\0') {
+        fluffyvm_set_errmsg(vm, vm->valueStaticData->strtodDidNotProcessAllTheData);
+        return valueNotPresent;
       }
+
       break;
 
     case FLUFFYVM_TVALUE_LONG:
@@ -332,7 +423,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value, struct valu
     case FLUFFYVM_TVALUE_NIL:
       return valueNil;
     
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
 
@@ -354,7 +445,7 @@ void* value_get_unique_ptr(struct value value) {
     case FLUFFYVM_TVALUE_NIL:
       return NULL;
     
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
 }
@@ -392,7 +483,7 @@ bool value_equals(struct value op1, struct value op2) {
     case FLUFFYVM_TVALUE_NIL:
       return true;
     
-    case FLUFFYVM_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
 

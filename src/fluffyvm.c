@@ -7,6 +7,7 @@
 #include "hashtable.h"
 #include "value.h"
 #include "fluffyvm_types.h"
+#include "bytecode.h"
 
 // Make current thread managed
 static void initThread(struct fluffyvm* this) {
@@ -14,6 +15,8 @@ static void initThread(struct fluffyvm* this) {
 
   foxgc_root_t* root = foxgc_api_new_root(this->heap); 
   pthread_setspecific(this->currentThreadRootKey, root);
+  pthread_setspecific(this->errMsgKey, NULL);
+  pthread_setspecific(this->errMsgRootRefKey, NULL);
 }
 
 static void validateThisThread(struct fluffyvm* this) {
@@ -25,9 +28,24 @@ static void validateThisThread(struct fluffyvm* this) {
 
 // Cleanup resources allocated for current thread
 static void cleanThread(struct fluffyvm* this) {
+  foxgc_root_reference_t* ref = pthread_getspecific(this->errMsgRootRefKey);
+  if (ref)
+    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), ref);
+  free(pthread_getspecific(this->errMsgRootRefKey));
+  
   foxgc_api_delete_root(this->heap, pthread_getspecific(this->currentThreadRootKey));
   
   this->numberOfManagedThreads--;
+}
+
+static void commonCleanup(struct fluffyvm* this) {
+  foxgc_api_delete_root(this->heap, this->staticDataRoot);
+
+  cleanThread(this);
+  pthread_key_delete(this->currentThreadRootKey);
+  pthread_key_delete(this->errMsgKey);
+  pthread_key_delete(this->errMsgRootRefKey);
+  free(this);
 }
 
 struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
@@ -35,15 +53,86 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   this->heap = heap;
   this->numberOfManagedThreads = 0;
   pthread_key_create(&this->currentThreadRootKey, NULL);
+  pthread_key_create(&this->errMsgKey, NULL);
+  pthread_key_create(&this->errMsgRootRefKey, NULL);
   initThread(this);
   
   this->staticDataRoot = foxgc_api_new_root(heap);
 
+  int initCounts = 0;
+
   // Start initializing stuffs
-  value_init(this);
-  hashtable_init(this);
+  initCounts++;
+  if (!value_init(this))
+    goto error;
+  
+  initCounts++;
+  if (!hashtable_init(this))
+    goto error;
+
+  initCounts++;
+  if (!bytecode_init(this))
+    goto error;
 
   return this;
+  
+  error:
+  // Using switch passthrough
+  // to correctly call clean up
+  // for all initialized stuffs
+  // and in correct order
+  switch (initCounts) {
+    case 3:
+      bytecode_cleanup(this);
+    case 2:
+      hashtable_cleanup(this);
+    case 1:
+      value_cleanup(this);
+  }
+  commonCleanup(this);
+  return NULL;
+}
+
+void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
+  validateThisThread(vm);
+  struct value* msg;
+  if ((msg = pthread_getspecific(vm->errMsgKey))) {
+    foxgc_root_reference_t* ref;
+    if ((ref = pthread_getspecific(vm->errMsgRootRefKey)))
+      foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
+    
+    free(msg);
+  }
+
+  if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
+    pthread_setspecific(vm->errMsgKey, NULL);
+    pthread_setspecific(vm->errMsgRootRefKey, NULL);
+    return;
+  }
+
+  foxgc_object_t* ptr;
+  if ((ptr = value_get_object_ptr(val))) {
+    foxgc_root_reference_t* ref = NULL;
+    foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), &ref);
+  } else {
+    pthread_setspecific(vm->errMsgRootRefKey, NULL);
+  }
+
+  msg = malloc(sizeof(val));
+  value_copy(msg, &val);
+  pthread_setspecific(vm->errMsgKey, msg);
+}
+
+bool fluffyvm_is_errmsg_present(struct fluffyvm* vm) {
+  validateThisThread(vm);
+  return pthread_getspecific(vm->errMsgKey) != NULL;
+}
+
+struct value fluffyvm_get_errmsg(struct fluffyvm* vm) {
+  validateThisThread(vm);
+  if (!fluffyvm_is_errmsg_present(vm))
+    return value_not_present();
+  return *((struct value*) pthread_getspecific(vm->errMsgKey));
 }
 
 void fluffyvm_free(struct fluffyvm* this) {
@@ -55,14 +144,11 @@ void fluffyvm_free(struct fluffyvm* this) {
     abort();
   }
 
+  bytecode_cleanup(this);
   hashtable_cleanup(this);
   value_cleanup(this);
-
-  foxgc_api_delete_root(this->heap, this->staticDataRoot);
-
-  cleanThread(this);
-  pthread_key_delete(this->currentThreadRootKey);
-  free(this);
+  
+  commonCleanup(this);
 }
 
 struct thread_args {
@@ -89,6 +175,8 @@ static void* threadStub(void* _args) {
 }
 
 bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_attr_t* attr, fluffyvm_thread_routine_t routine, void* args) {
+  validateThisThread(this);
+  
   struct thread_args* data = malloc(sizeof(*data));
   data->routine = routine;
   data->vm = this;

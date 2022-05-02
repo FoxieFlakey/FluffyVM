@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#include "value.h"
 #include "foxgc.h"
 #include "collections/list.h"
 
@@ -23,9 +24,23 @@ struct fluffyvm {
   
   struct value_static_data* valueStaticData;
   struct hashtable_static_data* hashTableStaticData;
-  
+  struct bytecode_static_data* bytecodeStaticData;
+
   foxgc_root_t* staticDataRoot;
+
+  // Essentially like errno
+  pthread_key_t errMsgKey;
+  pthread_key_t errMsgRootRefKey;
 };
+
+// errmsg in all docs refer to these two functions
+// unless noted
+void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val);
+struct value fluffyvm_get_errmsg(struct fluffyvm* vm);
+bool fluffyvm_is_errmsg_present(struct fluffyvm* vm);
+static inline void fluffyvm_clear_errmsg(struct fluffyvm* vm) {
+  fluffyvm_set_errmsg(vm, value_not_present());
+}
 
 typedef void* (^fluffyvm_thread_routine_t)(void*);
 
