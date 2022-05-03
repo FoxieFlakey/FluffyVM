@@ -310,13 +310,21 @@ function preparePrototype(proto)
   local newInstructions = {}
   for i=0,proto.pc - 2 do
     local low, high = 0, 0
-    for j=0,3 do
-      high = high + (proto.instructions[i * 8 + j + 1] * math.floor(0xFF^j))
+    low = proto.instructions[i * 8 + 8] +
+           (proto.instructions[i * 8 + 7] * 0x100) +
+           (proto.instructions[i * 8 + 6] * 0x10000) +
+           (proto.instructions[i * 8 + 5] * 0x1000000)
+    high = proto.instructions[i * 8 + 4] +
+           (proto.instructions[i * 8 + 3] * 0x100) +
+           (proto.instructions[i * 8 + 2] * 0x10000) +
+           (proto.instructions[i * 8 + 1] * 0x1000000)
+    --[[for j=0,3 do
+      high = high + (proto.instructions[i * 8 + j + 1] * math.floor(0xFF^(3-j)))
     end
     for j=0,3 do
       low = low + (proto.instructions[i * 8 + j + 5] * math.floor(0xFF^j))
-    end
-    print(string.format("%08X %08X", low, high))
+    end]]
+    --print(string.format("%08X %08X (%d %d)", high, low, high, low))
     table.insert(newInstructions, {low=low, high=high})
   end
   

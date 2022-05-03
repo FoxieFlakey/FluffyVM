@@ -8,7 +8,7 @@
 #include "fluffyvm.h"
 #include "value.h"
 #include "hashtable.h"
-#include "bytecode.h"
+#include "loader/bytecode/json.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -78,11 +78,11 @@ int main2() {
   
   // Bootloader  
   static const char bootloader[] = 
-    "{\"constants\":[{\"data\":\"Hello World!\",\"type\":\"string\"},{\"data\":\"print\",\"type\":\"string\"}],\"mainPrototype\":{\"instructions\":[{\"low\":255,\"high\":16581385},{\"low\":0,\"high\":33162760},{\"low\":16646400,\"high\":16581377},{\"low\":0,\"high\":3},{\"low\":0,\"high\":33162755},{\"low\":0,\"high\":16581379},{\"low\":510,\"high\":12},{\"low\":0,\"high\":11}],\"prototypes\":[{\"instructions\":[{\"low\":0,\"high\":0},{\"low\":0,\"high\":1},{\"low\":0,\"high\":3},{\"low\":0,\"high\":7},{\"low\":0,\"high\":8},{\"low\":0,\"high\":9}],\"prototypes\":[{\"instructions\":[{\"low\":0,\"high\":5},{\"low\":0,\"high\":6}],\"prototypes\":[]}]}]}}"
+    "{\"constants\":[{\"data\":\"Hello World!\",\"type\":\"string\"},{\"data\":\"print\",\"type\":\"string\"}],\"mainPrototype\":{\"prototypes\":[{\"prototypes\":[{\"prototypes\":[],\"instructions\":[{\"high\":83886080,\"low\":0},{\"high\":100663296,\"low\":0}]}],\"instructions\":[{\"high\":0,\"low\":0},{\"high\":16777216,\"low\":0},{\"high\":50331648,\"low\":0},{\"high\":117440512,\"low\":0},{\"high\":134217728,\"low\":0},{\"high\":150994944,\"low\":0}]}],\"instructions\":[{\"high\":167772161,\"low\":65536},{\"high\":167772162,\"low\":0},{\"high\":33554433,\"low\":4294836225},{\"high\":50331648,\"low\":0},{\"high\":83886082,\"low\":0},{\"high\":67108865,\"low\":0},{\"high\":201326592,\"low\":131072},{\"high\":184549376,\"low\":0}]}}"
     ;
 
   foxgc_root_reference_t* rootRef = NULL;
-  struct bytecode* bytecode = bytecode_load_json(F, &rootRef, bootloader, sizeof(bootloader) - 1);
+  struct bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, sizeof(bootloader) - 1);
   if (bytecode == NULL)
     goto error;
 
