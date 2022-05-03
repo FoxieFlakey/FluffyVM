@@ -114,7 +114,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   FluffyVmFormat__Bytecode__Prototype tmp = FLUFFY_VM_FORMAT__BYTECODE__PROTOTYPE__INIT;
   FluffyVmFormat__Bytecode__Prototype* prototype = malloc(sizeof(FluffyVmFormat__Bytecode__Prototype));
   if (!prototype) {
-    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
   }
   memcpy(prototype, &tmp, sizeof(*prototype));
@@ -129,7 +129,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   prototype->prototypes = calloc(prototype->n_prototypes, sizeof(FluffyVmFormat__Bytecode__Prototype*));
   if (prototype->prototypes == NULL) {
     freePrototypeProtoBuf(prototype);
-    value_copy(&vm->valueStaticData->outOfMemoryString, errorMessage2);
+    value_copy(&vm->staticStrings.outOfMemory, errorMessage2);
     return NULL;
   }
   
@@ -143,7 +143,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   prototype->instructions = calloc(prototype->n_instructions, sizeof(uint64_t));
   if (prototype->instructions == NULL) {
     freePrototypeProtoBuf(prototype);
-    value_copy(&vm->valueStaticData->outOfMemoryString, errorMessage2);
+    value_copy(&vm->staticStrings.outOfMemory, errorMessage2);
     return NULL;
   }
 
@@ -224,7 +224,7 @@ struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_refer
   // Allocate resources
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_bytecode, NULL);
   if (obj == NULL) {
-    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
   }
   struct bytecode* this = foxgc_api_object_get_data(obj);
@@ -244,7 +244,7 @@ struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_refer
   bytecode.constants = calloc(bytecode.n_constants, sizeof(FluffyVmFormat__Bytecode__Constant*));
   if (bytecode.constants == NULL) {
     freeBytecodeProtoBuf(&bytecode);
-    value_copy(&vm->valueStaticData->outOfMemoryString, &errorMessage2);
+    value_copy(&vm->staticStrings.outOfMemory, &errorMessage2);
     goto error;
   }
  
@@ -291,7 +291,7 @@ struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_refer
   void* data = malloc(packedLen);
   if (data == NULL) {
     freeBytecodeProtoBuf(&bytecode);
-    value_copy(&vm->valueStaticData->outOfMemoryString, &errorMessage2);
+    value_copy(&vm->staticStrings.outOfMemory, &errorMessage2);
     goto error;
   }
   // printf("Serializing %zu bytes\n", packedLen);
@@ -320,7 +320,7 @@ struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_refer
       fluffyvm_set_errmsg(vm, val);
       foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
     } else {
-      fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryWhileAnErrorOccured);
+      fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemoryWhileAnErrorOccured);
     }
   } else if (errorMessage2.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
     fluffyvm_set_errmsg(vm, errorMessage2);

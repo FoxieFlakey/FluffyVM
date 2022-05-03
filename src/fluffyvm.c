@@ -1,13 +1,67 @@
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <string.h>
 
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "hashtable.h"
+#include "loader/bytecode/json.h"
 #include "value.h"
 #include "fluffyvm_types.h"
 #include "bytecode.h"
+
+#define new_static_string(vm, name, string) do { \
+  foxgc_root_reference_t* tmpRef;\
+  struct value tmp = value_new_string(vm, (string), &tmpRef); \
+  if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
+    return false; \
+  value_copy(&vm->staticStrings.name, &tmp); \
+  foxgc_api_root_add(vm->heap, value_get_object_ptr(tmp), vm->staticDataRoot, &vm->staticStrings.name ## RootRef); \
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRef); \
+} while (0)
+
+#define clean_static_string(vm, name) do { \
+  if (vm->staticStrings.name ## RootRef) \
+    foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, vm->staticStrings.name ## RootRef); \
+} while (0)
+
+// Initialize static strings
+static bool initStatic(struct fluffyvm* this) {
+  memset(&this->staticStrings, 0, sizeof(this->staticStrings));
+  
+  new_static_string(this, outOfMemory, "out of memory");
+  new_static_string(this, outOfMemoryWhileHandlingError, "out of memory while handling another error");
+  new_static_string(this, outOfMemoryWhileAnErrorOccured, "out of memory while another error occured");
+  new_static_string(this, strtodDidNotProcessAllTheData, "strtod did not process all the data");
+  
+  new_static_string(this, typenames.nil, "nil");
+  new_static_string(this, typenames.string, "string");
+  new_static_string(this, typenames.doubleNum, "double");
+  new_static_string(this, typenames.longNum, "long");
+  new_static_string(this, typenames.table, "table");
+  
+  new_static_string(this, invalidCapacity, "invalid capacity");
+  new_static_string(this, badKey, "bad key"); 
+  
+  return true;
+}
+
+static void cleanStatic(struct fluffyvm* this) {
+  clean_static_string(this, outOfMemory);
+  clean_static_string(this, outOfMemoryWhileAnErrorOccured);
+  clean_static_string(this, outOfMemoryWhileHandlingError);
+  clean_static_string(this, strtodDidNotProcessAllTheData);
+
+  clean_static_string(this, typenames.nil);
+  clean_static_string(this, typenames.string);
+  clean_static_string(this, typenames.longNum);
+  clean_static_string(this, typenames.doubleNum);
+  clean_static_string(this, typenames.table);
+  
+  clean_static_string(this, badKey);
+  clean_static_string(this, invalidCapacity);
+}
 
 // Make current thread managed
 static void initThread(struct fluffyvm* this) {
@@ -38,7 +92,24 @@ static void cleanThread(struct fluffyvm* this) {
   this->numberOfManagedThreads--;
 }
 
-static void commonCleanup(struct fluffyvm* this) {
+static void commonCleanup(struct fluffyvm* this, int initCounts) {
+  // Using switch passthrough
+  // to correctly call clean up
+  // for all initialized stuffs
+  // and in correct order
+  switch (initCounts) {
+    case -1:
+    case 5:
+      bytecode_loader_json_cleanup(this);
+    case 4:
+      bytecode_cleanup(this);
+    case 3:
+      hashtable_cleanup(this);
+    case 2:
+      cleanStatic(this);
+    case 1:
+      value_cleanup(this);
+  }
   foxgc_api_delete_root(this->heap, this->staticDataRoot);
 
   cleanThread(this);
@@ -50,6 +121,9 @@ static void commonCleanup(struct fluffyvm* this) {
 
 struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   struct fluffyvm* this = malloc(sizeof(*this));
+  if (this == NULL)
+    return this;
+  
   this->heap = heap;
   this->numberOfManagedThreads = 0;
   pthread_key_create(&this->currentThreadRootKey, NULL);
@@ -67,6 +141,10 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
     goto error;
   
   initCounts++;
+  if (!initStatic(this))
+    goto error;
+
+  initCounts++;
   if (!hashtable_init(this))
     goto error;
 
@@ -74,22 +152,14 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   if (!bytecode_init(this))
     goto error;
 
+  initCounts++;
+  if (!bytecode_loader_json_init(this))
+    goto error;
+
   return this;
   
-  error:
-  // Using switch passthrough
-  // to correctly call clean up
-  // for all initialized stuffs
-  // and in correct order
-  switch (initCounts) {
-    case 3:
-      bytecode_cleanup(this);
-    case 2:
-      hashtable_cleanup(this);
-    case 1:
-      value_cleanup(this);
-  }
-  commonCleanup(this);
+  error: 
+  commonCleanup(this, initCounts);
   return NULL;
 }
 
@@ -140,15 +210,10 @@ void fluffyvm_free(struct fluffyvm* this) {
 
   // There still other thread running
   // 1 of the threads is the caller thread
-  if (this->numberOfManagedThreads > 1) {
+  if (this->numberOfManagedThreads > 1)
     abort();
-  }
-
-  bytecode_cleanup(this);
-  hashtable_cleanup(this);
-  value_cleanup(this);
   
-  commonCleanup(this);
+  commonCleanup(this, -1);
 }
 
 struct thread_args {

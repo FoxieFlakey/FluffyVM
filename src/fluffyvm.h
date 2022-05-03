@@ -22,7 +22,6 @@ struct fluffyvm {
   
   atomic_int numberOfManagedThreads;
   
-  struct value_static_data* valueStaticData;
   struct hashtable_static_data* hashTableStaticData;
   struct bytecode_static_data* bytecodeStaticData;
 
@@ -31,6 +30,45 @@ struct fluffyvm {
   // Essentially like errno
   pthread_key_t errMsgKey;
   pthread_key_t errMsgRootRefKey;
+
+  // Static strings
+  struct { 
+    struct value invalidCapacity;
+    foxgc_root_reference_t* invalidCapacityRootRef;
+    
+    struct value badKey;
+    foxgc_root_reference_t* badKeyRootRef;
+    
+    struct value outOfMemory;
+    foxgc_root_reference_t* outOfMemoryRootRef;
+    
+    struct value outOfMemoryWhileHandlingError;
+    foxgc_root_reference_t* outOfMemoryWhileHandlingErrorRootRef;
+    
+    struct value outOfMemoryWhileAnErrorOccured;
+    foxgc_root_reference_t* outOfMemoryWhileAnErrorOccuredRootRef;
+    
+    struct value strtodDidNotProcessAllTheData;
+    foxgc_root_reference_t* strtodDidNotProcessAllTheDataRootRef;
+  
+    // Type names
+    struct {
+      struct value nil;
+      foxgc_root_reference_t* nilRootRef;
+      
+      struct value longNum;
+      foxgc_root_reference_t* longNumRootRef;
+      
+      struct value doubleNum;
+      foxgc_root_reference_t* doubleNumRootRef;
+      
+      struct value string;
+      foxgc_root_reference_t* stringRootRef;
+      
+      struct value table;
+      foxgc_root_reference_t* tableRootRef;
+    } typenames;
+  } staticStrings;
 };
 
 // errmsg in all docs refer to these two functions

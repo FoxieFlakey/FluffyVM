@@ -35,21 +35,6 @@ struct pair {
     foxgc_api_descriptor_remove(vm->hashTableStaticData->name); \
 } while(0)
 
-#define new_static_string(name, string) do { \
-  foxgc_root_reference_t* tmpRef;\
-  struct value tmp = value_new_string(vm, (string), &tmpRef); \
-  if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
-    return false; \
-  value_copy(&vm->hashTableStaticData->name, &tmp); \
-  foxgc_api_root_add(vm->heap, value_get_object_ptr(tmp), vm->staticDataRoot, &vm->hashTableStaticData->name ## RootRef); \
-  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRef); \
-} while (0)
-
-#define clean_static_string(name) do { \
-  if (vm->hashTableStaticData->name ## RootRef) \
-    foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, vm->hashTableStaticData->name ## RootRef); \
-} while (0)
-
 #define PAIR_OFFSET_THIS (0)
 #define PAIR_OFFSET_NEXT (1)
 #define PAIR_OFFSET_KEY (2)
@@ -75,18 +60,12 @@ bool hashtable_init(struct fluffyvm* vm) {
     offsetof(struct pair, gc_value)
   });
 
-  new_static_string(error_invalidCapacity, "invalid capacity");
-  new_static_string(error_badKey, "bad key"); 
-
   return true;
 }
 
 void hashtable_cleanup(struct fluffyvm* vm) {
   if (!vm->hashTableStaticData)
     return;
-
-  clean_static_string(error_badKey);
-  clean_static_string(error_invalidCapacity);
 
   free_descriptor(desc_hashTable);
   free_descriptor(desc_pair);
@@ -118,7 +97,7 @@ static inline void pair_write_value(struct pair* this, struct value value) {
 static struct pair* new_pair(struct fluffyvm* vm, foxgc_root_reference_t** rootRef) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->hashTableStaticData->desc_pair, NULL);
   if (!obj) {
-    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL; 
   }
 
@@ -145,7 +124,7 @@ static inline void hashtable_write_table(struct hashtable* this, foxgc_object_t*
 static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, struct value key, struct value value) {
   uintptr_t hash = -1;
   if (value_hash_code(key, &hash)) {
-    fluffyvm_set_errmsg(vm, vm->hashTableStaticData->error_badKey);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return false;
   }
   int index = hash & (capacity - 1);
@@ -193,7 +172,7 @@ static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity
   foxgc_object_t* oldTable = this->gc_table;
   foxgc_object_t* newTable = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &newTableRootRef, desiredCapacity, NULL);
   if (!newTable) {
-    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return false;
   }
   
@@ -224,13 +203,13 @@ static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity
 
 struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_t* root, foxgc_root_reference_t** rootRef) {
   if (!(initialCapacity > 0 && (!(initialCapacity & (initialCapacity - 1))))) {
-    fluffyvm_set_errmsg(vm, vm->hashTableStaticData->error_invalidCapacity);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidCapacity);
     return NULL;
   }
 
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, root, rootRef, vm->hashTableStaticData->desc_hashTable, NULL);
   if (obj == NULL) {
-    fluffyvm_set_errmsg(vm, vm->valueStaticData->outOfMemoryString);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
   }
 
@@ -271,7 +250,7 @@ bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef) {
   uintptr_t hash = -1;
   if (value_hash_code(key, &hash)) {
-    fluffyvm_set_errmsg(vm, vm->hashTableStaticData->error_badKey);
+    fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return value_not_present();
   }
   int index = hash & (this->capacity - 1);

@@ -18,9 +18,11 @@ OBJS=$(SRCS:.c=.o)
 
 .PHONY: all
 .SUFFIXES: .c .o
-all:
-	@cd src/format && $(MAKE)
+all: protobuf
 	@$(MAKE) link
+
+protobuf:
+	@cd src/format && $(MAKE)
 
 link: libfoxgc $(OBJS)
 	@echo Linking '$(OUTPUT)'
@@ -37,7 +39,7 @@ libfoxgc:
 clean:
 	@cd libs/FoxGC/ && $(MAKE) clean || true
 	@cd src/format && $(MAKE) clean || true
-	@rm $(OBJS) $(OUTPUT) 
+	@rm $(OBJS) $(OUTPUT) || true
 
 run: link
 	@echo Running...
