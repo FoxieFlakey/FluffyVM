@@ -163,7 +163,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   return prototype;
 }
 
-struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* buffer, size_t len) {
+struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* buffer, size_t len) {
   const char* errorMessage = NULL;
   struct value errorMessage2 = value_not_present();
   pthread_mutex_lock(&cjson_lock);
@@ -308,7 +308,7 @@ struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_refer
   
   // Error will be still properly propagates to
   // the caller
-  struct bytecode* result = bytecode_load(vm, rootRef, data, packedLen);
+  struct fluffyvm_bytecode* result = bytecode_load(vm, rootRef, data, packedLen);
   free(data);
   return result;
 

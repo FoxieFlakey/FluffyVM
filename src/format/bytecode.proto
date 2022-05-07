@@ -2,7 +2,7 @@ syntax = "proto3";
 package FluffyVmFormat.Bytecode;
 
 enum ConstantType {
-  NIL = 0;
+  NOT_SET = 0;
   STRING = 1;
   DOUBLE = 2;
   LONG = 3;

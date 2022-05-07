@@ -6,9 +6,12 @@
 
 #include "foxgc.h"
 #include "fluffyvm.h"
+#include "util/functional/functional.h"
 #include "value.h"
 #include "hashtable.h"
 #include "loader/bytecode/json.h"
+#include "util/util.h"
+#include "bootloader.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -77,17 +80,52 @@ int main2() {
   printMemUsage("After VM creation but before test");
   
   // Bootloader  
-  static const char bootloader[] = 
-    "{\"constants\":[{\"data\":\"Hello World!\",\"type\":\"string\"},{\"data\":\"print\",\"type\":\"string\"}],\"mainPrototype\":{\"prototypes\":[{\"prototypes\":[{\"prototypes\":[],\"instructions\":[{\"high\":83886080,\"low\":0},{\"high\":100663296,\"low\":0}]}],\"instructions\":[{\"high\":0,\"low\":0},{\"high\":16777216,\"low\":0},{\"high\":50331648,\"low\":0},{\"high\":117440512,\"low\":0},{\"high\":134217728,\"low\":0},{\"high\":150994944,\"low\":0}]}],\"instructions\":[{\"high\":167772161,\"low\":65536},{\"high\":167772162,\"low\":0},{\"high\":33554433,\"low\":4294836225},{\"high\":50331648,\"low\":0},{\"high\":83886082,\"low\":0},{\"high\":67108865,\"low\":0},{\"high\":201326592,\"low\":131072},{\"high\":184549376,\"low\":0}]}}"
-    ;
+  const char* bootloader = data_bootloader; 
+  
+  fluffyvm_thread_routine_t test = ^void* (void* _) {
+    foxgc_root_reference_t* rootRef = NULL;
+    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, data_bootloader_get_len() - 1);
+    const int tid = fluffyvm_get_thread_id(F);
 
-  foxgc_root_reference_t* rootRef = NULL;
-  struct bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, sizeof(bootloader) - 1);
-  if (bytecode == NULL)
-    goto error;
+    if (bytecode == NULL) {
+      if (fluffyvm_is_errmsg_present(F)) {
+        printMemUsage("At error");
+        printf("[Thread %d] Error: %s\n", tid, value_get_string(fluffyvm_get_errmsg(F)));
+        return NULL;
+      }
+    }
 
-  printMemUsage("Middle of test");
-  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+    char* tmp;
+    util_asprintf(&tmp, "[Thread %d] Middle of test", fluffyvm_get_thread_id(F));
+    printMemUsage(tmp);
+    free(tmp);
+    
+    for (int i = 0; i < bytecode->constants_len ; i++) {
+      struct value constant = bytecode->constants[i];
+      size_t len = value_get_len(constant);
+      printf("[Thread %d] ConstantPool[%d] = ", tid, i);
+      fwrite(value_get_string(constant), 1, len, stdout);
+      putchar('\n');
+    }
+
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+    return NULL;
+  };
+  
+  test(NULL);
+
+  /* pthread_t testThread;
+  fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
+  
+  pthread_t testThread2;
+  fluffyvm_start_thread(F, &testThread2, NULL, test, NULL);
+  
+  pthread_t testThread3;
+  fluffyvm_start_thread(F, &testThread3, NULL, test, NULL);
+  
+  pthread_join(testThread, NULL);
+  pthread_join(testThread2, NULL);
+  pthread_join(testThread3, NULL); */
 
   /*foxgc_root_reference_t* tmpRootRef;
   int test = 3;

@@ -12,7 +12,7 @@ void bytecode_loader_json_cleanup(struct fluffyvm *vm);
 //  * Bytecode cannot have strings which have
 //    embedded zeros in it
 //  * Very slow compare to other methods
-struct bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* buffer, size_t len); 
+struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* buffer, size_t len); 
 
 #endif
 

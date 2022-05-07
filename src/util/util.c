@@ -1,5 +1,6 @@
 #include "util.h"
 
+#include <stdatomic.h>
 #include <stdio.h> /* needed for vsnprintf */
 #include <stdlib.h> /* needed for malloc-free */
 #include <stdarg.h> /* needed for va_list */
@@ -174,6 +175,7 @@ char* util_bin2hex(uint8_t* src, size_t len) {
 
 static void* runner(void* arg) {
   ((runnable_t) arg)();
+  Block_release(arg);
   return NULL;
 }
 
@@ -181,9 +183,9 @@ bool util_run_thread(runnable_t runnable, pthread_t* thread) {
   pthread_t t;
   if (runnable == NULL)
     return false;
-  
-  if (thread == NULL)
-    thread = &t;
-  
-  return pthread_create(thread, NULL, runner, runnable) == 0;
+   
+  return pthread_create(thread ? thread : &t, NULL, runner, runnable) == 0;
 }
+
+
+

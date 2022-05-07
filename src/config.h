@@ -1,6 +1,18 @@
 #ifndef header_1650978545_config_h
 #define header_1650978545_config_h
 
+// Release number
+// increment by one for every release
+#define FLUFFYVM_RELEASE_NUM (1)
+
+
+
+
+
+////////////////////////////////////////
+// Hashing config                     //
+////////////////////////////////////////
+
 ////////////////////////////////////////
 // xxHash options                     //
 ////////////////////////////////////////

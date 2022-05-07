@@ -21,10 +21,16 @@ struct fluffyvm_prototype {
 
 struct fluffyvm_bytecode {
   size_t prototypes_len;
-  foxgc_object_t** prototypes;
+  struct fluffyvm_prototype* mainPrototype;
+  
+  size_t constants_len;
+  struct value* constants;
+  foxgc_object_t** constantsObject;
 
   foxgc_object_t* gc_this;
-  foxgc_object_t* gc_prototypes;
+  foxgc_object_t* gc_mainPrototype;
+  foxgc_object_t* gc_constants;
+  foxgc_object_t* gc_constantsObject;
 };
 
 bool bytecode_init(struct fluffyvm* vm); 
@@ -32,7 +38,7 @@ void bytecode_cleanup(struct fluffyvm* vm);
 
 // `data` is pointing to buffer with size of `len`
 // containing ProtoBuf encoded `message Bytecode`
-struct bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, void* data, size_t len);
+struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, void* data, size_t len);
 
 #endif
 

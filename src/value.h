@@ -17,7 +17,9 @@ typedef enum value_types {
   FLUFFYVM_TVALUE_DOUBLE,
   FLUFFYVM_TVALUE_LONG,
   FLUFFYVM_TVALUE_STRING,
-  FLUFFYVM_TVALUE_TABLE
+  FLUFFYVM_TVALUE_TABLE,
+
+  FLUFFYVM_TVALUE_LAST
 } value_types_t;
 
 struct value_string {
@@ -45,13 +47,12 @@ typedef struct value {
 const char* value_get_string(struct value value);
 size_t value_get_len(struct value value);
 
-static inline void value_copy(struct value* dest, struct value* src) {
-  memcpy(dest, src, sizeof(struct value));
-}
+void value_copy(struct value* dest, struct value* src);
 
 bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
 
+struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef);
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
 struct value value_new_long(struct fluffyvm* vm, int64_t integer);
 struct value value_new_double(struct fluffyvm* vm, double number);

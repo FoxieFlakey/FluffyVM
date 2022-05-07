@@ -31,6 +31,9 @@ struct fluffyvm {
   pthread_key_t errMsgKey;
   pthread_key_t errMsgRootRefKey;
 
+  atomic_int currentAvailableThreadID;
+  pthread_key_t currentThreadID;
+ 
   // Static strings
   struct { 
     struct value invalidCapacity;
@@ -50,7 +53,19 @@ struct fluffyvm {
     
     struct value strtodDidNotProcessAllTheData;
     foxgc_root_reference_t* strtodDidNotProcessAllTheDataRootRef;
-  
+    
+    struct value protobufFailedToUnpackData;
+    foxgc_root_reference_t* protobufFailedToUnpackDataRootRef;
+    
+    struct value pthreadCreateError;
+    foxgc_root_reference_t* pthreadCreateErrorRootRef;
+    
+    struct value unsupportedBytecode;
+    foxgc_root_reference_t* unsupportedBytecodeRootRef;
+    
+    struct value invalidBytecode;
+    foxgc_root_reference_t* invalidBytecodeRootRef;
+
     // Type names
     struct {
       struct value nil;
@@ -98,6 +113,7 @@ bool fluffyvm_is_managed(struct fluffyvm* this);
 // VM API calls
 bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_attr_t* attr, fluffyvm_thread_routine_t routine, void* args);
 foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this);
+int fluffyvm_get_thread_id(struct fluffyvm* this);
 
 // WARNING: Make sure at the moment you call
 // this there are no access to this in the future

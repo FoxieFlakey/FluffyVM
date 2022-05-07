@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -34,16 +35,18 @@ static bool initStatic(struct fluffyvm* this) {
   new_static_string(this, outOfMemoryWhileHandlingError, "out of memory while handling another error");
   new_static_string(this, outOfMemoryWhileAnErrorOccured, "out of memory while another error occured");
   new_static_string(this, strtodDidNotProcessAllTheData, "strtod did not process all the data");
-  
   new_static_string(this, typenames.nil, "nil");
   new_static_string(this, typenames.string, "string");
   new_static_string(this, typenames.doubleNum, "double");
   new_static_string(this, typenames.longNum, "long");
   new_static_string(this, typenames.table, "table");
-  
   new_static_string(this, invalidCapacity, "invalid capacity");
   new_static_string(this, badKey, "bad key"); 
-  
+  new_static_string(this, protobufFailedToUnpackData, "protobuf failed to unpack data");
+  new_static_string(this, unsupportedBytecode, "unsupported bytecode version");
+  new_static_string(this, pthreadCreateError, "pthread_create call unsuccessful");
+  new_static_string(this, invalidBytecode, "invalid bytecode");
+
   return true;
 }
 
@@ -52,25 +55,31 @@ static void cleanStatic(struct fluffyvm* this) {
   clean_static_string(this, outOfMemoryWhileAnErrorOccured);
   clean_static_string(this, outOfMemoryWhileHandlingError);
   clean_static_string(this, strtodDidNotProcessAllTheData);
-
   clean_static_string(this, typenames.nil);
   clean_static_string(this, typenames.string);
   clean_static_string(this, typenames.longNum);
   clean_static_string(this, typenames.doubleNum);
   clean_static_string(this, typenames.table);
-  
   clean_static_string(this, badKey);
   clean_static_string(this, invalidCapacity);
+  clean_static_string(this, unsupportedBytecode);
+  clean_static_string(this, pthreadCreateError);
+  clean_static_string(this, invalidBytecode);
 }
 
 // Make current thread managed
-static void initThread(struct fluffyvm* this) {
+static void initThread(struct fluffyvm* this, int* threadIdStorage) {
   this->numberOfManagedThreads++;
 
   foxgc_root_t* root = foxgc_api_new_root(this->heap); 
   pthread_setspecific(this->currentThreadRootKey, root);
   pthread_setspecific(this->errMsgKey, NULL);
   pthread_setspecific(this->errMsgRootRefKey, NULL);
+
+  int id = atomic_fetch_add(&this->currentAvailableThreadID, 1);
+  *threadIdStorage = id;
+
+  pthread_setspecific(this->currentThreadID, threadIdStorage);
 }
 
 static void validateThisThread(struct fluffyvm* this) {
@@ -80,13 +89,19 @@ static void validateThisThread(struct fluffyvm* this) {
   }
 }
 
+int fluffyvm_get_thread_id(struct fluffyvm* this) {
+  validateThisThread(this);
+  return *((int*) pthread_getspecific(this->currentThreadID));
+}
+
 // Cleanup resources allocated for current thread
 static void cleanThread(struct fluffyvm* this) {
   foxgc_root_reference_t* ref = pthread_getspecific(this->errMsgRootRefKey);
   if (ref)
     foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), ref);
-  free(pthread_getspecific(this->errMsgRootRefKey));
-  
+  free(pthread_getspecific(this->errMsgKey));
+  free(pthread_getspecific(this->currentThreadID));
+
   foxgc_api_delete_root(this->heap, pthread_getspecific(this->currentThreadRootKey));
   
   this->numberOfManagedThreads--;
@@ -116,6 +131,7 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   pthread_key_delete(this->currentThreadRootKey);
   pthread_key_delete(this->errMsgKey);
   pthread_key_delete(this->errMsgRootRefKey);
+  pthread_key_delete(this->currentThreadID);
   free(this);
 }
 
@@ -126,10 +142,14 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   
   this->heap = heap;
   this->numberOfManagedThreads = 0;
+  this->currentAvailableThreadID = 0;
   pthread_key_create(&this->currentThreadRootKey, NULL);
   pthread_key_create(&this->errMsgKey, NULL);
   pthread_key_create(&this->errMsgRootRefKey, NULL);
-  initThread(this);
+  pthread_key_create(&this->currentThreadID, NULL);
+  
+  int* tidStorage = malloc(sizeof(int));
+  initThread(this, tidStorage);
   
   this->staticDataRoot = foxgc_api_new_root(heap);
 
@@ -220,6 +240,7 @@ struct thread_args {
   struct fluffyvm* vm;
   fluffyvm_thread_routine_t routine;
   void* args;
+  int* tidStorage;
 };
 
 static void* threadStub(void* _args) {
@@ -227,15 +248,15 @@ static void* threadStub(void* _args) {
   fluffyvm_thread_routine_t routine = args->routine;
   void* routine_args = args;
   
-  initThread(args->vm);
+  initThread(args->vm, args->tidStorage);
 
-  free(args);
   void* ret = routine(routine_args);
   
   // I know there is destructor for pthread key
   // and its called at thread exit but for now
   // i use this 
   cleanThread(args->vm);
+  free(args);
   return ret;
 }
 
@@ -243,11 +264,27 @@ bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_
   validateThisThread(this);
   
   struct thread_args* data = malloc(sizeof(*data));
+  if (!data) {
+    fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
+    return false;
+  }
+
   data->routine = routine;
   data->vm = this;
   data->args = args;
 
-  if (!pthread_create(newthread, attr, threadStub, data)) {
+  int* storage = malloc(sizeof(int));
+  data->tidStorage = storage;
+
+  if (!data->tidStorage) {
+    fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
+    free(data);
+    return false;
+  }
+
+  if (pthread_create(newthread, attr, threadStub, data) != 0) {
+    fluffyvm_set_errmsg(this, this->staticStrings.pthreadCreateError);
+    free(data->tidStorage);
     free(data);
     return false;
   }

@@ -39,7 +39,7 @@ static void commonStringInit(struct value_string* str, foxgc_object_t* strObj) {
   str->str = strObj;
 }
 
-static struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
+struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
   struct value_string* strStruct = malloc(sizeof(*strStruct));
   if (!strStruct) {
     if (vm->staticStrings.outOfMemoryRootRef)
@@ -113,6 +113,7 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
     case FLUFFYVM_TVALUE_NIL:
       return NULL;
     
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
@@ -182,9 +183,11 @@ bool value_hash_code(struct value value, uintptr_t* hashCode) {
     case FLUFFYVM_TVALUE_DOUBLE:
     case FLUFFYVM_TVALUE_NIL:
       break;
-    
+
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
+
     case FLUFFYVM_TVALUE_TABLE:
       hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
       break;
@@ -204,15 +207,18 @@ struct value value_new_double(struct fluffyvm* vm, double number) {
 }
 
 static void checkPresent(struct value* value) {
-  if (value->type == FLUFFYVM_TVALUE_NOT_PRESENT)
+  if (value->type == FLUFFYVM_TVALUE_NOT_PRESENT ||
+      value->type >= FLUFFYVM_TVALUE_LAST)
     abort();
 }
 
 const char* value_get_string(struct value value) {
   checkPresent(&value);
-  if (value.type != FLUFFYVM_TVALUE_STRING)
+  if (value.type != FLUFFYVM_TVALUE_STRING) {
+    printf("%d\n", value.type);
     return NULL;
-  
+  }
+
   return (const char*) foxgc_api_object_get_data(value.data.str->str);
 }
 
@@ -258,6 +264,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
       break;
 
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
@@ -296,6 +303,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_STRING:
     case FLUFFYVM_TVALUE_NIL:  
     case FLUFFYVM_TVALUE_NOT_PRESENT:
+    case FLUFFYVM_TVALUE_LAST:    
       abort(); /* Can't happen */
   }
   return result;
@@ -319,6 +327,7 @@ struct value value_typename(struct fluffyvm* vm, struct value value) {
       return vm->staticStrings.typenames.nil;
     case FLUFFYVM_TVALUE_TABLE:
       return vm->staticStrings.typenames.table;
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort();
   };
@@ -377,6 +386,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_NIL:
       return valueNil;
     
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
@@ -399,9 +409,15 @@ void* value_get_unique_ptr(struct value value) {
     case FLUFFYVM_TVALUE_NIL:
       return NULL;
     
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
+}
+
+void value_copy(struct value* dest, struct value* src) {
+  checkPresent(src);
+  memcpy(dest, src, sizeof(struct value));
 }
 
 bool value_equals(struct value op1, struct value op2) {
@@ -437,6 +453,7 @@ bool value_equals(struct value op1, struct value op2) {
     case FLUFFYVM_TVALUE_NIL:
       return true;
     
+    case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }

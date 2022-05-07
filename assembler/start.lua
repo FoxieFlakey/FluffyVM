@@ -1,6 +1,7 @@
 -- Abusing lua as assembly
 local strHello = const("Hello World!")
 local strPrint = const("print")
+local strPogString = const("Pogger fox this working")
 
 local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
