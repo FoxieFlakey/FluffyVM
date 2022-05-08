@@ -11,62 +11,60 @@
 #include "value.h"
 #include "fluffyvm_types.h"
 #include "bytecode.h"
+#include "coroutine.h"
 
-#define new_static_string(vm, name, string) do { \
-  foxgc_root_reference_t* tmpRef;\
-  struct value tmp = value_new_string(vm, (string), &tmpRef); \
-  if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
-    return false; \
-  value_copy(&vm->staticStrings.name, &tmp); \
-  foxgc_api_root_add(vm->heap, value_get_object_ptr(tmp), vm->staticDataRoot, &vm->staticStrings.name ## RootRef); \
-  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRef); \
-} while (0)
+// X macro idea is awsome
+#define STATIC_STRINGS \
+  X(outOfMemory, "out of memory") \
+  X(outOfMemoryWhileHandlingError, "out of memory while handling another error") \
+  X(outOfMemoryWhileAnErrorOccured, "out of memory while another error occured") \
+  X(strtodDidNotProcessAllTheData, "strtod did not process all the data") \
+  X(typenames.nil, "nil") \
+  X(typenames.string, "string") \
+  X(typenames.doubleNum, "double") \
+  X(typenames.longNum, "long") \
+  X(typenames.table, "table") \
+  X(invalidCapacity, "invalid capacity") \
+  X(badKey, "bad key") \
+  X(protobufFailedToUnpackData, "protobuf failed to unpack data") \
+  X(unsupportedBytecode, "unsupported bytecode version") \
+  X(pthreadCreateError, "pthread_create call unsuccessful") \
+  X(invalidBytecode, "invalid bytecode") \
+  X(invalidArrayBound, "invalid array bound")
 
-#define clean_static_string(vm, name) do { \
-  if (vm->staticStrings.name ## RootRef) \
-    foxgc_api_remove_from_root2(vm->heap, vm->staticDataRoot, vm->staticStrings.name ## RootRef); \
-} while (0)
+#define COMPONENTS \
+  X(value) \
+  X(statics) \
+  X(hashtable) \
+  X(bytecode) \
+  X(bytecode_loader_json) \
+  X(coroutine)
 
-// Initialize static strings
-static bool initStatic(struct fluffyvm* this) {
+// Initialize static stuffs
+static bool statics_init(struct fluffyvm* this) {
   memset(&this->staticStrings, 0, sizeof(this->staticStrings));
   
-  new_static_string(this, outOfMemory, "out of memory");
-  new_static_string(this, outOfMemoryWhileHandlingError, "out of memory while handling another error");
-  new_static_string(this, outOfMemoryWhileAnErrorOccured, "out of memory while another error occured");
-  new_static_string(this, strtodDidNotProcessAllTheData, "strtod did not process all the data");
-  new_static_string(this, typenames.nil, "nil");
-  new_static_string(this, typenames.string, "string");
-  new_static_string(this, typenames.doubleNum, "double");
-  new_static_string(this, typenames.longNum, "long");
-  new_static_string(this, typenames.table, "table");
-  new_static_string(this, invalidCapacity, "invalid capacity");
-  new_static_string(this, badKey, "bad key"); 
-  new_static_string(this, protobufFailedToUnpackData, "protobuf failed to unpack data");
-  new_static_string(this, unsupportedBytecode, "unsupported bytecode version");
-  new_static_string(this, pthreadCreateError, "pthread_create call unsuccessful");
-  new_static_string(this, invalidBytecode, "invalid bytecode");
-  new_static_string(this, invalidArrayBound, "invalid array bound");
+# define X(name, string) { \
+    foxgc_root_reference_t* tmpRef = NULL;\
+    struct value tmp = value_new_string(this, (string), &tmpRef); \
+    if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
+      return false; \
+    value_copy(&this->staticStrings.name, &tmp); \
+    foxgc_api_root_add(this->heap, value_get_object_ptr(tmp), this->staticDataRoot, &this->staticStrings.name ## RootRef); \
+    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmpRef); \
+  }
+  STATIC_STRINGS
+# undef X
 
   return true;
 }
 
-static void cleanStatic(struct fluffyvm* this) {
-  clean_static_string(this, outOfMemory);
-  clean_static_string(this, outOfMemoryWhileAnErrorOccured);
-  clean_static_string(this, outOfMemoryWhileHandlingError);
-  clean_static_string(this, strtodDidNotProcessAllTheData);
-  clean_static_string(this, typenames.nil);
-  clean_static_string(this, typenames.string);
-  clean_static_string(this, typenames.longNum);
-  clean_static_string(this, typenames.doubleNum);
-  clean_static_string(this, typenames.table);
-  clean_static_string(this, badKey);
-  clean_static_string(this, invalidCapacity);
-  clean_static_string(this, unsupportedBytecode);
-  clean_static_string(this, pthreadCreateError);
-  clean_static_string(this, invalidBytecode);
-  clean_static_string(this, invalidArrayBound);
+static void statics_cleanup(struct fluffyvm* this) {
+# define X(name, string) \
+  if (this->staticStrings.name ## RootRef) \
+    foxgc_api_remove_from_root2(this->heap, this->staticDataRoot, this->staticStrings.name ## RootRef);
+  STATIC_STRINGS
+# undef X
 }
 
 // Make current thread managed
@@ -109,24 +107,31 @@ static void cleanThread(struct fluffyvm* this) {
   this->numberOfManagedThreads--;
 }
 
+typedef void (*cleanup_call)(struct fluffyvm* vm);
+
+// Zero initCount mean nothing initialized
+// -1 initCount mean all initialized
 static void commonCleanup(struct fluffyvm* this, int initCounts) {
   // Using switch passthrough
   // to correctly call clean up
   // for all initialized stuffs
   // and in correct order
-  switch (initCounts) {
-    case -1:
-    case 5:
-      bytecode_loader_json_cleanup(this);
-    case 4:
-      bytecode_cleanup(this);
-    case 3:
-      hashtable_cleanup(this);
-    case 2:
-      cleanStatic(this);
-    case 1:
-      value_cleanup(this);
-  }
+  
+  cleanup_call calls[] = {
+# define X(name) name ## _cleanup,
+  COMPONENTS
+# undef X
+  };
+
+  if (initCounts < 0)
+    initCounts = sizeof(calls) / sizeof(calls[0]);
+
+  // Cast to smaller integer in this case
+  // is safe because why would i have over
+  // 2 billions components to clean up
+  for (int i = initCounts - 1; i >= 0; i--)
+    calls[i](this);
+
   foxgc_api_delete_root(this->heap, this->staticDataRoot);
 
   cleanThread(this);
@@ -158,25 +163,12 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   int initCounts = 0;
 
   // Start initializing stuffs
-  initCounts++;
-  if (!value_init(this))
+# define X(name) \
+  initCounts++; \
+  if (!name ## _init(this)) \
     goto error;
-  
-  initCounts++;
-  if (!initStatic(this))
-    goto error;
-
-  initCounts++;
-  if (!hashtable_init(this))
-    goto error;
-
-  initCounts++;
-  if (!bytecode_init(this))
-    goto error;
-
-  initCounts++;
-  if (!bytecode_loader_json_init(this))
-    goto error;
+  COMPONENTS
+# undef X
 
   return this;
   

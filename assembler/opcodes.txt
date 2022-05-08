@@ -3,18 +3,22 @@ VM documentation for FluffyVM
 Registers: 65,280 general purpose
            2 special purpose
            254 reserved
+	   ----------------------
+	   65,536 registers total
 
 Minimum stack sizes: 512 general purpose stack
                      256 calls
 
-Register	Usage
-0xFFFF		Always nil (silently fail any write)
-0xFFFE		Nillable environment table here (behave like _ENV variable from Lua)
-0xFFFD		0xFF00 - 0xFFFD is reserved
+Register	Mode	Usage
+0xFFFF		r	Always nil (silently fail any write)
+0xFFFE		rw	Nillable environment table here (behave like _ENV variable from Lua)
+			Note:
+			 * Written once at start of the function 
+0xFFFD		r	0xFF00 - 0xFFFD is reserved
 ...
-0xFEFF		0x0000 - 0xFEFF is general purpose
+0xFEFF		rw	0x0000 - 0xFEFF is general purpose
 ...
-0x0000
+0x0000		rw
 
 Instruction format
 
