@@ -66,6 +66,9 @@ struct fluffyvm {
     struct value invalidBytecode;
     foxgc_root_reference_t* invalidBytecodeRootRef;
 
+    struct value invalidArrayBound;
+    foxgc_root_reference_t* invalidArrayBoundRootRef;
+
     // Type names
     struct {
       struct value nil;

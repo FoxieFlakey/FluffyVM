@@ -46,6 +46,7 @@ static bool initStatic(struct fluffyvm* this) {
   new_static_string(this, unsupportedBytecode, "unsupported bytecode version");
   new_static_string(this, pthreadCreateError, "pthread_create call unsuccessful");
   new_static_string(this, invalidBytecode, "invalid bytecode");
+  new_static_string(this, invalidArrayBound, "invalid array bound");
 
   return true;
 }
@@ -65,6 +66,7 @@ static void cleanStatic(struct fluffyvm* this) {
   clean_static_string(this, unsupportedBytecode);
   clean_static_string(this, pthreadCreateError);
   clean_static_string(this, invalidBytecode);
+  clean_static_string(this, invalidArrayBound);
 }
 
 // Make current thread managed
