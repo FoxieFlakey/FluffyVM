@@ -23,8 +23,10 @@ typedef enum value_types {
 } value_types_t;
 
 struct value_string {
-  // Make sure hashCode size is atleast pointer
-  uintptr_t hashCode;
+  // 64-bit as i was forgot that
+  // uintptr_t is not guarantee 
+  // to be largest type
+  uint64_t hashCode;
   
   // const char*
   foxgc_object_t* str;
@@ -70,7 +72,7 @@ void* value_get_unique_ptr(struct value value);
 foxgc_object_t* value_get_object_ptr(struct value value);
 
 // return false if its not applicable
-bool value_hash_code(struct value value, uintptr_t* hashCode);
+bool value_hash_code(struct value value, uint64_t* hashCode);
 
 // return false if not equal
 bool value_equals(struct value op1, struct value op2);

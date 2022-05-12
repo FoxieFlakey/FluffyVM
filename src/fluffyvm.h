@@ -16,14 +16,18 @@ struct fluffyvm {
 
   // Essentially scratch pad
   // For each thread to avoid
-  // lock contention on main root
-  // foxgc_root_t*
+  // lock contention on single 
+  // global root
   pthread_key_t currentThreadRootKey;
   
   atomic_int numberOfManagedThreads;
   
+  // Static data for each component
   struct hashtable_static_data* hashTableStaticData;
   struct bytecode_static_data* bytecodeStaticData;
+  struct coroutine_static_data* coroutineStaticData;
+  struct closure_static_data* closureStaticData;
+  struct stack_static_data* stackStaticData;
 
   foxgc_root_t* staticDataRoot;
 
@@ -68,6 +72,15 @@ struct fluffyvm {
 
     struct value invalidArrayBound;
     foxgc_root_reference_t* invalidArrayBoundRootRef;
+    
+    struct value cannotResumeDeadCoroutine;
+    foxgc_root_reference_t* cannotResumeDeadCoroutineRootRef;
+    
+    struct value cannotResumeRunningCoroutine;
+    foxgc_root_reference_t* cannotResumeRunningCoroutineRootRef;
+    
+    struct value cannotSuspendTopLevelCoroutine;
+    foxgc_root_reference_t* cannotSuspendTopLevelCoroutineRootRef;
 
     // Type names
     struct {

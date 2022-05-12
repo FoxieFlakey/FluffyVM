@@ -12,6 +12,8 @@
 #include "fluffyvm_types.h"
 #include "bytecode.h"
 #include "coroutine.h"
+#include "closure.h"
+#include "stack.h"
 
 // X macro idea is awsome
 #define STATIC_STRINGS \
@@ -30,14 +32,19 @@
   X(unsupportedBytecode, "unsupported bytecode version") \
   X(pthreadCreateError, "pthread_create call unsuccessful") \
   X(invalidBytecode, "invalid bytecode") \
-  X(invalidArrayBound, "invalid array bound")
+  X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
+  X(invalidArrayBound, "invalid array bound") \
+  X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
+  X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine")
 
 #define COMPONENTS \
   X(value) \
   X(statics) \
+  X(stack) \
   X(hashtable) \
   X(bytecode) \
   X(bytecode_loader_json) \
+  X(closure) \
   X(coroutine)
 
 // Initialize static stuffs

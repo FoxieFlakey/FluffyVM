@@ -45,7 +45,7 @@ struct pair {
 
 bool hashtable_init(struct fluffyvm* vm) {
   vm->hashTableStaticData = malloc(sizeof(*vm->hashTableStaticData));
-  if (vm->hashTableStaticData == NULL)
+  if (!vm->hashTableStaticData)
     return false;
   
   create_descriptor(desc_hashTable, struct hashtable, {
@@ -122,19 +122,19 @@ static inline void hashtable_write_table(struct hashtable* this, foxgc_object_t*
 }
 
 static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, struct value key, struct value value) {
-  uintptr_t hash = -1;
+  uint64_t hash = -1;
   if (value_hash_code(key, &hash)) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return false;
   }
-  int index = hash & (capacity - 1);
+  uint64_t index = hash & (capacity - 1);
 
   // Try insert
   struct pair* prev = NULL;
   struct pair* current = table[index] ? foxgc_api_object_get_data(table[index]) : NULL;
   while (current) {
     prev = current;
-    uintptr_t hash2 = -1;
+    uint64_t hash2 = -1;
     bool res = value_hash_code(current->key, &hash2);
     assert(res); /* Cannot happen unless there is bug
                     in the value_hash_code function */
@@ -248,16 +248,17 @@ bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key
 }
 
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef) {
-  uintptr_t hash = -1;
+  uint64_t hash = -1;
   if (value_hash_code(key, &hash)) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return value_not_present();
   }
-  int index = hash & (this->capacity - 1);
+
+  uint64_t index = hash & (this->capacity - 1);
  
   struct pair* current = this->table[index] ? foxgc_api_object_get_data(this->table[index]) : NULL;
   while (current) {
-    uintptr_t hash2 = -1;
+    uint64_t hash2 = -1;
     bool res = value_hash_code(current->key, &hash2);
     assert(res); /* Cannot happen unless there is bug
                     in the value_hash_code function */

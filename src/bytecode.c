@@ -24,6 +24,9 @@
 
 bool bytecode_init(struct fluffyvm* vm) {
   vm->bytecodeStaticData = malloc(sizeof(*vm->bytecodeStaticData));
+  if (!vm->bytecodeStaticData)
+    return false;
+
   create_descriptor(desc_bytecode, struct fluffyvm_bytecode, {
     offsetof(struct fluffyvm_bytecode, gc_this),
     offsetof(struct fluffyvm_bytecode, gc_constants),
@@ -42,6 +45,9 @@ bool bytecode_init(struct fluffyvm* vm) {
 }
 
 void bytecode_cleanup(struct fluffyvm* vm) {
+  if (!vm->bytecodeStaticData)
+    return;
+
   free_descriptor(desc_bytecode);
   free_descriptor(desc_prototype);
   free(vm->bytecodeStaticData);
@@ -82,7 +88,7 @@ static inline void prototype_write_bytecode(struct fluffyvm_prototype* proto, st
 
 ///////////////////////
 
-static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, FluffyVmFormat__Bytecode__Prototype* proto) {
+static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluffyvm_bytecode* bytecode, foxgc_root_reference_t** rootRef, FluffyVmFormat__Bytecode__Prototype* proto) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_prototype, NULL);
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
@@ -93,7 +99,8 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, foxgc_root_
   struct fluffyvm_prototype* this = foxgc_api_object_get_data(obj);
   // Write to this->gc_this
   foxgc_api_write_field(obj, 0, obj);
- 
+  prototype_write_bytecode(this, bytecode);
+
   foxgc_root_reference_t* prototypesRef = NULL;
   foxgc_object_t* prototypesArray = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &prototypesRef, proto->n_prototypes, NULL);
   if (!prototypesArray)
@@ -111,9 +118,9 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, foxgc_root_
   // Filling data
   for (int i = 0; i < proto->n_prototypes; i++) {
     foxgc_root_reference_t* tmpRootRef = NULL;
-    struct fluffyvm_prototype* tmp = loadPrototype(vm, &tmpRootRef, proto->prototypes[i]);
+    struct fluffyvm_prototype* tmp = loadPrototype(vm, bytecode, &tmpRootRef, proto->prototypes[i]);
     if (!tmp)
-      goto no_memory;
+      goto error;
     prototype_write_prototype(this, i, tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
   }
@@ -248,14 +255,13 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
       goto error;
     }
 
+    bytecode_write_constant(vm, this, i, val);
     if (tmpRootRef)
       foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-
-    bytecode_write_constant(vm, this, i, val);
   }
 
   foxgc_root_reference_t* mainPrototypeRef = NULL;
-  struct fluffyvm_prototype* mainPrototype = loadPrototype(vm, &mainPrototypeRef, bytecode->mainprototype);
+  struct fluffyvm_prototype* mainPrototype = loadPrototype(vm, this, &mainPrototypeRef, bytecode->mainprototype);
   if (!mainPrototype)
     goto error;
   bytecode_write_main_prototype(this, mainPrototype);

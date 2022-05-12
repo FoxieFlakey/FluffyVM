@@ -4,6 +4,7 @@
 #include <inttypes.h>
 #include <string.h>
 
+#include "coroutine.h"
 #include "foxgc.h"
 #include "fluffyvm.h"
 #include "util/functional/functional.h"
@@ -12,6 +13,7 @@
 #include "loader/bytecode/json.h"
 #include "util/util.h"
 #include "bootloader.h"
+#include "closure.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -83,23 +85,13 @@ int main2() {
   const char* bootloader = data_bootloader; 
   
   fluffyvm_thread_routine_t test = ^void* (void* _) {
-    foxgc_root_reference_t* rootRef = NULL;
-    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, data_bootloader_get_len() - 1);
     const int tid = fluffyvm_get_thread_id(F);
 
-    if (bytecode == NULL) {
-      if (fluffyvm_is_errmsg_present(F)) {
-        printMemUsage("At error");
-        printf("[Thread %d] Error: %s\n", tid, value_get_string(fluffyvm_get_errmsg(F)));
-        return NULL;
-      }
-    }
+    foxgc_root_reference_t* rootRef = NULL;
+    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, data_bootloader_get_len() - 1);
+    if (!bytecode)
+      goto error;
 
-    char* tmp;
-    util_asprintf(&tmp, "[Thread %d] Middle of test", fluffyvm_get_thread_id(F));
-    printMemUsage(tmp);
-    free(tmp);
-    
     for (int i = 0; i < bytecode->constants_len ; i++) {
       struct value constant = bytecode->constants[i];
       size_t len = value_get_len(constant);
@@ -107,14 +99,76 @@ int main2() {
       fwrite(value_get_string(constant), 1, len, stdout);
       putchar('\n');
     }
-
+    
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Loaded bytecode", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+    
+    foxgc_root_reference_t* closureRootRef = NULL;
+    struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype);
+    if (!closure)
+      goto error;
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Closure created", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+
+    foxgc_root_reference_t* coroutineRootRef = NULL;
+    struct fluffyvm_coroutine* co = coroutine_new(F, &coroutineRootRef, closure);
+    if (!co)
+      goto error;
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
+    
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Coroutine created", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+    
+    if (!coroutine_resume(F, co))
+      goto error;
+
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Executed bytecode", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
+    return NULL;
+
+    error:
+    if (fluffyvm_is_errmsg_present(F)) {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] At error", tid);
+      printMemUsage(tmp);
+      free(tmp);
+      printf("[Thread %d] Error: %s\n", tid, value_get_string(fluffyvm_get_errmsg(F)));
+    }
     return NULL;
   };
   
   test(NULL);
 
-  /* pthread_t testThread;
+  /*
+  pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   
   pthread_t testThread2;
@@ -123,9 +177,18 @@ int main2() {
   pthread_t testThread3;
   fluffyvm_start_thread(F, &testThread3, NULL, test, NULL);
   
+  pthread_t testThread4;
+  fluffyvm_start_thread(F, &testThread4, NULL, test, NULL);
+  
+  pthread_t testThread5;
+  fluffyvm_start_thread(F, &testThread5, NULL, test, NULL);
+  
   pthread_join(testThread, NULL);
   pthread_join(testThread2, NULL);
-  pthread_join(testThread3, NULL); */
+  pthread_join(testThread3, NULL); 
+  pthread_join(testThread4, NULL); 
+  pthread_join(testThread5, NULL);
+  */
 
   /*foxgc_root_reference_t* tmpRootRef;
   int test = 3;
@@ -133,7 +196,7 @@ int main2() {
   // Testing tostring
   if (test == 1) {
     struct value integer = value_new_long(F, 3892);
-     
+    
     fluffyvm_clear_errmsg(F);
     struct value string = value_tostring(F, integer, &tmpRootRef);
     if (string.type == FLUFFYVM_TVALUE_NOT_PRESENT)

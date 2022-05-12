@@ -121,8 +121,8 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
 
 #ifdef FLUFFYVM_HASH_USE_OPENJDK8
 // OpenJDK 8 hash
-static uintptr_t do_hash(void* data, size_t len) {
-  uintptr_t hash = 0;
+static uint64_t do_hash(void* data, size_t len) {
+  uint64_t hash = 0;
   for (int i = 0; i < len; i++)
     hash = 31 * hash + ((uint8_t*) data)[i];
 
@@ -132,14 +132,14 @@ static uintptr_t do_hash(void* data, size_t len) {
 
 #ifdef FLUFFYVM_HASH_USE_XXHASH
 // xxHash
-static uintptr_t do_hash(void* data, size_t len) {
-  return (uintptr_t) XXH64(data, len, FLUFFYVM_XXHASH_SEED);
+static uint64_t do_hash(void* data, size_t len) {
+  return (uint64_t) XXH64(data, len, FLUFFYVM_XXHASH_SEED);
 }
 #endif
 
 #ifdef FLUFFYVM_HASH_USE_FNV
-static uintptr_t do_hash(void* data, size_t len) {
-  uintptr_t hash = FLUFFYVM_FNV_OFFSET_BASIS;
+static uint64_t do_hash(void* data, size_t len) {
+  uint64_t hash = FLUFFYVM_FNV_OFFSET_BASIS;
 
   for (int i = 0; i < len; i++) {
     hash = hash ^ ((uint8_t*) data)[i];
@@ -151,18 +151,18 @@ static uintptr_t do_hash(void* data, size_t len) {
 #endif
 
 #ifdef FLUFFYVM_HASH_USE_TEST_MODE
-static uintptr_t do_hash(void* data, size_t len) {
-  uintptr_t hash = 0;
-  for (int i = 0; i < len && i < sizeof(uintptr_t); i++) {
-    hash |= ((uintptr_t) ((uint8_t*) data)[i]) << (i * 8);
+static uint64_t do_hash(void* data, size_t len) {
+  uint64_t hash = 0;
+  for (int i = 0; i < len && i < sizeof(uint64_t); i++) {
+    hash |= ((uint64_t) ((uint8_t*) data)[i]) << (i * 8);
   }
   return hash;
 } 
 #endif
 
-bool value_hash_code(struct value value, uintptr_t* hashCode) {
+bool value_hash_code(struct value value, uint64_t* hashCode) {
   // Compute hash code
-  uintptr_t hash = 0;
+  uint64_t hash = 0;
   switch (value.type) {
     case FLUFFYVM_TVALUE_STRING:
       if (value.data.str->hashCode != 0) {
@@ -261,7 +261,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     
     case FLUFFYVM_TVALUE_TABLE:
       // I heard %p is GNU extension
-      bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
+      bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uint64_t) value.data.table);
       break;
 
     case FLUFFYVM_TVALUE_LAST:    
@@ -297,7 +297,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       break;
     
     case FLUFFYVM_TVALUE_TABLE:
-      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
+      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uint64_t) value.data.table);
       break;
 
     case FLUFFYVM_TVALUE_STRING:
@@ -422,9 +422,9 @@ void value_copy(struct value* dest, struct value* src) {
 
 bool value_equals(struct value op1, struct value op2) {
   bool result = false;
-  uintptr_t op1Hash;
-  uintptr_t op2Hash;
-  
+  uint64_t op1Hash;
+  uint64_t op2Hash;
+    
   checkPresent(&op1);
   checkPresent(&op2);
 

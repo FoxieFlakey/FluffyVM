@@ -5,7 +5,8 @@
 // increment by one for every release
 #define FLUFFYVM_RELEASE_NUM (1)
 
-
+// Call stack stack
+#define FLUFFYVM_CALL_STACK_SIZE (1024)
 
 
 
