@@ -6,6 +6,7 @@
 // but return FLUFFYVM_TVALUE_NOT_PRESENT when key
 // doesn't have any corresponding value
 
+#include <pthread.h>
 #include <stdbool.h>
 
 #include "fluffyvm.h"
@@ -13,6 +14,7 @@
 #include "value.h"
 
 struct hashtable {
+  pthread_rwlock_t lock;
   struct fluffyvm* vm;
 
   int capacity;

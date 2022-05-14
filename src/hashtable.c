@@ -1,4 +1,5 @@
 #include <Block.h>
+#include <pthread.h>
 #include <stddef.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -207,7 +208,10 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initial
     return NULL;
   }
 
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, root, rootRef, vm->hashTableStaticData->desc_hashTable, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, root, rootRef, vm->hashTableStaticData->desc_hashTable, ^void (foxgc_object_t* obj) {
+    struct hashtable* this = foxgc_api_object_get_data(obj);  
+    pthread_rwlock_destroy(&this->lock);
+  });
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -221,6 +225,7 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initial
   this->usage = 0;
   this->loadFactor = loadFactor;
   this->table = NULL;
+  pthread_rwlock_init(&this->lock, NULL);
   
   if (resize(vm, this, 0, initialCapacity) == false) {
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), *rootRef);
@@ -237,13 +242,18 @@ bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key
     return false;
   }
 
-  if (this->usage + 1 >= (this->capacity * this->loadFactor) / 100)
-    if (resize(vm, this, this->capacity, this->capacity * 2) == false)
+  pthread_rwlock_wrlock(&this->lock);
+  if (this->usage + 1 >= (this->capacity * this->loadFactor) / 100) {
+    if (resize(vm, this, this->capacity, this->capacity * 2) == false) {
+      pthread_rwlock_unlock(&this->lock);
       return false;
+    }
+  }
   
   set_entry(vm, this->gc_table, this->table, this->capacity, key, value);
   this->usage++;
 
+  pthread_rwlock_unlock(&this->lock);
   return true;
 }
 
@@ -254,6 +264,7 @@ struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct v
     return value_not_present();
   }
 
+  pthread_rwlock_rdlock(&this->lock);
   uint64_t index = hash & (this->capacity - 1);
  
   struct pair* current = this->table[index] ? foxgc_api_object_get_data(this->table[index]) : NULL;
@@ -268,6 +279,7 @@ struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct v
 
     current = current->next;
   }
+  pthread_rwlock_unlock(&this->lock);
  
   if (current && value_get_object_ptr(current->value))
     foxgc_api_root_add(vm->heap, value_get_object_ptr(current->value), fluffyvm_get_root(vm), rootRef);
