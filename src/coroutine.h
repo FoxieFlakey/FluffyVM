@@ -7,12 +7,20 @@
 #include "value.h"
 #include "foxgc.h"
 #include "stack.h"
+#include "config.h"
 
 // Currently executing function
 struct fluffyvm_call_state {
   struct fluffyvm_closure* closure;
   struct fluffyvm_coroutine* owner;
-  uint32_t pc;
+  
+  struct value generalStack[FLUFFYVM_GENERAL_STACK_SIZE];
+  foxgc_object_t* generalObjectStack;
+
+  struct value registers[FLUFFYVM_REGISTERS_NUM];
+
+  int pc;
+  int sp;
 
   foxgc_object_t** registersObjectArray;
 
@@ -20,9 +28,7 @@ struct fluffyvm_call_state {
   foxgc_object_t* gc_registerObjectArray;
   foxgc_object_t* gc_closure;
   foxgc_object_t* gc_owner;
-  
-  // Wanna just make it heap overflow
-  struct value registers[1 << 16];
+  foxgc_object_t* gc_generalObjectStack;
 };
 
 typedef enum {
@@ -50,6 +56,9 @@ void coroutine_cleanup(struct fluffyvm* vm);
 
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func);
 bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* coroutine);
+
+struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func);
+void coroutine_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 
 #endif
 

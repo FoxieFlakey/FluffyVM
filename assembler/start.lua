@@ -13,7 +13,6 @@ get_constant(COND_NONE, 0x0002, strHello) -- Get "Hello World!" constant
 
 -- Get "print" function from env table
 table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
-table_set(COND_NONE, 0, 0, 0)
 
 -- Push "Hello World!" string to stack
 stack_push(COND_NONE, 0x0002)
@@ -33,9 +32,7 @@ table_set(0, 0, 0, 0)
 start_prototype()
 stack_push(0, 0)
 stack_pop(0, 0)
+stack_get_top(0, 0)
 end_prototype()
 
-stack_set_top(0, 0)
-stack_set_top2(0, 0)
-stack_get_top(0, 0)
 end_prototype()

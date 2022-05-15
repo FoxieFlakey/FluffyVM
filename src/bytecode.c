@@ -109,7 +109,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), prototypesRef);
   
   foxgc_root_reference_t* instructionsRef = NULL;
-  foxgc_object_t* instructionsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &instructionsRef, sizeof(fluffyvm_instruction), proto->n_instructions, NULL);
+  foxgc_object_t* instructionsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &instructionsRef, sizeof(fluffyvm_instruction_t), proto->n_instructions, NULL);
   if (!instructionsArray)
     goto no_memory;
   prototype_write_instructions_array(this, instructionsArray);
@@ -126,7 +126,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   }
 
   for (int i = 0; i < proto->n_instructions; i++)
-    this->instructions[i] = (fluffyvm_instruction) proto->instructions[i];
+    this->instructions[i] = (fluffyvm_instruction_t) proto->instructions[i];
 
   return this;
   

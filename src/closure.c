@@ -1,5 +1,6 @@
 #include "fluffyvm_types.h"
 #include "closure.h"
+#include "value.h"
 #include <stddef.h>
 
 #define create_descriptor(name, structure, ...) do { \
@@ -21,7 +22,8 @@ bool closure_init(struct fluffyvm* vm) {
 
   create_descriptor(desc_closure, struct fluffyvm_closure, {
     offsetof(struct fluffyvm_closure, gc_this), 
-    offsetof(struct fluffyvm_closure, gc_prototype) 
+    offsetof(struct fluffyvm_closure, gc_prototype),
+    offsetof(struct fluffyvm_closure, gc_env)
   });
 
   return true;
@@ -29,6 +31,7 @@ bool closure_init(struct fluffyvm* vm) {
 
 #define CLOSURE_OFFSET_THIS (0)
 #define CLOSURE_OFFSET_PROTOTYPE (1)
+#define CLOSURE_OFFSET_ENV (2)
 
 void closure_cleanup(struct fluffyvm* vm) {
   if (vm->closureStaticData) {
@@ -37,7 +40,7 @@ void closure_cleanup(struct fluffyvm* vm) {
   }
 }
 
-struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype) {
+struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype, struct value env) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, NULL);
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
@@ -48,7 +51,9 @@ struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t
   foxgc_api_write_field(obj, CLOSURE_OFFSET_THIS, obj);
 
   this->prototype = prototype;
+  value_copy(&this->env, &env);
   foxgc_api_write_field(obj, CLOSURE_OFFSET_PROTOTYPE, prototype->gc_this);
+  foxgc_api_write_field(obj, CLOSURE_OFFSET_ENV, value_get_object_ptr(env));
 
   return this;
   

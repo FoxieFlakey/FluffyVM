@@ -52,12 +52,10 @@ local opcode = {
   call = 0x04,
   stack_push = 0x05,
   stack_pop = 0x06,
-  stack_set_top = 0x07,
-  stack_set_top2 = 0x08,
-  stack_get_top = 0x09,
-  get_constant = 0x0A,
-  ret = 0x0B,
-  extra = 0x0C
+  get_constant = 0x07,
+  ret = 0x08,
+  extra = 0x09,
+  stack_get_top = 0x0A
 }
 ---------------------------------------------------
 function isValidReg(reg)
@@ -187,6 +185,13 @@ function global.stack_push(cond, reg)
   emitInstruction(opcode.stack_push, cond, reg)
 end
 ---------------------------------------------------
+function global.stack_get_top(cond, reg)
+  checkCond(cond)
+  checkReg(reg)
+  
+  emitInstruction(opcode.stack_get_top, cond, reg)
+end
+---------------------------------------------------
 function global.call(cond, func, resultStart, resultEnd, argStart, argEnd)
   checkCond(cond)
   checkReg(func)
@@ -231,27 +236,6 @@ function global.stack_pop(cond, result)
   checkReg(result)
   
   emitInstruction(opcode.stack_pop, cond, result)
-end
----------------------------------------------------
-function global.stack_set_top(cond, top)
-  checkCond(cond)
-  checkShort(top)
-  
-  emitInstruction(opcode.stack_set_top, cond, top)
-end
----------------------------------------------------
-function global.stack_set_top2(cond, top)
-  checkCond(cond)
-  checkReg(top)
-  
-  emitInstruction(opcode.stack_set_top2, cond, top)
-end
----------------------------------------------------
-function global.stack_get_top(cond, result)
-  checkCond(cond)
-  checkReg(result)
-  
-  emitInstruction(opcode.stack_get_top, cond, result)
 end
 ---------------------------------------------------
 

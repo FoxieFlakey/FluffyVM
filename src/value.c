@@ -12,6 +12,7 @@
 #include "fluffyvm_types.h"
 #include "config.h"
 #include "hashtable.h"
+#include "closure.h"
 
 #ifdef FLUFFYVM_HASH_USE_XXHASH
 # include <xxhash.h>
@@ -72,7 +73,7 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
 }
 
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef) {
-  return value_new_string2(vm, cstr, strlen(cstr) + 1, rootRef);
+  return value_new_string2(vm, cstr, strlen(cstr), rootRef);
 }
 
 struct value value_new_long(struct fluffyvm* vm, int64_t integer) {
@@ -107,7 +108,9 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
       return value.data.str->str;
     case FLUFFYVM_TVALUE_TABLE:
       return value.data.table;
-    
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return value.data.closure->gc_this;
+
     case FLUFFYVM_TVALUE_LONG:
     case FLUFFYVM_TVALUE_DOUBLE:
     case FLUFFYVM_TVALUE_NIL:
@@ -178,19 +181,25 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
       break;
     
     case FLUFFYVM_TVALUE_LONG:
-      hash = value.data.longNum;
+      hash = do_hash((void*) (&value.data.longNum), sizeof(long));
       break;
     case FLUFFYVM_TVALUE_DOUBLE:
+      hash = do_hash((void*) (&value.data.doubleData), sizeof(double));
+      break;
+    case FLUFFYVM_TVALUE_TABLE:
+      hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
+      break;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      hash = do_hash((void*) (&value.data.closure->gc_this), sizeof(foxgc_object_t*));
+      break;
+    
     case FLUFFYVM_TVALUE_NIL:
+      hash = 0;
       break;
 
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
-
-    case FLUFFYVM_TVALUE_TABLE:
-      hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
-      break;
   }
   
   *hashCode = hash;
@@ -260,8 +269,10 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       return vm->staticStrings.typenames.nil;
     
     case FLUFFYVM_TVALUE_TABLE:
-      // I heard %p is GNU extension
-      bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uint64_t) value.data.table);
+      bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
+      break;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      bufLen = snprintf(NULL, 0, "function 0x%" PRIXPTR, (uintptr_t) value.data.closure->gc_this);
       break;
 
     case FLUFFYVM_TVALUE_LAST:    
@@ -297,7 +308,10 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       break;
     
     case FLUFFYVM_TVALUE_TABLE:
-      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uint64_t) value.data.table);
+      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
+      break;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.closure->gc_this);
       break;
 
     case FLUFFYVM_TVALUE_STRING:
@@ -327,6 +341,8 @@ struct value value_typename(struct fluffyvm* vm, struct value value) {
       return vm->staticStrings.typenames.nil;
     case FLUFFYVM_TVALUE_TABLE:
       return vm->staticStrings.typenames.table;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return vm->staticStrings.typenames.closure;
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort();
@@ -380,11 +396,10 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_DOUBLE:
       return value;
 
+    case FLUFFYVM_TVALUE_CLOSURE:
     case FLUFFYVM_TVALUE_TABLE:
-      return valueNotPresent;
-
     case FLUFFYVM_TVALUE_NIL:
-      return valueNil;
+      return valueNotPresent;
     
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
@@ -403,6 +418,8 @@ void* value_get_unique_ptr(struct value value) {
       return value.data.str;
     case FLUFFYVM_TVALUE_TABLE:
       return value.data.table;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return value.data.closure->gc_this;
     
     case FLUFFYVM_TVALUE_LONG:
     case FLUFFYVM_TVALUE_DOUBLE:
@@ -444,6 +461,9 @@ bool value_equals(struct value op1, struct value op2) {
     case FLUFFYVM_TVALUE_TABLE:
       result = op1.data.table == op2.data.table;
       break;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      result = op1.data.closure == op2.data.closure;
+      break;
     case FLUFFYVM_TVALUE_LONG:
       result = op1.data.longNum == op2.data.longNum;
       break;
@@ -465,8 +485,10 @@ bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, 
   checkPresent(&table);
   checkPresent(&key);
   checkPresent(&value);
-  if (table.type != FLUFFYVM_TVALUE_TABLE)
+  if (table.type != FLUFFYVM_TVALUE_TABLE) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToIndexNonIndexableValue);
     return false;
+  }
   
   hashtable_set(vm, foxgc_api_object_get_data(table.data.table), key, value);
   return true;
@@ -474,8 +496,10 @@ bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, 
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef) {
   checkPresent(&table);
   checkPresent(&key);
-  if (table.type != FLUFFYVM_TVALUE_TABLE)
-    return valueNotPresent;
+  if (table.type != FLUFFYVM_TVALUE_TABLE) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToIndexNonIndexableValue);
+    return value_not_present();
+  }
   
   return hashtable_get(vm, foxgc_api_object_get_data(table.data.table), key, rootRef);
 }
@@ -483,7 +507,27 @@ struct value value_table_get(struct fluffyvm* vm, struct value table, struct val
 struct value value_not_present() {
   return valueNotPresent;
 }
-struct value vdalue_nil() {
+struct value value_nil() {
   return valueNil;
 }
+
+bool value_table_is_indexable(struct value val) {
+  switch (val.type) {
+    case FLUFFYVM_TVALUE_STRING:
+    case FLUFFYVM_TVALUE_DOUBLE:
+    case FLUFFYVM_TVALUE_LONG:
+    case FLUFFYVM_TVALUE_CLOSURE:
+    case FLUFFYVM_TVALUE_NIL:
+      return false;
+    
+    case FLUFFYVM_TVALUE_TABLE:
+      return true;
+
+    case FLUFFYVM_TVALUE_LAST:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
+      abort();
+  }
+  abort();
+}
+
 

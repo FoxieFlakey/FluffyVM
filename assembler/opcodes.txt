@@ -14,7 +14,10 @@ Register	Mode	Usage
 0xFFFE		rw	Nillable environment table here (behave like _ENV variable from Lua)
 			Note:
 			 * Written once at start of the function 
-0xFFFD		r	0xFF00 - 0xFFFD is reserved
+0xFFFD		none	0xFF00 - 0xFFFD is reserved
+			Note:
+			 * Attempt to access will cause
+			   illegal access error
 ...
 0xFEFF		rw	0x0000 - 0xFEFF is general purpose
 ...
@@ -58,23 +61,14 @@ Opcode	Mnemonic		Description
 				   is considered invalid) 
 0x05	stack_push(A)		S(S.top) = R(A); S.top++
 0x06	stack_pop(A)		S.top--; R(A) = S(S.top)
-0x07	stack_set_top(A)	S.top = A
-0x08	stack_set_top2(A)	S.top = R(A)
-				Note:
-				 * R(A) must contain
-				   positive integer that less
-				   or equal to 65,536
-				 * Implicit cast on R(A) value
-				   is disabled
-0x09	stack_get_top(A)	R(A) = S.top
-0x0A	get_constant(A, B)	R(A) = ConstPool[B]
-0x0B	ret(A, B)		Return R(A)..R(A+B-2)
+0x07	get_constant(A, B)	R(A) = ConstPool[B]
+0x08	ret(A, B)		Return R(A)..R(A+B-1)
 				Note:
 				 * If B == 0 then return nothing
-				 * If B == 1 then return up to S.top
-0x0C	extra()			Throw undefined instruction error 
+0x09	extra()			Throw undefined instruction error 
 				(the A, B, C operand are used by some 
 				instruction)
+0x0A	stack_get_top(A)	R(A) = S.top
 
 Note:
  * All operands is 16 bit unsigned integers unless noted

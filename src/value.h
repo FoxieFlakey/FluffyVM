@@ -18,9 +18,16 @@ typedef enum value_types {
   FLUFFYVM_TVALUE_LONG,
   FLUFFYVM_TVALUE_STRING,
   FLUFFYVM_TVALUE_TABLE,
+  FLUFFYVM_TVALUE_CLOSURE,
 
   FLUFFYVM_TVALUE_LAST
 } value_types_t;
+
+typedef enum {
+  FLUFFYVM_CALL_OK,
+  FLUFFYVM_CALL_CANT_CALL,
+  FLUFFYVM_CALL_RESULT_ERROR
+} value_call_status_t;
 
 struct value_string {
   // 64-bit as i was forgot that
@@ -43,6 +50,7 @@ typedef struct value {
 
     double doubleData;
     int64_t longNum;
+    struct fluffyvm_closure* closure;
   } data;
 } value_t;
 
@@ -77,6 +85,9 @@ bool value_hash_code(struct value value, uint64_t* hashCode);
 // return false if not equal
 bool value_equals(struct value op1, struct value op2);
 
+bool value_is_callable(struct value val);
+bool value_call(struct value val);
+
 // Action you can do with value
 // Sets errmsg on error with message of error
 struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_reference_t** rootRef);
@@ -85,6 +96,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value);
 // Action to do if this table
 bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, struct value value);
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef);
+bool value_table_is_indexable(struct value val);
 
 #endif
 

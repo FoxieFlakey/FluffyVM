@@ -24,7 +24,7 @@ static double toKB(size_t bytes) {
   return ((double) bytes) / KB;
 }
 
-static void printMemUsage(const char* msg) {
+void printMemUsage(const char* msg) {
   puts("------------------------------------");
   puts(msg);
   //puts("------------------------------------");
@@ -87,6 +87,18 @@ int main2() {
   fluffyvm_thread_routine_t test = ^void* (void* _) {
     const int tid = fluffyvm_get_thread_id(F);
 
+    foxgc_root_reference_t* globalTableRootRef = NULL;
+    struct value globalTable = value_new_table(F, 75, 32, &globalTableRootRef);
+    
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Created global table", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+
     foxgc_root_reference_t* rootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, data_bootloader_get_len() - 1);
     if (!bytecode)
@@ -110,10 +122,11 @@ int main2() {
     }
     
     foxgc_root_reference_t* closureRootRef = NULL;
-    struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype);
+    struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype, globalTable);
     if (!closure)
       goto error;
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), globalTableRootRef);
 
     {
       char* tmp;
@@ -126,9 +139,9 @@ int main2() {
 
     foxgc_root_reference_t* coroutineRootRef = NULL;
     struct fluffyvm_coroutine* co = coroutine_new(F, &coroutineRootRef, closure);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
     if (!co)
       goto error;
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
     
     {
       char* tmp;
@@ -152,15 +165,26 @@ int main2() {
     }
 
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
+    
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] After test", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
     return NULL;
 
-    error:
+    error:;
+    foxgc_api_do_full_gc(heap);
+    foxgc_api_do_full_gc(heap);
     if (fluffyvm_is_errmsg_present(F)) {
       char* tmp;
       util_asprintf(&tmp, "[Thread %d] At error", tid);
       printMemUsage(tmp);
       free(tmp);
-      printf("[Thread %d] Error: %s\n", tid, value_get_string(fluffyvm_get_errmsg(F)));
+      printf("[Thread %d] Error: %.*s\n", tid, (int) value_get_len(fluffyvm_get_errmsg(F)), value_get_string(fluffyvm_get_errmsg(F)));
     }
     return NULL;
   };

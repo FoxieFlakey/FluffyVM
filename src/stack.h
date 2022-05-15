@@ -29,6 +29,7 @@ bool stack_pop(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result,
 
 // false is overflow otherwise successful
 bool stack_push(struct fluffyvm* vm, struct fluffyvm_stack* stack, foxgc_object_t* data);
+bool stack_peek(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result);
 
 #endif
 

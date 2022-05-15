@@ -26,6 +26,7 @@
   X(typenames.doubleNum, "double") \
   X(typenames.longNum, "long") \
   X(typenames.table, "table") \
+  X(typenames.closure, "function") \
   X(invalidCapacity, "invalid capacity") \
   X(badKey, "bad key") \
   X(protobufFailedToUnpackData, "protobuf failed to unpack data") \
@@ -35,7 +36,11 @@
   X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
   X(invalidArrayBound, "invalid array bound") \
   X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
-  X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine")
+  X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine") \
+  X(illegalInstruction, "illegal instruction") \
+  X(stackOverflow, "stack overflow") \
+  X(stackUnderflow, "stack underflow") \
+  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value")
 
 #define COMPONENTS \
   X(value) \
@@ -51,7 +56,7 @@
 static bool statics_init(struct fluffyvm* this) {
   memset(&this->staticStrings, 0, sizeof(this->staticStrings));
   
-# define X(name, string) { \
+# define X(name, string, ...) { \
     foxgc_root_reference_t* tmpRef = NULL;\
     struct value tmp = value_new_string(this, (string), &tmpRef); \
     if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
@@ -67,7 +72,7 @@ static bool statics_init(struct fluffyvm* this) {
 }
 
 static void statics_cleanup(struct fluffyvm* this) {
-# define X(name, string) \
+# define X(name, string, ...) \
   if (this->staticStrings.name ## RootRef) \
     foxgc_api_remove_from_root2(this->heap, this->staticDataRoot, this->staticStrings.name ## RootRef);
   STATIC_STRINGS
@@ -82,6 +87,7 @@ static void initThread(struct fluffyvm* this, int* threadIdStorage) {
   pthread_setspecific(this->currentThreadRootKey, root);
   pthread_setspecific(this->errMsgKey, NULL);
   pthread_setspecific(this->errMsgRootRefKey, NULL);
+  pthread_setspecific(this->currentCoroutine, NULL);
 
   int id = atomic_fetch_add(&this->currentAvailableThreadID, 1);
   *threadIdStorage = id;
@@ -125,7 +131,7 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   // and in correct order
   
   cleanup_call calls[] = {
-# define X(name) name ## _cleanup,
+# define X(name, ...) name ## _cleanup,
   COMPONENTS
 # undef X
   };
@@ -146,6 +152,7 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   pthread_key_delete(this->errMsgKey);
   pthread_key_delete(this->errMsgRootRefKey);
   pthread_key_delete(this->currentThreadID);
+  pthread_key_delete(this->currentCoroutine);
   free(this);
 }
 
@@ -161,6 +168,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   pthread_key_create(&this->errMsgKey, NULL);
   pthread_key_create(&this->errMsgRootRefKey, NULL);
   pthread_key_create(&this->currentThreadID, NULL);
+  pthread_key_create(&this->currentCoroutine, NULL);
   
   int* tidStorage = malloc(sizeof(int));
   initThread(this, tidStorage);
@@ -170,7 +178,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   int initCounts = 0;
 
   // Start initializing stuffs
-# define X(name) \
+# define X(name, ...) \
   initCounts++; \
   if (!name ## _init(this)) \
     goto error;
@@ -297,4 +305,20 @@ foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this) {
   validateThisThread(this);
   return pthread_getspecific(this->currentThreadRootKey);
 }
+
+struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* this) {
+  validateThisThread(this);
+  return pthread_getspecific(this->currentCoroutine);
+}
+
+void fluffyvm_set_executing_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co) {
+  validateThisThread(this);
+  if (co) {
+    foxgc_root_reference_t* tmp;
+    foxgc_api_root_add(this->heap, co->gc_this, fluffyvm_get_root(this), &tmp);
+  }
+  pthread_setspecific(this->currentCoroutine, co);
+}
+
+
 

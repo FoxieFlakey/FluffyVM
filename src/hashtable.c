@@ -124,7 +124,7 @@ static inline void hashtable_write_table(struct hashtable* this, foxgc_object_t*
 
 static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, struct value key, struct value value) {
   uint64_t hash = -1;
-  if (value_hash_code(key, &hash)) {
+  if (!value_hash_code(key, &hash)) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return false;
   }
@@ -259,7 +259,7 @@ bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key
 
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef) {
   uint64_t hash = -1;
-  if (value_hash_code(key, &hash)) {
+  if (!value_hash_code(key, &hash)) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
     return value_not_present();
   }

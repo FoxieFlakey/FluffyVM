@@ -7,15 +7,19 @@
 
 struct fluffyvm_closure {
   struct fluffyvm_prototype* prototype;
+  
+  // _ENV table
+  struct value env;
 
   foxgc_object_t* gc_this;
   foxgc_object_t* gc_prototype;
+  foxgc_object_t* gc_env;
 };
 
 bool closure_init(struct fluffyvm* vm);
 void closure_cleanup(struct fluffyvm* vm);
 
-struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype);
+struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype, struct value env);
 
 #endif
 

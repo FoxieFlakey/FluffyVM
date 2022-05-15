@@ -8,13 +8,13 @@
 #include "foxgc.h"
 
 // Each instruction is 64-bit
-typedef uint64_t fluffyvm_instruction;
+typedef uint64_t fluffyvm_instruction_t;
 
 struct fluffyvm_prototype {
   struct fluffyvm_bytecode* bytecode;
   
   size_t instructions_len;
-  fluffyvm_instruction* instructions;
+  fluffyvm_instruction_t* instructions;
   
   size_t prototypes_len;
   // struct fluffyvm_prototype*

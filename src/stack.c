@@ -60,28 +60,43 @@ struct fluffyvm_stack* stack_new(struct fluffyvm* vm, foxgc_root_reference_t** r
 
   no_memory:
   fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
-  error:
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), *rootRef);
   *rootRef = NULL;
   return NULL;
 }
 
 bool stack_pop(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result, foxgc_root_reference_t** rootRef) {
-  if (stack->sp - 1 < 0)
+  if (stack->sp - 1 < 0) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow);
     return false;
+  }
+
   stack->sp--;
-  foxgc_object_t* obj = stack->stack[stack->sp];
-  foxgc_api_root_add(vm->heap, obj, fluffyvm_get_root(vm), rootRef);
+  if (result) {
+    foxgc_object_t* obj = stack->stack[stack->sp];
+    foxgc_api_root_add(vm->heap, obj, fluffyvm_get_root(vm), rootRef);
+    *result = foxgc_api_object_get_data(obj);
+  }
+
   foxgc_api_write_array(stack->gc_stack, stack->sp, NULL);
   return true; 
 }
 
 bool stack_push(struct fluffyvm* vm, struct fluffyvm_stack* stack, foxgc_object_t* data) {
-  if (stack->sp >= stack->stackSize)
+  if (stack->sp >= stack->stackSize) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.stackOverflow);
     return false;
+  }
+
   foxgc_api_write_array(stack->gc_stack, stack->sp, data);
   stack->sp++;
   return true;
 }
 
+bool stack_peek(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result) {
+  if (stack->sp - 1 < 0)
+    return false;
+  *result = stack->stack[stack->sp - 1];
+  return true;
+}
 

@@ -35,6 +35,13 @@ struct fluffyvm {
   pthread_key_t errMsgKey;
   pthread_key_t errMsgRootRefKey;
 
+  // Currently executing coroutine
+  // Not needing root reference because
+  // it will have strong reference from
+  // the thread's root which destroyed
+  // when the thread terminating
+  pthread_key_t currentCoroutine;
+
   atomic_int currentAvailableThreadID;
   pthread_key_t currentThreadID;
  
@@ -81,6 +88,18 @@ struct fluffyvm {
     
     struct value cannotSuspendTopLevelCoroutine;
     foxgc_root_reference_t* cannotSuspendTopLevelCoroutineRootRef;
+    
+    struct value illegalInstruction;
+    foxgc_root_reference_t* illegalInstructionRootRef;
+    
+    struct value stackOverflow;
+    foxgc_root_reference_t* stackOverflowRootRef;
+    
+    struct value stackUnderflow;
+    foxgc_root_reference_t* stackUnderflowRootRef;
+    
+    struct value attemptToIndexNonIndexableValue;
+    foxgc_root_reference_t* attemptToIndexNonIndexableValueRootRef;
 
     // Type names
     struct {
@@ -98,6 +117,9 @@ struct fluffyvm {
       
       struct value table;
       foxgc_root_reference_t* tableRootRef;
+      
+      struct value closure;
+      foxgc_root_reference_t* closureRootRef;
     } typenames;
   } staticStrings;
 };
@@ -120,7 +142,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap);
 bool fluffyvm_is_managed(struct fluffyvm* this);
 
 //////////////////////////////////////////////////
-// API calls below this line will call abort    //
+// Calls below this line will call abort        //
 // if the caller thread is not managed thread   //
 //////////////////////////////////////////////////
 
@@ -130,6 +152,9 @@ bool fluffyvm_is_managed(struct fluffyvm* this);
 bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_attr_t* attr, fluffyvm_thread_routine_t routine, void* args);
 foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this);
 int fluffyvm_get_thread_id(struct fluffyvm* this);
+
+struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* this);
+void fluffyvm_set_executing_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co);
 
 // WARNING: Make sure at the moment you call
 // this there are no access to this in the future
