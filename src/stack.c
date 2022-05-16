@@ -22,6 +22,9 @@
 #define STACK_OFFSET_STACK (1)
 
 bool stack_init(struct fluffyvm* vm) {
+  if (vm->stackStaticData)
+    return true;
+
   vm->stackStaticData = malloc(sizeof(*vm->stackStaticData));
   if (!vm->stackStaticData)
     return false;

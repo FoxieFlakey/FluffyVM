@@ -8,6 +8,7 @@
 #include "foxgc.h"
 #include "stack.h"
 #include "config.h"
+#include "fiber.h"
 
 // Currently executing function
 struct fluffyvm_call_state {
@@ -31,19 +32,11 @@ struct fluffyvm_call_state {
   foxgc_object_t* gc_generalObjectStack;
 };
 
-typedef enum {
-  FLUFFYVM_COROUTINE_STATE_RUNNING,
-  FLUFFYVM_COROUTINE_STATE_DEAD,
-  FLUFFYVM_COROUTINE_STATE_SUSPENDED
-} fluffyvm_coroutine_state;
-
 struct fluffyvm_coroutine {
-  // If this running on a
-  // native thread the coroutine
-  // cannot be yielded
   bool isNativeThread;
-  fluffyvm_coroutine_state state;
- 
+  bool isYieldable;
+  struct fiber* fiber;
+
   struct fluffyvm_call_state* currentCallState;
   struct fluffyvm_stack* callStack;
 
@@ -55,10 +48,16 @@ bool coroutine_init(struct fluffyvm* vm);
 void coroutine_cleanup(struct fluffyvm* vm);
 
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func);
+
+bool coroutine_yield(struct fluffyvm* vm);
 bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* coroutine);
 
-struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func);
-void coroutine_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
+struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_closure* func);
+void coroutine_function_epilog(struct fluffyvm* vm);
+
+void coroutine_disallow_yield(struct fluffyvm* vm);
+void coroutine_allow_yield(struct fluffyvm* vm);
+
 
 #endif
 

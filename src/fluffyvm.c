@@ -3,7 +3,9 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <assert.h>
 
+#include "config.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "hashtable.h"
@@ -41,12 +43,14 @@
   X(stackOverflow, "stack overflow") \
   X(stackUnderflow, "stack underflow") \
   X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
-  X(attemptToCallNonCallableValue, "attempt to call not callable value")
+  X(attemptToCallNonCallableValue, "attempt to call not callable value") \
+  X(notInCoroutine, "not in coroutine") \
+  X(coroutineNestTooDeep, "coroutine nest too deep")
 
 #define COMPONENTS \
+  X(stack) \
   X(value) \
   X(statics) \
-  X(stack) \
   X(hashtable) \
   X(bytecode) \
   X(bytecode_loader_json) \
@@ -81,15 +85,13 @@ static void statics_cleanup(struct fluffyvm* this) {
 }
 
 // Make current thread managed
-static void initThread(struct fluffyvm* this, int* threadIdStorage) {
+static void initThread(struct fluffyvm* this, int* threadIdStorage, foxgc_root_t* newRoot, struct fluffyvm_stack* coroutineStack) {
   this->numberOfManagedThreads++;
 
-  foxgc_root_t* root = foxgc_api_new_root(this->heap); 
-  pthread_setspecific(this->currentThreadRootKey, root);
+  pthread_setspecific(this->currentThreadRootKey, newRoot);
   pthread_setspecific(this->errMsgKey, NULL);
   pthread_setspecific(this->errMsgRootRefKey, NULL);
-  pthread_setspecific(this->currentCoroutine, NULL);
-  pthread_setspecific(this->currentCoroutineRootRef, NULL);
+  pthread_setspecific(this->coroutinesStack, coroutineStack);
 
   int id = atomic_fetch_add(&this->currentAvailableThreadID, 1);
   *threadIdStorage = id;
@@ -111,9 +113,6 @@ int fluffyvm_get_thread_id(struct fluffyvm* this) {
 
 // Cleanup resources allocated for current thread
 static void cleanThread(struct fluffyvm* this) {
-  foxgc_root_reference_t* ref = pthread_getspecific(this->errMsgRootRefKey);
-  if (ref)
-    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), ref);
   free(pthread_getspecific(this->errMsgKey));
   free(pthread_getspecific(this->currentThreadID));
 
@@ -147,15 +146,14 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   for (int i = initCounts - 1; i >= 0; i--)
     calls[i](this);
 
+  cleanThread(this);
   foxgc_api_delete_root(this->heap, this->staticDataRoot);
 
-  cleanThread(this);
   pthread_key_delete(this->currentThreadRootKey);
   pthread_key_delete(this->errMsgKey);
   pthread_key_delete(this->errMsgRootRefKey);
   pthread_key_delete(this->currentThreadID);
-  pthread_key_delete(this->currentCoroutine);
-  pthread_key_delete(this->currentCoroutineRootRef);
+  pthread_key_delete(this->coroutinesStack);
   free(this);
 }
 
@@ -167,19 +165,39 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   this->heap = heap;
   this->numberOfManagedThreads = 0;
   this->currentAvailableThreadID = 0;
+  this->hasInit = false;
+
   pthread_key_create(&this->currentThreadRootKey, NULL);
   pthread_key_create(&this->errMsgKey, NULL);
   pthread_key_create(&this->errMsgRootRefKey, NULL);
   pthread_key_create(&this->currentThreadID, NULL);
-  pthread_key_create(&this->currentCoroutine, NULL);
-  pthread_key_create(&this->currentCoroutineRootRef, NULL);
+  pthread_key_create(&this->coroutinesStack, NULL);
   
   int* tidStorage = malloc(sizeof(int));
-  initThread(this, tidStorage);
-  
-  this->staticDataRoot = foxgc_api_new_root(heap);
-
   int initCounts = 0;
+ 
+  // Stack component needed to bootstrap
+  // other components (its kinda chicken
+  // or egg problem)
+  this->stackStaticData = NULL;
+  stack_init(this);
+
+  // Bootstrap current thread to be managed
+  foxgc_root_t* newRoot = foxgc_api_new_root(this->heap);
+  if (!newRoot)
+    goto error;
+  
+  pthread_setspecific(this->currentThreadRootKey, newRoot);
+
+  foxgc_root_reference_t* rootRef = NULL;
+  struct fluffyvm_stack* coroutinesStack = stack_new(this, &rootRef, FLUFFYVM_MAX_COROUTINE_NEST);
+  if (!coroutinesStack)
+    goto error; 
+  
+  initThread(this, tidStorage, newRoot, coroutinesStack);
+  // Done bootstrapping
+
+  this->staticDataRoot = foxgc_api_new_root(heap);
 
   // Start initializing stuffs
 # define X(name, ...) \
@@ -227,11 +245,17 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
 }
 
 bool fluffyvm_is_errmsg_present(struct fluffyvm* vm) {
+  if (!vm->hasInit)
+    return false;
+
   validateThisThread(vm);
   return pthread_getspecific(vm->errMsgKey) != NULL;
 }
 
 struct value fluffyvm_get_errmsg(struct fluffyvm* vm) {
+  if (!vm->hasInit)
+    return value_not_present();
+  
   validateThisThread(vm);
   if (!fluffyvm_is_errmsg_present(vm))
     return value_not_present();
@@ -254,6 +278,8 @@ struct thread_args {
   fluffyvm_thread_routine_t routine;
   void* args;
   int* tidStorage;
+  foxgc_root_t* newRoot;
+  struct fluffyvm_stack* coroutinesStack;
 };
 
 static void* threadStub(void* _args) {
@@ -261,7 +287,7 @@ static void* threadStub(void* _args) {
   fluffyvm_thread_routine_t routine = args->routine;
   void* routine_args = args;
   
-  initThread(args->vm, args->tidStorage);
+  initThread(args->vm, args->tidStorage, args->newRoot, args->coroutinesStack);
 
   void* ret = routine(routine_args);
   
@@ -279,7 +305,7 @@ bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_
   struct thread_args* data = malloc(sizeof(*data));
   if (!data) {
     fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
-    return false;
+    goto cannot_alloc_data;
   }
 
   data->routine = routine;
@@ -288,21 +314,44 @@ bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_
 
   int* storage = malloc(sizeof(int));
   data->tidStorage = storage;
-
   if (!data->tidStorage) {
     fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
-    free(data);
-    return false;
+    goto cannot_alloc_tid_storage;
   }
+
+  foxgc_root_t* newRoot = foxgc_api_new_root(this->heap);
+  if (!newRoot) {
+    fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
+    goto cannot_alloc_root;
+  }
+
+  data->newRoot = newRoot;
+
+  foxgc_root_reference_t* rootRef = NULL;
+  data->coroutinesStack = stack_new(this, &rootRef, FLUFFYVM_MAX_COROUTINE_NEST);
+  if (!data->coroutinesStack) {
+    fluffyvm_set_errmsg(this, this->staticStrings.outOfMemory);
+    goto cannot_alloc_coroutine_stack;
+  } 
+  foxgc_root_reference_t* rootRef2 = NULL;
+  foxgc_api_root_add(this->heap, data->coroutinesStack->gc_this, newRoot, &rootRef2);
+  foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), rootRef);
 
   if (pthread_create(newthread, attr, threadStub, data) != 0) {
     fluffyvm_set_errmsg(this, this->staticStrings.pthreadCreateError);
-    free(data->tidStorage);
-    free(data);
-    return false;
+    goto cannot_create_thread;
   }
 
   return true;
+  cannot_create_thread:
+  cannot_alloc_coroutine_stack:
+  foxgc_api_delete_root(this->heap, newRoot);
+  cannot_alloc_root:
+  free(data->tidStorage);
+  cannot_alloc_tid_storage:
+  free(data);
+  cannot_alloc_data:
+  return false;
 }
 
 foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this) {
@@ -312,21 +361,21 @@ foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this) {
 
 struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* this) {
   validateThisThread(this);
-  return pthread_getspecific(this->currentCoroutine);
+  void* co = NULL;
+  if (!stack_peek(this, pthread_getspecific(this->coroutinesStack), &co))
+    return NULL;
+  return co;
 }
 
-void fluffyvm_set_executing_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co) {
+void fluffyvm_pop_current_coroutine(struct fluffyvm* this) {
   validateThisThread(this);
-  foxgc_root_reference_t* tmp;
-  if ((tmp = pthread_getspecific(this->currentCoroutineRootRef)))
-    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmp);
-
-  if (co) {
-    foxgc_api_root_add(this->heap, co->gc_this, fluffyvm_get_root(this), &tmp);
-    pthread_setspecific(this->currentCoroutineRootRef, tmp);
-  }
-  pthread_setspecific(this->currentCoroutine, co);
+  bool res = stack_pop(this, pthread_getspecific(this->coroutinesStack), NULL, NULL);
+  assert(res);
 }
 
+bool fluffyvm_push_current_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co) {
+  validateThisThread(this);
+  return stack_push(this, pthread_getspecific(this->coroutinesStack), co->gc_this);
+}
 
 

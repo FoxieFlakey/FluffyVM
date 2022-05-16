@@ -8,11 +8,16 @@
 #include <stdint.h>
 
 #include "functional/functional.h"
+#include "../config.h"
 
 #define __FILENAME__ (strrchr(__FILE__, '/') ? strrchr(__FILE__, '/') + 1 : __FILE__)
 
 int util_vasprintf(char** strp, const char* fmt, va_list ap);
+
+ATTRIBUTE((format(printf, 2, 3))) 
 int util_asprintf(char** strp, const char* fmt, ...);
+
+ATTRIBUTE((format(printf, 2, 3))) 
 const char* util_string_format(int* size, const char* fmt, ...);
 
 //void util_print_backtrace_from_buffer(PrintWriter* writer, void** buffer, int size);

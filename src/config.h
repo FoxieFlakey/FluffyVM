@@ -9,7 +9,32 @@
 #define FLUFFYVM_CALL_STACK_SIZE (512)
 #define FLUFFYVM_GENERAL_STACK_SIZE (1024)
 
+// Register count
 #define FLUFFYVM_REGISTERS_NUM (1 << 16)
+
+// Maximum coroutine nesting depth
+#define FLUFFYVM_MAX_COROUTINE_NEST (64)
+
+////////////////////////////////////////
+// Compiler config                    //
+////////////////////////////////////////
+
+#ifdef __GNUC__
+# define ATTRIBUTE(x) __attribute__(x)
+#else
+# define ATTRIBUTE(x)
+#endif
+
+#ifdef __has_feature
+# if __has_feature(address_sanitizer)
+#  define FLUFFYVM_ASAN_ENABLED
+# endif
+# if __has_feature(thread_sanitizer)
+#  define FLUFFYVM_TSAN_ENABLED
+# endif
+#endif
+
+////////////////////////////////////////
 
 ////////////////////////////////////////
 // Hashing config                     //

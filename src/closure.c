@@ -45,7 +45,8 @@ void closure_cleanup(struct fluffyvm* vm) {
 static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct value env) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, ^void (foxgc_object_t* obj) {
     struct fluffyvm_closure* this = foxgc_api_object_get_data(obj);
-    Block_release(this->func);
+    if (this->finalizer)
+      this->finalizer(this->udata);
   });
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
@@ -56,6 +57,7 @@ static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_ro
   foxgc_api_write_field(obj, CLOSURE_OFFSET_THIS, obj);
   this->prototype = NULL;
   this->func = NULL;
+  this->finalizer = NULL;
 
   value_copy(&this->env, &env);
   foxgc_api_write_field(obj, CLOSURE_OFFSET_ENV, value_get_object_ptr(env));
@@ -75,9 +77,11 @@ struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t
   return this;
 }
 
-struct fluffyvm_closure* closure_from_block(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, closure_block_function_t func, struct value env) {
+struct fluffyvm_closure* closure_from_cfunction(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, closure_cfunction_t func, void* udata, closure_udata_finalizer_t finalizer, struct value env) {
   struct fluffyvm_closure* this = closure_new_common(vm, rootRef, env);
   this->func = func;
+  this->udata= udata;
+  this->finalizer = finalizer;
   foxgc_api_write_field(this->gc_this, CLOSURE_OFFSET_PROTOTYPE, NULL);
   return this;
 }

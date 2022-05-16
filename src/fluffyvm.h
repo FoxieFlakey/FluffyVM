@@ -12,8 +12,6 @@
 struct fluffyvm {
   foxgc_heap_t* heap;
   
-  foxgc_root_t* root;
-
   // Essentially scratch pad
   // For each thread to avoid
   // lock contention on single 
@@ -35,13 +33,14 @@ struct fluffyvm {
   pthread_key_t errMsgKey;
   pthread_key_t errMsgRootRefKey;
 
-  // Currently executing coroutine
-  pthread_key_t currentCoroutine;
-  pthread_key_t currentCoroutineRootRef;
+  // Keep track of coroutine nesting
+  pthread_key_t coroutinesStack;
 
   atomic_int currentAvailableThreadID;
   pthread_key_t currentThreadID;
- 
+
+  bool hasInit;
+
   // Static strings
   struct { 
     struct value invalidCapacity;
@@ -100,6 +99,12 @@ struct fluffyvm {
     
     struct value attemptToCallNonCallableValue;
     foxgc_root_reference_t* attemptToCallNonCallableValueRootRef;
+    
+    struct value notInCoroutine;
+    foxgc_root_reference_t* notInCoroutineRootRef;
+    
+    struct value coroutineNestTooDeep;
+    foxgc_root_reference_t* coroutineNestTooDeepRootRef;
 
     // Type names
     struct {
@@ -154,7 +159,9 @@ foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this);
 int fluffyvm_get_thread_id(struct fluffyvm* this);
 
 struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* this);
-void fluffyvm_set_executing_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co);
+
+void fluffyvm_pop_current_coroutine(struct fluffyvm* this);
+bool fluffyvm_push_current_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co);
 
 // WARNING: Make sure at the moment you call
 // this there are no access to this in the future

@@ -134,7 +134,7 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
 // working it stays like this
 static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   if (co->currentCallState->closure->prototype == NULL) {
-    co->currentCallState->closure->func(co->currentCallState);
+    co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
     return INTERPRETER_OK;
   }
 
@@ -255,7 +255,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           }
           closure = getRegister(vm, callState, ins.A).data.closure;
 
-          if (!coroutine_function_prolog(vm, co, closure))
+          if (!coroutine_function_prolog(vm, closure))
             goto error;
           fluffyvm_clear_errmsg(vm);
 
@@ -286,11 +286,11 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           }
 
 
-          coroutine_function_epilog(vm, co);
+          coroutine_function_epilog(vm);
           break;
 
           call_error:
-          coroutine_function_epilog(vm, co);
+          coroutine_function_epilog(vm);
           goto error;
         }
       case FLUFFYVM_OPCODE_TABLE_SET:
@@ -336,7 +336,7 @@ bool interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   /* struct value val = getRegister(vm, co, 2);
   fwrite(value_get_string(val), 1, value_get_len(val), stdout); */
   
-  coroutine_function_epilog(vm, co); 
+  coroutine_function_epilog(vm); 
   return result == INTERPRETER_OK;
 }
 

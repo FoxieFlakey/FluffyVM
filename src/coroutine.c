@@ -2,8 +2,10 @@
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
+#include <Block.h>
 
 #include "closure.h"
+#include "fiber.h"
 #include "fluffyvm.h"
 #include "fluffyvm_types.h"
 #include "coroutine.h"
@@ -61,12 +63,18 @@ static void internal_function_epilog(struct fluffyvm* vm, struct fluffyvm_corout
     co->currentCallState = NULL;
 }
 
-void coroutine_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+void coroutine_function_epilog(struct fluffyvm* vm) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+
   interpreter_function_epilog(vm, co);
   internal_function_epilog(vm, co);
 }
 
-struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
+struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_closure* func) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
   foxgc_root_reference_t* tmpRootRef2 = NULL;
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
@@ -124,15 +132,20 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
 }
 
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, Block_copy(^void (foxgc_object_t* obj) {
+    struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
+    // Untested: Possible data race with
+    //           `coroutine_resume` when cleaning
+    //           fibers
+    if (this->fiber)
+      fiber_free(this->fiber);
+  }));
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
   }
   struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
   foxgc_api_write_field(obj, 0, obj);
-  
-  this->state = FLUFFYVM_COROUTINE_STATE_SUSPENDED;
   
   foxgc_root_reference_t* stackRootRef = NULL;
   this->callStack = stack_new(vm, &stackRootRef, FLUFFYVM_CALL_STACK_SIZE);
@@ -141,9 +154,17 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   foxgc_api_write_field(obj, 1, this->callStack->gc_this);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), stackRootRef);
 
-  if (!coroutine_function_prolog(vm, this, func))
+  fluffyvm_push_current_coroutine(vm, this);
+  if (!coroutine_function_prolog(vm, func))
     goto error;
-  
+  fluffyvm_pop_current_coroutine(vm);
+
+  this->isYieldable = true;
+  this->isNativeThread = false;
+  this->fiber = fiber_new(Block_copy(^void () {
+    interpreter_exec(vm, this);   
+  }));
+
   return this;
  
   error:
@@ -156,28 +177,69 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
     coroutine_function_epilog(vm, this);
   */
 
+  fluffyvm_pop_current_coroutine(vm);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), *rootRef);
   *rootRef = NULL;
   return NULL;
 }
 
 bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
-  if (co->state == FLUFFYVM_COROUTINE_STATE_DEAD) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.cannotResumeDeadCoroutine);
+  if (!fluffyvm_push_current_coroutine(vm, co)) 
     return false;
-  }
-  
-  if (co->state == FLUFFYVM_COROUTINE_STATE_RUNNING) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.cannotResumeRunningCoroutine);
+
+  fiber_state_t prevState;
+  bool res = fiber_resume(co->fiber, &prevState);
+  if (res && co->fiber->state == FIBER_DEAD) {
+    fiber_free(co->fiber);
+    co->fiber = NULL;
+  } else if (!res) {
+    switch (prevState) {
+      case FIBER_RUNNING: 
+        fluffyvm_set_errmsg(vm, vm->staticStrings.cannotResumeRunningCoroutine);
+        break;
+      case FIBER_DEAD: 
+        fluffyvm_set_errmsg(vm, vm->staticStrings.cannotResumeDeadCoroutine);
+        break;
+      case FIBER_SUSPENDED:
+        abort();
+    }
+
     return false;
   }
 
-  fluffyvm_set_executing_coroutine(vm, co);
-  bool res = interpreter_exec(vm, co); 
-  fluffyvm_set_executing_coroutine(vm, NULL);
+  fluffyvm_pop_current_coroutine(vm);
   return res;
 }
 
+bool coroutine_yield(struct fluffyvm* vm) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  if (!co) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.notInCoroutine);
+    return false;
+  }
+  
+  if (!co->isYieldable || co->isNativeThread) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.cannotSuspendTopLevelCoroutine);
+    return false;
+  }
+  return fiber_yield(co->fiber);
+}
+
+void coroutine_disallow_yield(struct fluffyvm* vm) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  if (!co)
+    return;
+  
+  co->isYieldable = false;
+}
+
+void coroutine_allow_yield(struct fluffyvm* vm) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  if (!co)
+    return;
+
+  co->isYieldable = true;
+}
 
 
 
