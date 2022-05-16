@@ -85,6 +85,15 @@ struct value value_new_long(struct fluffyvm* vm, int64_t integer) {
   return value;
 }
 
+struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure) {
+  struct value value = {
+   .data.closure = closure,
+   .type = FLUFFYVM_TVALUE_CLOSURE
+  };
+
+  return value;
+}
+
 struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef) {
   struct hashtable* hashtable = hashtable_new(vm, loadFactor, initialCapacity, fluffyvm_get_root(vm), rootRef);
 
@@ -433,7 +442,7 @@ void* value_get_unique_ptr(struct value value) {
 }
 
 void value_copy(struct value* dest, struct value* src) {
-  checkPresent(src);
+  //checkPresent(src);
   memcpy(dest, src, sizeof(struct value));
 }
 
@@ -530,4 +539,22 @@ bool value_table_is_indexable(struct value val) {
   abort();
 }
 
+bool value_is_callable(struct value val) {
+  switch (val.type) {
+    case FLUFFYVM_TVALUE_STRING:
+    case FLUFFYVM_TVALUE_DOUBLE:
+    case FLUFFYVM_TVALUE_LONG:
+    case FLUFFYVM_TVALUE_TABLE:
+    case FLUFFYVM_TVALUE_NIL:
+      return false;
+    
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return true;
+
+    case FLUFFYVM_TVALUE_LAST:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
+      abort();
+  }
+  abort();
+}
 

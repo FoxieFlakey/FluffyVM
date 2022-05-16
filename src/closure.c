@@ -1,7 +1,9 @@
 #include "fluffyvm_types.h"
+#include <stddef.h>
+
+#include <Block.h>
 #include "closure.h"
 #include "value.h"
-#include <stddef.h>
 
 #define create_descriptor(name, structure, ...) do { \
   size_t offsets[] = __VA_ARGS__; \
@@ -40,8 +42,11 @@ void closure_cleanup(struct fluffyvm* vm) {
   }
 }
 
-struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype, struct value env) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, NULL);
+static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct value env) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, ^void (foxgc_object_t* obj) {
+    struct fluffyvm_closure* this = foxgc_api_object_get_data(obj);
+    Block_release(this->func);
+  });
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -49,10 +54,10 @@ struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t
   struct fluffyvm_closure* this = foxgc_api_object_get_data(obj);
   // Write to this->gc_this
   foxgc_api_write_field(obj, CLOSURE_OFFSET_THIS, obj);
+  this->prototype = NULL;
+  this->func = NULL;
 
-  this->prototype = prototype;
   value_copy(&this->env, &env);
-  foxgc_api_write_field(obj, CLOSURE_OFFSET_PROTOTYPE, prototype->gc_this);
   foxgc_api_write_field(obj, CLOSURE_OFFSET_ENV, value_get_object_ptr(env));
 
   return this;
@@ -63,7 +68,19 @@ struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t
   return NULL; */
 }
 
+struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype, struct value env) {
+  struct fluffyvm_closure* this = closure_new_common(vm, rootRef, env);
+  this->prototype = prototype;
+  foxgc_api_write_field(this->gc_this, CLOSURE_OFFSET_PROTOTYPE, prototype->gc_this);
+  return this;
+}
 
+struct fluffyvm_closure* closure_from_block(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, closure_block_function_t func, struct value env) {
+  struct fluffyvm_closure* this = closure_new_common(vm, rootRef, env);
+  this->func = func;
+  foxgc_api_write_field(this->gc_this, CLOSURE_OFFSET_PROTOTYPE, NULL);
+  return this;
+}
 
 
 

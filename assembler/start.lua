@@ -7,21 +7,19 @@ local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
 local COND_NONE = 0x00
 
--- Executable
-get_constant(COND_NONE, 0x0001, strPrint) -- Get "print" constant
-get_constant(COND_NONE, 0x0002, strHello) -- Get "Hello World!" constant
-
--- Get "print" function from env table
+get_constant(COND_NONE, 0x0001, strPrint)
 table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
 
--- Push "Hello World!" string to stack
+get_constant(COND_NONE, 0x0002, strHello)
+stack_push(COND_NONE, 0x0002)
+
+get_constant(COND_NONE, 0x0002, strPogString)
 stack_push(COND_NONE, 0x0002)
 
 -- Call the "print" function with one argument
 -- in stack and zero return
-call(COND_NONE, 0x0001, 0, 0, 0, 2)
+call(COND_NONE, 0x0001, 0, 0, 1)
 
--- Return zero values
 ret(COND_NONE, 0, 0)
 
 start_prototype()

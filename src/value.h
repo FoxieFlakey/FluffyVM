@@ -67,6 +67,7 @@ struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_
 struct value value_new_long(struct fluffyvm* vm, int64_t integer);
 struct value value_new_double(struct fluffyvm* vm, double number);
 struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
+struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure); 
 struct value value_not_present();
 struct value value_nil();
 

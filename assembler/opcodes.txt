@@ -50,21 +50,20 @@ Opcode	Mnemonic		Description
 0x03	table_set(A, B, C)	R(A)[R(B)] = R(C)
 				Note:
 				 * R(B) must be non nil
-0x04	call(A, B, C, D, E)	S(B)..S(B+C-1) = R(A)(S(D)..S(D+E-2))
-				Note:
-				 * If C == 0 then no result is returned
-				 * If E == 0 then no parameter is passed 
-				 * If E == 1 then pass all argument up to S.top
-				 * Field D and E stored in 'extra' 
-				   instruction's A and B operands (this 
-				   instruction must be present or the code
-				   is considered invalid) 
+0x04	call(A, B, C, D)	S(S.top+1)..S(S.top + B) = R(A)(S(C)..S(C+D-2))
+				Note: 
+				 * If B == 0 then no result is returned'
+				 * If D == 0 then no parameter is passed 
+				 * If D == 1 then pass all argument up to S.top
+				 * A easier way to interpret B field is B is number of return values
 0x05	stack_push(A)		S(S.top) = R(A); S.top++
 0x06	stack_pop(A)		S.top--; R(A) = S(S.top)
 0x07	get_constant(A, B)	R(A) = ConstPool[B]
 0x08	ret(A, B)		Return R(A)..R(A+B-1)
 				Note:
 				 * If B == 0 then return nothing
+				 * Pushes values to stack then
+				   return
 0x09	extra()			Throw undefined instruction error 
 				(the A, B, C operand are used by some 
 				instruction)
@@ -76,5 +75,16 @@ Note:
  * R(n) represent register access at 'n'
  * S(n) represent stack access at 'n'
  * Constant pool is indexed from 0
+ * S.top represent pointer to a valid entry in stack
+
+When function called its stack must contain the
+args and stack_get_top must give number of args
+passed to the function
+
+The stack of the callee function is filled 
+so that S(0) will have first argument, S(1) second
+argument, and so on
+
+
 
 

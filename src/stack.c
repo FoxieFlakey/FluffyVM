@@ -1,7 +1,10 @@
 #include "fluffyvm.h"
 #include "fluffyvm_types.h"
 #include "stack.h"
+
 #include <stddef.h>
+#include <stdint.h>
+#include <assert.h>
 
 #define create_descriptor(name, structure, ...) do { \
   size_t offsets[] = __VA_ARGS__; \
@@ -54,6 +57,7 @@ struct fluffyvm_stack* stack_new(struct fluffyvm* vm, foxgc_root_reference_t** r
   foxgc_object_t* stackObj = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmp, stackSize, NULL);
   if (!stackObj)
     goto no_memory;
+  this->stack = foxgc_api_object_get_data(stackObj);
   foxgc_api_write_field(obj, STACK_OFFSET_STACK, stackObj);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmp);
   return this;
@@ -70,6 +74,7 @@ bool stack_pop(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result,
     fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow);
     return false;
   }
+  
 
   stack->sp--;
   if (result) {
@@ -96,7 +101,7 @@ bool stack_push(struct fluffyvm* vm, struct fluffyvm_stack* stack, foxgc_object_
 bool stack_peek(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result) {
   if (stack->sp - 1 < 0)
     return false;
-  *result = stack->stack[stack->sp - 1];
+  *result = foxgc_api_object_get_data(stack->stack[stack->sp - 1]);
   return true;
 }
 

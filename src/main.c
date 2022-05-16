@@ -3,6 +3,7 @@
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
+#include <Block.h>
 
 #include "coroutine.h"
 #include "foxgc.h"
@@ -14,6 +15,7 @@
 #include "util/util.h"
 #include "bootloader.h"
 #include "closure.h"
+#include "interpreter.h"
 
 #define KB (1024)
 #define MB (1024 * KB)
@@ -89,7 +91,7 @@ int main2() {
 
     foxgc_root_reference_t* globalTableRootRef = NULL;
     struct value globalTable = value_new_table(F, 75, 32, &globalTableRootRef);
-    
+
     {
       char* tmp;
       util_asprintf(&tmp, "[Thread %d] Created global table", tid);
@@ -98,9 +100,43 @@ int main2() {
       printMemUsage(tmp);
       free(tmp);
     }
+    
+    {
+      foxgc_root_reference_t* printRootRef = NULL;
+      foxgc_root_reference_t* printStringRootRef = NULL;
+      struct fluffyvm_closure* printFunc = closure_from_block(F, &printRootRef, Block_copy(^(struct fluffyvm_call_state *callState) {
+        foxgc_root_reference_t* tmpRootRef = NULL;
+        struct value string;
+        while (interpreter_pop(F, callState, &string, &tmpRootRef)) {
+          printf("Printer: %.*s\n", (int) value_get_len(string), value_get_string(string));
+          foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+        }
+      }), globalTable);
+      if (!printFunc)
+        goto error;
 
-    foxgc_root_reference_t* rootRef = NULL;
-    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &rootRef, bootloader, data_bootloader_get_len() - 1);
+      struct value printVal = value_new_closure(F, printFunc);
+      struct value printString = value_new_string(F, "print", &printStringRootRef);
+      if (printString.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+        goto error;
+
+      value_table_set(F, globalTable, printString, printVal);
+
+      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printRootRef);
+      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
+    }
+
+    {
+      char* tmp;
+      util_asprintf(&tmp, "[Thread %d] Added print function", tid);
+      foxgc_api_do_full_gc(heap);
+      foxgc_api_do_full_gc(heap);
+      printMemUsage(tmp);
+      free(tmp);
+    }
+
+    foxgc_root_reference_t* bytecodeRootRef = NULL;
+    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bootloader, data_bootloader_get_len() - 1);
     if (!bytecode)
       goto error;
 
@@ -125,7 +161,7 @@ int main2() {
     struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype, globalTable);
     if (!closure)
       goto error;
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), bytecodeRootRef);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), globalTableRootRef);
 
     {

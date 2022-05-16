@@ -59,12 +59,11 @@ static void internal_function_epilog(struct fluffyvm* vm, struct fluffyvm_corout
   assert(tmp);
   if (!stack_peek(vm, co->callStack, (void**) &co->currentCallState))
     co->currentCallState = NULL;
-  interpreter_function_epilog(vm, co);
 }
 
 void coroutine_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
-  internal_function_epilog(vm, co);
   interpreter_function_epilog(vm, co);
+  internal_function_epilog(vm, co);
 }
 
 struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
@@ -72,19 +71,19 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
     goto no_memory;
-  
   if (!stack_push(vm, co->callStack, obj))
     goto error;
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef2); 
 
   struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
   callState->pc = 0;
+  callState->sp = 0;
   foxgc_api_write_field(obj, 0, obj);
   foxgc_api_write_field(obj, 2, func->gc_this);
   foxgc_api_write_field(obj, 3, co->gc_this);
   callState->closure = func;
   callState->owner = co;
-
+  
   {
     foxgc_root_reference_t* tmpRootRef = NULL;
     foxgc_object_t* tmp = NULL;
@@ -142,8 +141,6 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   foxgc_api_write_field(obj, 1, this->callStack->gc_this);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), stackRootRef);
 
-  // Potential memory leak from unknown strong
-  // reference to the call state
   if (!coroutine_function_prolog(vm, this, func))
     goto error;
   
@@ -175,7 +172,7 @@ bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     return false;
   }
 
-  fluffyvm_set_executing_coroutine(vm, NULL);
+  fluffyvm_set_executing_coroutine(vm, co);
   bool res = interpreter_exec(vm, co); 
   fluffyvm_set_executing_coroutine(vm, NULL);
   return res;

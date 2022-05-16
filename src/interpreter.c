@@ -44,7 +44,7 @@ static struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call_state*
   return callState->registers[index];
 }
 
-static bool pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int destination) {
+bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value* result, foxgc_root_reference_t** rootRef) {
   if (callState->sp - 1 < 0) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow); 
     return false;
@@ -52,15 +52,33 @@ static bool pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int 
   
   callState->sp--;
   int index = callState->sp;
-  assert(callState->registers[index].type != FLUFFYVM_TVALUE_NOT_PRESENT);
+  assert(callState->generalStack[index].type != FLUFFYVM_TVALUE_NOT_PRESENT);
   struct value val = callState->generalStack[index];
-  setRegister(vm, callState, destination, val);
+  value_copy(result, &val);
+
+  foxgc_object_t* ptr;
+  if ((ptr = value_get_object_ptr(val)))
+    foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
+  else
+    *rootRef = NULL;
+
   foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL);
   
   return true;
 }
 
-static bool push(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value value) {
+static bool interpreter_pop2(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int destination) {
+  struct value val;
+  foxgc_root_reference_t* ref = NULL;
+  if (!interpreter_pop(vm, callState, &val, &ref))
+    return false;
+
+  setRegister(vm, callState, destination, val);
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
+  return true;
+}
+
+bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value value) {
   if (callState->sp >= FLUFFYVM_GENERAL_STACK_SIZE) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.stackOverflow);
     return false;
@@ -115,6 +133,11 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
 // each function. Until the interpreter fully
 // working it stays like this
 static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+  if (co->currentCallState->closure->prototype == NULL) {
+    co->currentCallState->closure->func(co->currentCallState);
+    return INTERPRETER_OK;
+  }
+
   int pc = co->currentCallState->pc;
   int instructionsLen = co->currentCallState->closure->prototype->instructions_len;
   assert(instructionsLen >= pc);
@@ -184,7 +207,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         break;
       case FLUFFYVM_OPCODE_STACK_POP:
         printf("0x%08X: S.top--; R(%d) = S(S.top)\n", pc, ins.A);
-        if (!pop(vm, callState, ins.A))
+        if (!interpreter_pop2(vm, callState, ins.A))
           goto error;
         break;
       case FLUFFYVM_OPCODE_TABLE_GET:
@@ -214,18 +237,61 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         
       case FLUFFYVM_OPCODE_STACK_PUSH:
         printf("0x%08X: S(S.top) = R(%d); S.top++\n", pc, ins.A);
-        if (!push(vm, callState, getRegister(vm, callState, ins.A)))
+        if (!interpreter_push(vm, callState, getRegister(vm, callState, ins.A)))
           goto error;
         break;
       case FLUFFYVM_OPCODE_CALL: 
         {
-          int argsStart = ins.D;
-          int argsEnd = ins.D + ins.E - 2;
-          int returnStart = ins.B;
-          int returnEnd = ins.B + ins.C - 1;
-          printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, returnStart, returnEnd, ins.A, argsStart, argsEnd);
+          int argsStart = ins.C;
+          int argsEnd = ins.C + ins.D - 2;
+          int returnCount = ins.B;
+          struct fluffyvm_closure* closure;
           
+          printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
+          
+          if (!value_is_callable(getRegister(vm, callState, ins.A))) {
+            fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToCallNonCallableValue);
+            goto error;
+          }
+          closure = getRegister(vm, callState, ins.A).data.closure;
+
+          if (!coroutine_function_prolog(vm, co, closure))
+            goto error;
+          fluffyvm_clear_errmsg(vm);
+
+          if (ins.D == 1)
+            argsEnd = callState->sp-1;
+
+          // Copying the arguments
+          for (int i = argsStart; i <= argsEnd; i++)
+            if (!interpreter_push(vm, co->currentCallState, callState->generalStack[i]))
+              goto call_error;
+
+          exec(vm, co);
+          
+          // Copying the return values
+          int startPos = co->currentCallState->sp - returnCount;
+          if (startPos < 0)
+            startPos = 0;
+         
+          for (int i = 0; i < returnCount; i++) {
+            struct value val = value_nil();
+
+            // Copy only if current pos is valid
+            if (startPos + i <= co->currentCallState->sp - 1)
+              value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
+
+            if (!interpreter_push(vm, callState, val))
+              goto call_error;
+          }
+
+
+          coroutine_function_epilog(vm, co);
           break;
+
+          call_error:
+          coroutine_function_epilog(vm, co);
+          goto error;
         }
       case FLUFFYVM_OPCODE_TABLE_SET:
         printf("0x%08X: R(%d)[R(%d)] = R(%d)\n", pc, ins.A, ins.B, ins.C);

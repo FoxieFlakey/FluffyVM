@@ -36,11 +36,8 @@ struct fluffyvm {
   pthread_key_t errMsgRootRefKey;
 
   // Currently executing coroutine
-  // Not needing root reference because
-  // it will have strong reference from
-  // the thread's root which destroyed
-  // when the thread terminating
   pthread_key_t currentCoroutine;
+  pthread_key_t currentCoroutineRootRef;
 
   atomic_int currentAvailableThreadID;
   pthread_key_t currentThreadID;
@@ -49,7 +46,7 @@ struct fluffyvm {
   struct { 
     struct value invalidCapacity;
     foxgc_root_reference_t* invalidCapacityRootRef;
-    
+   
     struct value badKey;
     foxgc_root_reference_t* badKeyRootRef;
     
@@ -100,6 +97,9 @@ struct fluffyvm {
     
     struct value attemptToIndexNonIndexableValue;
     foxgc_root_reference_t* attemptToIndexNonIndexableValueRootRef;
+    
+    struct value attemptToCallNonCallableValue;
+    foxgc_root_reference_t* attemptToCallNonCallableValueRootRef;
 
     // Type names
     struct {

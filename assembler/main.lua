@@ -192,15 +192,14 @@ function global.stack_get_top(cond, reg)
   emitInstruction(opcode.stack_get_top, cond, reg)
 end
 ---------------------------------------------------
-function global.call(cond, func, resultStart, resultEnd, argStart, argEnd)
+function global.call(cond, func, resultCount, argStart, argEnd)
   checkCond(cond)
   checkReg(func)
-  checkShort(resultStart)
-  checkShort(resultEnd)
+  checkShort(resultCount)
   checkShort(argStart)
   checkShort(argEnd)
 
-  emitInstruction(opcode.call, cond, func, resultStart,resultEnd, argStart, argEnd)
+  emitInstruction(opcode.call, cond, func, resultCount, argStart, argEnd)
 end
 ---------------------------------------------------
 function global.ret(cond, resultStart, resultEnd)

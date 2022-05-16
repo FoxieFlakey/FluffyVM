@@ -40,7 +40,8 @@
   X(illegalInstruction, "illegal instruction") \
   X(stackOverflow, "stack overflow") \
   X(stackUnderflow, "stack underflow") \
-  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value")
+  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
+  X(attemptToCallNonCallableValue, "attempt to call not callable value")
 
 #define COMPONENTS \
   X(value) \
@@ -88,6 +89,7 @@ static void initThread(struct fluffyvm* this, int* threadIdStorage) {
   pthread_setspecific(this->errMsgKey, NULL);
   pthread_setspecific(this->errMsgRootRefKey, NULL);
   pthread_setspecific(this->currentCoroutine, NULL);
+  pthread_setspecific(this->currentCoroutineRootRef, NULL);
 
   int id = atomic_fetch_add(&this->currentAvailableThreadID, 1);
   *threadIdStorage = id;
@@ -153,6 +155,7 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   pthread_key_delete(this->errMsgRootRefKey);
   pthread_key_delete(this->currentThreadID);
   pthread_key_delete(this->currentCoroutine);
+  pthread_key_delete(this->currentCoroutineRootRef);
   free(this);
 }
 
@@ -169,6 +172,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   pthread_key_create(&this->errMsgRootRefKey, NULL);
   pthread_key_create(&this->currentThreadID, NULL);
   pthread_key_create(&this->currentCoroutine, NULL);
+  pthread_key_create(&this->currentCoroutineRootRef, NULL);
   
   int* tidStorage = malloc(sizeof(int));
   initThread(this, tidStorage);
@@ -313,9 +317,13 @@ struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* thi
 
 void fluffyvm_set_executing_coroutine(struct fluffyvm* this, struct fluffyvm_coroutine* co) {
   validateThisThread(this);
+  foxgc_root_reference_t* tmp;
+  if ((tmp = pthread_getspecific(this->currentCoroutineRootRef)))
+    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmp);
+
   if (co) {
-    foxgc_root_reference_t* tmp;
     foxgc_api_root_add(this->heap, co->gc_this, fluffyvm_get_root(this), &tmp);
+    pthread_setspecific(this->currentCoroutineRootRef, tmp);
   }
   pthread_setspecific(this->currentCoroutine, co);
 }
