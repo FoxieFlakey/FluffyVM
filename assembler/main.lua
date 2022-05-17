@@ -261,7 +261,6 @@ while constants[i] do
   i = i + 1
 end
 print(("-"):rep(32))
-
 ---------------------------------------------------
 
 function processPrototype(proto)
@@ -329,12 +328,16 @@ for i=0,#constants do
 end
 
 local JSON = require("json")
-print(JSON.encode({
+local fp = io.open("bytecode.json", "w")
+assert(fp)
+fp:write(JSON.encode({
   --type = "fluffyvm_bytecode",
   --version = {1, 0, 0},
   constants = constantsTable,
   mainPrototype = topLevelPrototype
 }))
+fp:write("\n")
+fp:close()
 
 --[[
 local constants = constantsTable

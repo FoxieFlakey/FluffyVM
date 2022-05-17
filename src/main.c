@@ -37,6 +37,9 @@ static void printMemUsage(const char* msg) {
   printf("Metaspace: %lf / %lf KiB\n", toKB(foxgc_api_get_metaspace_usage(heap)), toKB(foxgc_api_get_metaspace_size(heap))); 
   puts("------------------------------------");
 }
+  
+static void* bytecodeRaw = NULL;
+static size_t bytecodeRawLen = 0;
 
 ATTRIBUTE((format(printf, 1, 2)))
 static void collectAndPrintMemUsage(const char* fmt, ...) {
@@ -54,23 +57,57 @@ static void collectAndPrintMemUsage(const char* fmt, ...) {
 }
 
 static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  foxgc_root_reference_t* tmpRootRef = NULL;
-  struct value string;
-  coroutine_yield(F);
-  coroutine_yield(F);
-  while (interpreter_pop(F, callState, &string, &tmpRootRef)) {
+  for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
+    struct value string;
+    interpreter_peek(F, callState, i, &string);
     printf("[Thread %d] Printer: %.*s\n", fluffyvm_get_thread_id(F), (int) value_get_len(string), value_get_string(string));
+  }
+
+  return true;
+}
+
+static bool stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  foxgc_root_reference_t* tmpRootRef = NULL;
+  
+  {
+    struct value string = value_new_string(F, "Returned from C function (Printed twice)", &tmpRootRef);
+    interpreter_push(F, callState, string);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  }
+
+  {
+    struct value string = value_new_string(F, "Returned from C function (Only printed once)", &tmpRootRef);
+    interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
 
   return true;
 }
 
-int main2() {
-  heap = foxgc_api_new(1 * MB, 4 * MB, 16 * MB,
-                                   1, 1, 
+static void registerCFunction(struct fluffyvm* F, struct value globalTable, const char* name, closure_cfunction_t cfunc) {
+  foxgc_root_reference_t* printRootRef = NULL;
+  foxgc_root_reference_t* printStringRootRef = NULL;
+  struct fluffyvm_closure* printFunc = closure_from_cfunction(F, &printRootRef, cfunc, NULL, NULL, globalTable);
+  assert(printFunc);
+  
+  struct value printVal = value_new_closure(F, printFunc);
+  struct value printString = value_new_string(F, name, &printStringRootRef);
+  assert(printString.type != FLUFFYVM_TVALUE_NOT_PRESENT);
+  
+  value_table_set(F, globalTable, printString, printVal);
 
-                                 8 * KB, 1 * MB,
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printRootRef);
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
+}
+
+/* Generation sizes guide
+ * 1 : 2 : 8
+ */
+int main2() {
+  heap = foxgc_api_new(8 * MB, 16 * MB, 64 * MB,
+                                 3, 3, 
+
+                                 256 * KB, 2 * MB,
 
                                  32 * KB);
   collectAndPrintMemUsage("Before VM creation");
@@ -83,35 +120,17 @@ int main2() {
 
   collectAndPrintMemUsage("After VM creation but before test");
   
-  // Bootloader  
-  const char* bootloader = data_bootloader; 
-  
   fluffyvm_thread_routine_t test = ^void* (void* _) {
     const int tid = fluffyvm_get_thread_id(F);
 
     foxgc_root_reference_t* globalTableRootRef = NULL;
     struct value globalTable = value_new_table(F, 75, 32, &globalTableRootRef);
 
-    {
-      foxgc_root_reference_t* printRootRef = NULL;
-      foxgc_root_reference_t* printStringRootRef = NULL;
-      struct fluffyvm_closure* printFunc = closure_from_cfunction(F, &printRootRef, stdlib_print, NULL, NULL, globalTable);
-      if (!printFunc)
-        goto error;
-
-      struct value printVal = value_new_closure(F, printFunc);
-      struct value printString = value_new_string(F, "print", &printStringRootRef);
-      if (printString.type == FLUFFYVM_TVALUE_NOT_PRESENT)
-        goto error;
-
-      value_table_set(F, globalTable, printString, printVal);
-
-      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printRootRef);
-      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
-    }
+    registerCFunction(F, globalTable, "print", stdlib_print);
+    registerCFunction(F, globalTable, "return_string", stdlib_return_string);
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
-    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bootloader, data_bootloader_get_len() - 1);
+    struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);
     if (!bytecode)
       goto error; 
     
@@ -133,11 +152,7 @@ int main2() {
     
     if (!coroutine_resume(F, co))
       goto error;
-    if (!coroutine_resume(F, co))
-      goto error;
-    if (!coroutine_resume(F, co))
-      goto error;
-
+    
     collectAndPrintMemUsage("[Thread %d] Bytecode executed", tid);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
     
@@ -152,7 +167,7 @@ int main2() {
   
   test(NULL);
 
-  pthread_t testThread;
+  /* pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   
   pthread_t testThread2;
@@ -175,7 +190,7 @@ int main2() {
   pthread_join(testThread3, NULL); 
   pthread_join(testThread4, NULL); 
   pthread_join(testThread5, NULL);
-  pthread_join(testThread6, NULL);
+  pthread_join(testThread6, NULL); */
   
 
   collectAndPrintMemUsage("Before VM destruction but after test");
@@ -191,8 +206,8 @@ int main2() {
   fluffyvm_free(F);
 
   cannotCreateVm:
-  foxgc_api_do_full_gc(heap);
-  foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("After VM destruction");
   foxgc_api_free(heap);
 
@@ -200,8 +215,30 @@ int main2() {
 }
 
 int main() {
-  int ret = main2();
+  int ret = 0;
 
+  // First thing first load the damn bytecode
+  // first
+  FILE* bytecodeFile = fopen("./bytecode.json", "r");
+  if (!bytecodeFile) {
+    puts("File not found");
+    goto do_return;
+  }
+
+  fseek(bytecodeFile, 0, SEEK_END);
+  bytecodeRawLen = ftell(bytecodeFile);
+  fseek(bytecodeFile, 0, SEEK_SET);
+  
+  bytecodeRaw = malloc(bytecodeRawLen);
+  size_t result = fread(bytecodeRaw, 1, bytecodeRawLen, bytecodeFile);
+  assert(result == bytecodeRawLen);
+  
+  fclose(bytecodeFile);
+
+  ret = main2();
+  free(bytecodeRaw);
+
+  do_return:
   puts("Exiting :3");
   return ret;
 }

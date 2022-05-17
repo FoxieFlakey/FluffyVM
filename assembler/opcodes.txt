@@ -50,9 +50,10 @@ Opcode	Mnemonic		Description
 0x03	table_set(A, B, C)	R(A)[R(B)] = R(C)
 				Note:
 				 * R(B) must be non nil
-0x04	call(A, B, C, D)	S(S.top+1)..S(S.top + B) = R(A)(S(C)..S(C+D-2))
+0x04	call(A, B, C, D)	S(S.top+1)..S(S.top + B + 1) = R(A)(S(C)..S(C+D-2))
 				Note: 
 				 * If B == 0 then no result is returned'
+				 * If B == 1 then all argument returned
 				 * If D == 0 then no parameter is passed 
 				 * If D == 1 then pass all argument up to S.top
 				 * A easier way to interpret B field is B is number of return values

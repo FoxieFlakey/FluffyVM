@@ -91,9 +91,11 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
 }
 
 bool interpreter_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
-  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env);
-  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
- 
+  if (!co->currentCallState->closure->func) {
+    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env);
+    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+  }
+
   return true;
   /*
   error:
@@ -244,7 +246,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         {
           int argsStart = ins.C;
           int argsEnd = ins.C + ins.D - 2;
-          int returnCount = ins.B;
+          int returnCount = ins.B - 1;
           struct fluffyvm_closure* closure;
           
           printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
@@ -269,11 +271,17 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
           exec(vm, co);
           
-          // Copying the return values
+          if (ins.B == 0) {
+            returnCount = 0;
+          } else if (ins.B == 1) {
+            returnCount = co->currentCallState->sp;
+          }
+
           int startPos = co->currentCallState->sp - returnCount;
           if (startPos < 0)
             startPos = 0;
          
+          // Copying the return values
           for (int i = 0; i < returnCount; i++) {
             struct value val = value_nil();
 
@@ -281,8 +289,9 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
             if (startPos + i <= co->currentCallState->sp - 1)
               value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
 
-            if (!interpreter_push(vm, callState, val))
+            if (!interpreter_push(vm, callState, val)) {
               goto call_error;
+            }
           }
 
 
@@ -304,7 +313,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           break;
         }
       case FLUFFYVM_OPCODE_RETURN:
-        printf("0x%08X: ret\n", pc);
+        printf("0x%08X: ret(R(%d)..R(%d))\n", pc, ins.A, ins.A + ins.B - 1);
         goto done_function; 
       case FLUFFYVM_OPCODE_NOP:
         printf("0x%08X: nop\n", pc);
@@ -327,6 +336,8 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
   error:
   callState->pc = pc;
+  struct value err = fluffyvm_get_errmsg(vm);
+  printf("Error: %.*s\n", (int) value_get_len(err), value_get_string(err));
   return INTERPRETER_ERROR;
 }
 
@@ -338,6 +349,21 @@ bool interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   
   coroutine_function_epilog(vm); 
   return result == INTERPRETER_OK;
+}
+
+bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result) {
+  if (index < 0 || index >= callState->sp)
+    return false;
+  value_copy(result, &callState->generalStack[index]);
+  return true;
+}
+
+int interpreter_get_top(struct fluffyvm* vm, struct fluffyvm_call_state* callState) {
+  return callState->sp - 1;
+}
+
+struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state* callState) {
+  return callState->closure->env;
 }
 
 

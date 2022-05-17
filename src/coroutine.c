@@ -97,15 +97,20 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     foxgc_root_reference_t* tmpRootRef = NULL;
     foxgc_object_t* tmp = NULL;
     
-    // Allocate register objects array
-    // to store value which contain GC object
-    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
-    if (!tmp)
-      goto no_memory;
-    foxgc_api_write_field(callState->gc_this, 1, tmp);
-    callState->registersObjectArray = foxgc_api_object_get_data(tmp);
-    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-  
+    if (!callState->closure->func) {
+      // Allocate register objects array
+      // to store value which contain GC object
+      tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
+      if (!tmp)
+        goto no_memory;
+      foxgc_api_write_field(callState->gc_this, 1, tmp);
+      callState->registersObjectArray = foxgc_api_object_get_data(tmp);
+      foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+      memset(callState->registers, 0, sizeof(callState->registers));
+    } else {
+      foxgc_api_write_field(callState->gc_this, 1, NULL);
+    }
+
     // Allocate register objects stack
     // to store value which contain GC object
     tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
@@ -115,8 +120,6 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     callState->generalObjectStack = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
   }
-
-  memset(callState->registers, 0, sizeof(callState->registers));
 
   co->currentCallState = callState;
   
@@ -135,11 +138,11 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, Block_copy(^void (foxgc_object_t* obj) {
     struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
-    if (atomic_exchange(&this->hasFiberFreed, true) == false) {
+    // I have no clue how this->fiber be null
+    if (this->fiber)
       fiber_free(this->fiber);
-      this->fiber = NULL;
-    }
   }));
+
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -186,15 +189,11 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
 bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   if (!fluffyvm_push_current_coroutine(vm, co)) 
     return false;
-
+  
   fiber_state_t prevState;
   bool res = fiber_resume(co->fiber, &prevState);
-  if (res && co->fiber->state == FIBER_DEAD) {
-    if (atomic_exchange(&co->hasFiberFreed, true) == false) {
-      fiber_free(co->fiber);
-      co->fiber = NULL;
-    }
-  } else if (!res) {
+  
+  if (!res) {
     switch (prevState) {
       case FIBER_RUNNING: 
         fluffyvm_set_errmsg(vm, vm->staticStrings.cannotResumeRunningCoroutine);
@@ -224,6 +223,7 @@ bool coroutine_yield(struct fluffyvm* vm) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.cannotSuspendTopLevelCoroutine);
     return false;
   }
+
   return fiber_yield(co->fiber);
 }
 

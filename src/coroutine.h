@@ -38,7 +38,6 @@ struct fluffyvm_coroutine {
   bool isNativeThread;
   bool isYieldable;
 
-  atomic_bool hasFiberFreed;
   struct fiber* fiber;
 
   struct fluffyvm_call_state* currentCallState;

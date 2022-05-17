@@ -195,6 +195,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
     goto error; 
   
   initThread(this, tidStorage, newRoot, coroutinesStack);
+  this->hasInit = true;
   // Done bootstrapping
 
   this->staticDataRoot = foxgc_api_new_root(heap);

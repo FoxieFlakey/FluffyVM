@@ -41,7 +41,12 @@ clean:
 	@cd src/format && $(MAKE) clean || true
 	@rm $(OBJS) $(OUTPUT) || true
 
-run: link
+compile_bytecode:
+	@echo Compiling bytecode...
+	@cd ./assembler && lua main.lua
+	@cp ./assembler/bytecode.json ./bytecode.json
+
+run: link compile_bytecode
 	@echo Running...
 	@echo -------------
 	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ ./main

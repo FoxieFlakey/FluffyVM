@@ -10,3 +10,4 @@ libfoxgc.so
 *.pb-c.h
 data.bin
 *.swo
+bytecode.json
