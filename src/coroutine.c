@@ -1,3 +1,4 @@
+#include <stdatomic.h>
 #include <stddef.h>
 #include <assert.h>
 #include <stdlib.h>
@@ -134,11 +135,10 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func) {
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, Block_copy(^void (foxgc_object_t* obj) {
     struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
-    // Untested: Possible data race with
-    //           `coroutine_resume` when cleaning
-    //           fibers
-    if (this->fiber)
+    if (atomic_exchange(&this->hasFiberFreed, true) == false) {
       fiber_free(this->fiber);
+      this->fiber = NULL;
+    }
   }));
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
@@ -190,8 +190,10 @@ bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   fiber_state_t prevState;
   bool res = fiber_resume(co->fiber, &prevState);
   if (res && co->fiber->state == FIBER_DEAD) {
-    fiber_free(co->fiber);
-    co->fiber = NULL;
+    if (atomic_exchange(&co->hasFiberFreed, true) == false) {
+      fiber_free(co->fiber);
+      co->fiber = NULL;
+    }
   } else if (!res) {
     switch (prevState) {
       case FIBER_RUNNING: 

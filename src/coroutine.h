@@ -1,6 +1,8 @@
 #ifndef header_1651987028_thread_h
 #define header_1651987028_thread_h
 
+#include <stdatomic.h>
+
 #include "closure.h"
 #include "bytecode.h"
 #include "fluffyvm.h"
@@ -35,6 +37,8 @@ struct fluffyvm_call_state {
 struct fluffyvm_coroutine {
   bool isNativeThread;
   bool isYieldable;
+
+  atomic_bool hasFiberFreed;
   struct fiber* fiber;
 
   struct fluffyvm_call_state* currentCallState;

@@ -47,8 +47,8 @@ static void collectAndPrintMemUsage(const char* fmt, ...) {
   util_vasprintf(&tmp, fmt, args);
   va_end(args);
 
-  foxgc_api_do_full_gc(heap);
-  foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
   printMemUsage(tmp);
   free(tmp);
 }
@@ -68,7 +68,7 @@ static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callSta
 
 int main2() {
   heap = foxgc_api_new(1 * MB, 4 * MB, 16 * MB,
-                                   3, 3, 
+                                   1, 1, 
 
                                  8 * KB, 1 * MB,
 
@@ -152,7 +152,7 @@ int main2() {
   
   test(NULL);
 
-  /*pthread_t testThread;
+  pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   
   pthread_t testThread2;
@@ -175,7 +175,7 @@ int main2() {
   pthread_join(testThread3, NULL); 
   pthread_join(testThread4, NULL); 
   pthread_join(testThread5, NULL);
-  pthread_join(testThread6, NULL);*/
+  pthread_join(testThread6, NULL);
   
 
   collectAndPrintMemUsage("Before VM destruction but after test");
@@ -191,6 +191,8 @@ int main2() {
   fluffyvm_free(F);
 
   cannotCreateVm:
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("After VM destruction");
   foxgc_api_free(heap);
 
