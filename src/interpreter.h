@@ -18,6 +18,7 @@ void interpreter_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine*
 bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value* result, foxgc_root_reference_t** rootRef);
 bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value value);
 bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result); 
+void interpreter_error(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value errmsg);
 
 // Return index to last accessible stack entry
 // so when do bound check use <= not <

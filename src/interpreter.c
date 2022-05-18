@@ -1,3 +1,4 @@
+#include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
@@ -136,7 +137,16 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
 // working it stays like this
 static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   if (co->currentCallState->closure->prototype == NULL) {
+    jmp_buf env;
+    // Should this be volatile access?
+    co->currentCallState->errorHandler = &env;
+
+    if (setjmp(env)) {
+      co->currentCallState->errorHandler = NULL;
+      return INTERPRETER_ERROR;
+    }
     co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
+    co->currentCallState->errorHandler = NULL;
     return INTERPRETER_OK;
   }
 
@@ -364,6 +374,11 @@ int interpreter_get_top(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
 
 struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state* callState) {
   return callState->closure->env;
+}
+
+void interpreter_error(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value errmsg) {
+  fluffyvm_set_errmsg(vm, errmsg);
+  longjmp(*callState->errorHandler, 1);
 }
 
 

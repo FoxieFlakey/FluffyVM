@@ -2,6 +2,7 @@
 #define header_1651987028_thread_h
 
 #include <stdatomic.h>
+#include <setjmp.h>
 
 #include "closure.h"
 #include "bytecode.h"
@@ -24,6 +25,9 @@ struct fluffyvm_call_state {
 
   int pc;
   int sp;
+
+  // For C call only!
+  jmp_buf* errorHandler;
 
   foxgc_object_t** registersObjectArray;
 
