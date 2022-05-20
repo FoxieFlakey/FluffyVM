@@ -1,9 +1,11 @@
+#include <pthread.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <assert.h>
 #include <stdlib.h>
 #include <string.h>
 #include <Block.h>
+#include <inttypes.h>
 
 #include "closure.h"
 #include "fiber.h"
@@ -13,6 +15,8 @@
 #include "config.h"
 #include "interpreter.h"
 #include "stack.h"
+#include "util/util.h"
+#include "value.h"
 
 #define create_descriptor(name, structure, ...) do { \
   size_t offsets[] = __VA_ARGS__; \
@@ -58,10 +62,12 @@ void coroutine_cleanup(struct fluffyvm* vm) {
 
 static void internal_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   // Abort on underflow
+  pthread_mutex_lock(&co->callStackLock);
   bool tmp = stack_pop(vm, co->callStack, NULL, NULL);
   assert(tmp);
   if (!stack_peek(vm, co->callStack, (void**) &co->currentCallState))
     co->currentCallState = NULL;
+  pthread_mutex_unlock(&co->callStackLock);
 }
 
 void coroutine_function_epilog(struct fluffyvm* vm) {
@@ -80,12 +86,13 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
     goto no_memory;
+  pthread_mutex_lock(&co->callStackLock);
   if (!stack_push(vm, co->callStack, obj))
     goto error;
+  pthread_mutex_unlock(&co->callStackLock);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef2); 
 
   struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
-  callState->pc = 0;
   callState->sp = 0;
   foxgc_api_write_field(obj, 0, obj);
   foxgc_api_write_field(obj, 2, func->gc_this);
@@ -158,8 +165,10 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), stackRootRef);
 
   fluffyvm_push_current_coroutine(vm, this);
-  if (!coroutine_function_prolog(vm, func))
+  if (!coroutine_function_prolog(vm, func)) {
+    fluffyvm_pop_current_coroutine(vm);
     goto error;
+  }
   fluffyvm_pop_current_coroutine(vm);
 
   this->isYieldable = true;
@@ -180,7 +189,6 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
     coroutine_function_epilog(vm, this);
   */
 
-  fluffyvm_pop_current_coroutine(vm);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), *rootRef);
   *rootRef = NULL;
   return NULL;
@@ -243,5 +251,59 @@ void coroutine_allow_yield(struct fluffyvm* vm) {
   co->isYieldable = true;
 }
 
+void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer) {
+  pthread_mutex_lock(&co->callStackLock);
+  int usage = co->callStack->sp;
+  for (int i = 0; i < usage; i++) {
+    int pos = backward ? usage - i - 1 : i;
+    struct fluffyvm_call_state* callState = foxgc_api_object_get_data(co->callStack->stack[pos]);
+    struct fluffyvm_call_state* callerState = NULL;
+    
+    // Get caller of current call state
+    if (pos - 1 >= 0)
+      callerState = foxgc_api_object_get_data(co->callStack->stack[pos-1]);
+
+    struct fluffyvm_call_frame frame = {
+      .isNative = callState->closure->func != NULL,
+      .closure = callState->closure,
+      .source = NULL,
+
+      .line = -1,
+      .bytecode = NULL,
+      .name = NULL,
+      .prototype = NULL
+    };
+
+    if (frame.isNative) {
+      util_asprintf((char**) &frame.name, "0x%08" PRIXPTR, (uintptr_t) callState->closure->func);
+      frame.source = "[Native]";
+    } else {
+      // I couldn't find any solution 
+      // that give this meaningful name
+      // for function defined in global
+      frame.name = "lua function";
+      frame.bytecode = callState->closure->prototype->bytecode;
+      frame.prototype = callState->closure->prototype;
+      frame.source = value_get_string(frame.prototype->sourceFile);
+      
+      if (frame.prototype->lineInfo) 
+        if (callState->pc < frame.prototype->lineInfo_len)
+          frame.line = frame.prototype->lineInfo[callState->pc];
+    }
+
+    if (callState->closure->prototype)
+      frame.bytecode = callState->closure->prototype->bytecode;
+    
+    bool res = consumer(&frame);
+    
+    if (frame.isNative)
+      free((void*) frame.name);
+
+    if (!res)
+      goto exit_function;
+  }
+  exit_function:
+  pthread_mutex_unlock(&co->callStackLock);
+}
 
 

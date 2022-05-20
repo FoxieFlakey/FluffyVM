@@ -20,10 +20,21 @@ struct fluffyvm_prototype {
   // struct fluffyvm_prototype*
   foxgc_object_t** prototypes;
   
+  // Debug info
+  size_t lineInfo_len;
+  int* lineInfo;
+
+  // Guarantee to be null terminated string
+  // (if no source file name provided in 
+  // debug info its 0 byte length)
+  struct value sourceFile;
+  foxgc_object_t* sourceFileObject;
+
   foxgc_object_t* gc_this;
   foxgc_object_t* gc_instructions;
   foxgc_object_t* gc_bytecode;
   foxgc_object_t* gc_prototypes;
+  foxgc_object_t* gc_lineInfo;
 };
 
 struct fluffyvm_bytecode {

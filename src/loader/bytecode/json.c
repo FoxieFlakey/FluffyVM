@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include <stdlib.h>
 #include <math.h>
 #include <pthread.h>
@@ -31,6 +32,13 @@ static bool validatePrototype(struct fluffyvm* vm, const char** errorMessage, st
 
   cJSON* prototypes = cJSON_GetObjectItem(prototype, "prototypes");
   cJSON* instructions = cJSON_GetObjectItem(prototype, "instructions");
+  cJSON* lineInfo = cJSON_GetObjectItem(prototype, "lineInfo");
+  cJSON* sourceFile = cJSON_GetObjectItem(prototype, "sourceFile");
+  
+  if (!cJSON_IsString(sourceFile)) { 
+    *errorMessage = "prototype.sourceFile is not array";
+    return false;
+  }
   
   if (!cJSON_IsArray(prototypes)) { 
     *errorMessage = "prototype.prototypes is not array";
@@ -41,7 +49,12 @@ static bool validatePrototype(struct fluffyvm* vm, const char** errorMessage, st
     *errorMessage = "prototype.instructions is not array";
     return false;
   }
-   
+  
+  if (!cJSON_IsArray(lineInfo)) { 
+    *errorMessage = "prototype.lineInfo is not array";
+    return false;
+  }
+  
   int arrayLen = cJSON_GetArraySize(instructions);
   for (int i = 0; i < arrayLen; i++) {
     cJSON* current = cJSON_GetArrayItem(instructions, i);
@@ -76,6 +89,15 @@ static bool validatePrototype(struct fluffyvm* vm, const char** errorMessage, st
       return false;
     } 
   }
+  
+  arrayLen = cJSON_GetArraySize(lineInfo);
+  for (int i = 0; i < arrayLen; i++) {
+    cJSON* current = cJSON_GetArrayItem(lineInfo, i);
+    if (!cJSON_IsNumber(current)) {
+      *errorMessage = "invalid line info array";
+      return false;
+    }
+  }
 
   arrayLen = cJSON_GetArraySize(prototypes);
   for (int i = 0; i < arrayLen; i++)
@@ -94,6 +116,7 @@ static void freePrototypeProtoBuf(FluffyVmFormat__Bytecode__Prototype* prototype
     }
   }
 
+  free(prototype->lineinfo);
   free(prototype->instructions);
   free(prototype->prototypes);
   free(prototype);
@@ -121,9 +144,12 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   
   cJSON* prototypes = cJSON_GetObjectItem(prototypeJson, "prototypes");
   cJSON* instructions = cJSON_GetObjectItem(prototypeJson, "instructions");
+  cJSON* lineInfo = cJSON_GetObjectItem(prototypeJson, "lineInfo");
+  cJSON* sourceFile = cJSON_GetObjectItem(prototypeJson, "sourceFile");
  
   prototype->prototypes = NULL;
   prototype->instructions = NULL; 
+  prototype->lineinfo = NULL; 
 
   prototype->n_prototypes = cJSON_GetArraySize(prototypes);
   prototype->prototypes = calloc(prototype->n_prototypes, sizeof(FluffyVmFormat__Bytecode__Prototype*));
@@ -160,6 +186,19 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
     //printf("   Ins: %lf %lf\n",  highDouble, lowDouble);
   }
   
+  prototype->n_lineinfo = cJSON_GetArraySize(lineInfo);
+  prototype->lineinfo = calloc(prototype->n_lineinfo, sizeof(int32_t));
+  if (prototype->lineinfo == NULL) {
+    freePrototypeProtoBuf(prototype);
+    value_copy(&vm->staticStrings.outOfMemory, errorMessage2);
+    return NULL;
+  }
+  
+  for (int i = 0; i < prototype->n_lineinfo; i++)
+    prototype->lineinfo[i] = (int32_t) cJSON_GetNumberValue(cJSON_GetArrayItem(lineInfo, i));
+ 
+  prototype->sourcefile = (char*) cJSON_GetStringValue(sourceFile);
+
   return prototype;
 }
 

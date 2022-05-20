@@ -150,7 +150,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     return INTERPRETER_OK;
   }
 
-  int pc = co->currentCallState->pc;
+  int pc = 0;
   int instructionsLen = co->currentCallState->closure->prototype->instructions_len;
   assert(instructionsLen >= pc);
   struct fluffyvm_call_state* callState = co->currentCallState;
@@ -279,6 +279,7 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
             if (!interpreter_push(vm, co->currentCallState, callState->generalStack[i]))
               goto call_error;
 
+          callState->pc = pc;
           exec(vm, co);
           
           if (ins.B == 0) {
@@ -337,17 +338,20 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     setRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
 
     pc += incrementCount;
+    callState->pc = pc;
   }
 
   done_function:
+  callState->pc = pc;
   return INTERPRETER_OK;
 
   illegal_instruction:
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
-  error:
-  callState->pc = pc;
+  error:;
   struct value err = fluffyvm_get_errmsg(vm);
   printf("Error: %.*s\n", (int) value_get_len(err), value_get_string(err));
+  
+  callState->pc = pc;
   return INTERPRETER_ERROR;
 }
 

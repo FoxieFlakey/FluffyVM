@@ -67,7 +67,7 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
   commonStringInit(strStruct, strObj);
    
   // memcpy because the string could have embedded
-  // null to keep lua compat for the string
+  // null to mimic lua for the string
   memcpy(foxgc_api_object_get_data(strObj), str, len);
   return value;
 }

@@ -10,13 +10,20 @@ local stackPointer = 1
 local prototype
 local topLevelPrototype
 
-function startPrototype()
+local filename = "start.asm"
+
+function startPrototype(name)
+  local info = debug.getinfo(2, "S")
   prototype = {
     labels = {},
     instructions = {},
     pc = 1,
     bytePointer = 1,
-    prototypes = {}
+    prototypes = {},
+
+    -- Maps PC to line
+    lineInfo = {},
+    sourceFile = name or info.source
   }
   stack[stackPointer] = prototype
   
@@ -40,7 +47,7 @@ end
 global.start_prototype = startPrototype
 global.end_prototype = endPrototype
 
-startPrototype()
+startPrototype(filename)
 topLevelPrototype = prototype
 
 ---------------------------------------------------
@@ -108,8 +115,11 @@ function emitInstruction(op, cond, ...)
          op >= 0 and op <= 0xFF)
   assert(math.type(cond) == "integer" and
          cond >= 0 and cond <= 0xFF)
+  local info = debug.getinfo(3, "l")
   
+  prototype.lineInfo[prototype.pc] = info.currentline
   prototype.pc = prototype.pc + 1
+  
   emit(op)
   emit(cond)
   local first = true
@@ -118,7 +128,9 @@ function emitInstruction(op, cond, ...)
            operand >= 0 and operand <= 0xFFFF)
     local num = _num - 1
     if (_num - 1) % 3 == 0 and not first then
+      prototype.lineInfo[prototype.pc] = info.currentline
       prototype.pc = prototype.pc + 1
+      
       emit(opcode.extra)
       emit(0)
     end
@@ -132,7 +144,7 @@ function emitInstruction(op, cond, ...)
   while (prototype.bytePointer - 1) % 8 ~= 0 do
     emit(0)
   end
-end
+end 
 
 ---------------------------------------------------
 -- @name const
@@ -247,7 +259,8 @@ local global2 = setmetatable({}, {
     return global[k]
   end
 })
-loadfile("start.lua", nil, global2)()
+
+loadfile(filename, nil, global2)()
 
 ---------------------------------------------------
 

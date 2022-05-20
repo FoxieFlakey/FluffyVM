@@ -56,12 +56,29 @@ static void collectAndPrintMemUsage(const char* fmt, ...) {
   free(tmp);
 }
 
+static bool stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  const int tid = fluffyvm_get_thread_id(F);
+  
+  printf("[Thread %d] Stacktrace:\n", tid);
+  coroutine_iterate_call_stack(F, callState->owner, true, ^bool (void* _arg) {
+    struct fluffyvm_call_frame* frame = _arg;
+    printf("[Thread %d] \t%s:%d: in %s\n", tid, frame->source, frame->line, frame->name);
+    return true;
+  });
+
+  return true;
+}
+
 static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  const int tid = fluffyvm_get_thread_id(F);
+
   for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
     struct value string;
     interpreter_peek(F, callState, i, &string);
-    printf("[Thread %d] Printer: %.*s\n", fluffyvm_get_thread_id(F), (int) value_get_len(string), value_get_string(string));
+    printf("[Thread %d] Printer: %.*s\n", tid, (int) value_get_len(string), value_get_string(string));
   }
+
+  stdlib_print_stacktrace(F, callState, NULL);
 
   return true;
 }
@@ -128,6 +145,7 @@ int main2() {
 
     registerCFunction(F, globalTable, "print", stdlib_print);
     registerCFunction(F, globalTable, "return_string", stdlib_return_string);
+    registerCFunction(F, globalTable, "print_stack", stdlib_print_stacktrace); 
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);
@@ -206,8 +224,8 @@ int main2() {
   fluffyvm_free(F);
 
   cannotCreateVm:
-  //foxgc_api_do_full_gc(heap);
-  //foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("After VM destruction");
   foxgc_api_free(heap);
 

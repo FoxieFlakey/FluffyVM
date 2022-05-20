@@ -20,6 +20,12 @@ message Constant {
 message Prototype {
   repeated uint64 instructions = 1;
   repeated Prototype prototypes = 2;
+
+  // Debug info (optional)
+  repeated int32 lineInfo = 3;
+  // Just give 0 length string
+  // if not present
+  string sourceFile = 4;
 }
 
 message Bytecode {

@@ -39,6 +39,8 @@ bool bytecode_init(struct fluffyvm* vm) {
     offsetof(struct fluffyvm_prototype, gc_bytecode),
     offsetof(struct fluffyvm_prototype, gc_instructions),
     offsetof(struct fluffyvm_prototype, gc_prototypes),
+    offsetof(struct fluffyvm_prototype, gc_lineInfo),
+    offsetof(struct fluffyvm_prototype, sourceFileObject),
   });
 
   return true;
@@ -81,9 +83,25 @@ static inline void prototype_write_instructions_array(struct fluffyvm_prototype*
   }
 }
 
+static inline void prototype_write_line_info_array(struct fluffyvm_prototype* proto, foxgc_object_t* obj) {
+  foxgc_api_write_field(proto->gc_this, 4, obj);
+  if (obj) {
+    proto->lineInfo = foxgc_api_object_get_data(obj);
+    proto->lineInfo_len = foxgc_api_get_array_length(obj);
+  } else {
+    proto->lineInfo = NULL;
+    proto->lineInfo_len = 0;
+  }
+}
+
 static inline void prototype_write_bytecode(struct fluffyvm_prototype* proto, struct fluffyvm_bytecode* bytecode) {
   proto->bytecode = bytecode;
   foxgc_api_write_field(proto->gc_this, 1, bytecode ? bytecode->gc_this : NULL);
+}
+
+static inline void prototype_write_source_file_name(struct fluffyvm_prototype* proto, struct value sourceFilename) {
+  value_copy(&proto->sourceFile, &sourceFilename);
+  foxgc_api_write_field(proto->gc_this, 5, value_get_object_ptr(sourceFilename));
 }
 
 ///////////////////////
@@ -101,6 +119,15 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   foxgc_api_write_field(obj, 0, obj);
   prototype_write_bytecode(this, bytecode);
 
+  foxgc_root_reference_t* tmpRootRef = NULL;
+  int len = strlen(proto->sourcefile);
+  if (len == 0) 
+    len = -1;
+  
+  struct value sourceFilename = value_new_string2(vm, proto->sourcefile, len + 1, &tmpRootRef);
+  prototype_write_source_file_name(this, sourceFilename);
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+
   foxgc_root_reference_t* prototypesRef = NULL;
   foxgc_object_t* prototypesArray = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &prototypesRef, proto->n_prototypes, NULL);
   if (!prototypesArray)
@@ -115,6 +142,17 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   prototype_write_instructions_array(this, instructionsArray);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), instructionsRef);
   
+  if (proto->n_lineinfo > 0) {
+    foxgc_root_reference_t* lineInfoRef = NULL;
+    foxgc_object_t* lineInfoArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &lineInfoRef, sizeof(fluffyvm_instruction_t), proto->n_lineinfo, NULL);
+    if (!lineInfoArray)
+      goto no_memory;
+    prototype_write_line_info_array(this, lineInfoArray);
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), lineInfoRef);
+  } else {
+    prototype_write_line_info_array(this, NULL);
+  }
+
   // Filling data
   for (int i = 0; i < proto->n_prototypes; i++) {
     foxgc_root_reference_t* tmpRootRef = NULL;
@@ -127,6 +165,9 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
 
   for (int i = 0; i < proto->n_instructions; i++)
     this->instructions[i] = (fluffyvm_instruction_t) proto->instructions[i];
+  
+  for (int i = 0; i < proto->n_lineinfo; i++)
+    this->lineInfo[i] = (fluffyvm_instruction_t) proto->lineinfo[i];
 
   return this;
   

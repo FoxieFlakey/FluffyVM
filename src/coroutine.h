@@ -1,12 +1,14 @@
 #ifndef header_1651987028_thread_h
 #define header_1651987028_thread_h
 
+#include <pthread.h>
 #include <stdatomic.h>
 #include <setjmp.h>
 
 #include "closure.h"
 #include "bytecode.h"
 #include "fluffyvm.h"
+#include "util/functional/functional.h"
 #include "value.h"
 #include "foxgc.h"
 #include "stack.h"
@@ -45,10 +47,25 @@ struct fluffyvm_coroutine {
   struct fiber* fiber;
 
   struct fluffyvm_call_state* currentCallState;
+  
+  pthread_mutex_t callStackLock;
   struct fluffyvm_stack* callStack;
 
   foxgc_object_t* gc_this;
   foxgc_object_t* gc_stack;
+};
+
+struct fluffyvm_call_frame {
+  bool isNative;
+
+  const char* name;
+  const char* source;
+  struct fluffyvm_closure* closure;
+
+  // These zero or null if its native function
+  int line;
+  struct fluffyvm_bytecode* bytecode;
+  struct fluffyvm_prototype* prototype;
 };
 
 bool coroutine_init(struct fluffyvm* vm);
@@ -65,6 +82,10 @@ void coroutine_function_epilog(struct fluffyvm* vm);
 void coroutine_disallow_yield(struct fluffyvm* vm);
 void coroutine_allow_yield(struct fluffyvm* vm);
 
+// Iterates the call stack
+// Note: Do not store pointer of the call frame
+//       it is stack allocated
+void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer);
 
 #endif
 
