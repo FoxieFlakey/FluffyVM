@@ -67,7 +67,7 @@ static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutin
   });
 }
 
-static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static void stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   const int tid = fluffyvm_get_thread_id(F);
 
   for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
@@ -77,11 +77,9 @@ static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callSta
   }
 
   stdlib_print_stacktrace(F, callState->owner);
-
-  return true;
 }
 
-static bool stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static void stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   foxgc_root_reference_t* tmpRootRef = NULL;
   
   {
@@ -95,8 +93,6 @@ static bool stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state*
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
-
-  return true;
 }
 
 static void registerCFunction(struct fluffyvm* F, struct value globalTable, const char* name, closure_cfunction_t cfunc) {
@@ -211,7 +207,8 @@ int main2() {
   pthread_join(testThread5, NULL);
   pthread_join(testThread6, NULL); */
   
-
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("Before VM destruction but after test");
   
   fluffyvm_clear_errmsg(F);

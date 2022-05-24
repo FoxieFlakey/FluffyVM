@@ -3,6 +3,7 @@
 
 #include "coroutine.h"
 #include "fluffyvm.h"
+#include "util/functional/functional.h"
 #include "value.h"
 
 #define FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL (0xFFFF)
@@ -25,6 +26,8 @@ void interpreter_error(struct fluffyvm* vm, struct fluffyvm_call_state* callStat
 int interpreter_get_top(struct fluffyvm* vm, struct fluffyvm_call_state* callState);
 
 struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state* callState);
+
+bool interpreter_pcall(struct fluffyvm* F, struct fluffyvm_call_state* callState, runnable_t thingToExecute);
 
 #endif
 

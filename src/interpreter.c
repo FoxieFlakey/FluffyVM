@@ -9,6 +9,7 @@
 #include "config.h"
 #include "coroutine.h"
 #include "fluffyvm.h"
+#include "util/functional/functional.h"
 #include "value.h"
 #include "opcodes.h"
 
@@ -132,13 +133,10 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
-// I know i could just not recurse on calling
-// each function. Until the interpreter fully
-// working it stays like this
-static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
-  int pc = 0;
-  struct fluffyvm_call_state* callState = co->currentCallState;
-  
+bool interpreter_pcall(struct fluffyvm* vm, struct fluffyvm_call_state* callState, runnable_t thingToExecute) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+
   jmp_buf env;
   jmp_buf* prevErrorHandler = co->errorHandler;
 
@@ -146,8 +144,20 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     co->errorHandler = &env;
     
     if (setjmp(env))
-      goto error;
+      return false;
   }
+  
+  thingToExecute();
+  co->errorHandler = prevErrorHandler;
+  return true;
+}
+
+// I know i could just not recurse on calling
+// each function. Until the interpreter fully
+// working it stays like this
+static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+  int pc = 0;
+  struct fluffyvm_call_state* callState = co->currentCallState;
   
   if (co->currentCallState->closure->prototype == NULL) {
     co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
@@ -362,14 +372,12 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
   done_function:
   callState->pc = pc;
-  co->errorHandler = prevErrorHandler;
   return INTERPRETER_OK;
 
   illegal_instruction:
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
   error:
   callState->pc = pc;
-  co->errorHandler = prevErrorHandler;
   interpreter_error(vm, callState, fluffyvm_get_errmsg(vm));
   
   // Can't be reached
