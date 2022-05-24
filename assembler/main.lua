@@ -10,7 +10,7 @@ local stackPointer = 1
 local prototype
 local topLevelPrototype
 
-local filename = "start.asm"
+local filename = "start.lua"
 
 function startPrototype(name)
   local info = debug.getinfo(2, "S")
