@@ -15,7 +15,8 @@
   X(OPCODE_GET_CONSTANT, 0x07, "get_constant", 2) \
   X(OPCODE_RETURN, 0x08, "ret", 2) \
   X(OPCODE_EXTRA, 0x09, "extra", 3) \
-  X(OPCODE_STACK_GETTOP, 0x0A, "stack_gettop", 1)
+  X(OPCODE_STACK_GETTOP, 0x0A, "stack_gettop", 1) \
+  X(OPCODE_LOAD_PROTOTYPE, 0x0B, "load_prototype", 3)
 
 typedef enum {
 # define X(name, op, ...) FLUFFYVM_ ## name = op,

@@ -136,24 +136,26 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
 // each function. Until the interpreter fully
 // working it stays like this
 static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
-  if (co->currentCallState->closure->prototype == NULL) {
-    jmp_buf env;
-    // Should this be volatile access?
-    co->currentCallState->errorHandler = &env;
+  int pc = 0;
+  struct fluffyvm_call_state* callState = co->currentCallState;
+  
+  jmp_buf env;
+  jmp_buf* prevErrorHandler = co->errorHandler;
 
-    if (setjmp(env)) {
-      co->currentCallState->errorHandler = NULL;
-      return INTERPRETER_ERROR;
-    }
+  if (co->currentCallState->closure->func) {
+    co->errorHandler = &env;
+    
+    if (setjmp(env))
+      goto error;
+  }
+  
+  if (co->currentCallState->closure->prototype == NULL) {
     co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
-    co->currentCallState->errorHandler = NULL;
-    return INTERPRETER_OK;
+    goto done_function;
   }
 
-  int pc = 0;
   int instructionsLen = co->currentCallState->closure->prototype->instructions_len;
   assert(instructionsLen >= pc);
-  struct fluffyvm_call_state* callState = co->currentCallState;
 
   const fluffyvm_instruction_t* instructionsArray = co->currentCallState->closure->prototype->instructions;
   while (pc < instructionsLen) {
@@ -207,6 +209,15 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
         setRegister(vm, callState, ins.A, getRegister(vm, callState, ins.B));
         break;
+      case FLUFFYVM_OPCODE_LOAD_PROTOTYPE:
+      {
+        printf("0x%08X: R(%d) = Proto[%d]\n", pc, ins.A, ins.B);
+        foxgc_root_reference_t* rootRef = NULL;
+        struct fluffyvm_closure* closure = closure_new(vm, &rootRef, foxgc_api_object_get_data(callState->closure->prototype->prototypes[ins.B]), getRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ENV));
+        setRegister(vm, callState, ins.A, value_new_closure(vm, closure)); 
+        foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
+        break;
+      }
       case FLUFFYVM_OPCODE_GET_CONSTANT: 
         printf("0x%08X: R(%d) = ConstPool[%d]\n", pc, ins.A, ins.B);
         if (ins.B >= callState->closure->prototype->bytecode->constants_len)
@@ -260,12 +271,18 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           struct fluffyvm_closure* closure;
           
           printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
-          
-          if (!value_is_callable(getRegister(vm, callState, ins.A))) {
+          struct value val = getRegister(vm, callState, ins.A);
+
+          if (val.type == FLUFFYVM_TVALUE_NIL) {
+            fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToCallNilValue);
+            goto error;
+          }
+
+          if (!value_is_callable(val)) {
             fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToCallNonCallableValue);
             goto error;
           }
-          closure = getRegister(vm, callState, ins.A).data.closure;
+          closure = val.data.closure;
 
           if (!coroutine_function_prolog(vm, closure))
             goto error;
@@ -280,8 +297,10 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
               goto call_error;
 
           callState->pc = pc;
-          exec(vm, co);
-          
+          call_status_t result = exec(vm, co);
+          if (result == INTERPRETER_ERROR)
+            goto error;
+
           if (ins.B == 0) {
             returnCount = 0;
           } else if (ins.B == 1) {
@@ -343,24 +362,24 @@ static call_status_t exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
   done_function:
   callState->pc = pc;
+  co->errorHandler = prevErrorHandler;
   return INTERPRETER_OK;
 
   illegal_instruction:
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
-  error:;
-  struct value err = fluffyvm_get_errmsg(vm);
-  printf("Error: %.*s\n", (int) value_get_len(err), value_get_string(err));
-  
+  error:
   callState->pc = pc;
-  return INTERPRETER_ERROR;
+  co->errorHandler = prevErrorHandler;
+  interpreter_error(vm, callState, fluffyvm_get_errmsg(vm));
+  
+  // Can't be reached
+  abort();
+  return 0;
 }
 
 bool interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   call_status_t result = exec(vm, co);
-  
-  /* struct value val = getRegister(vm, co, 2);
-  fwrite(value_get_string(val), 1, value_get_len(val), stdout); */
-  
+   
   coroutine_function_epilog(vm); 
   return result == INTERPRETER_OK;
 }
@@ -382,7 +401,10 @@ struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state
 
 void interpreter_error(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value errmsg) {
   fluffyvm_set_errmsg(vm, errmsg);
-  longjmp(*callState->errorHandler, 1);
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
+  longjmp(*co->errorHandler, 1);
 }
 
 

@@ -17,36 +17,6 @@
 #include "closure.h"
 #include "stack.h"
 
-// X macro idea is awsome
-#define STATIC_STRINGS \
-  X(outOfMemory, "out of memory") \
-  X(outOfMemoryWhileHandlingError, "out of memory while handling another error") \
-  X(outOfMemoryWhileAnErrorOccured, "out of memory while another error occured") \
-  X(strtodDidNotProcessAllTheData, "strtod did not process all the data") \
-  X(typenames.nil, "nil") \
-  X(typenames.string, "string") \
-  X(typenames.doubleNum, "double") \
-  X(typenames.longNum, "long") \
-  X(typenames.table, "table") \
-  X(typenames.closure, "function") \
-  X(invalidCapacity, "invalid capacity") \
-  X(badKey, "bad key") \
-  X(protobufFailedToUnpackData, "protobuf failed to unpack data") \
-  X(unsupportedBytecode, "unsupported bytecode version") \
-  X(pthreadCreateError, "pthread_create call unsuccessful") \
-  X(invalidBytecode, "invalid bytecode") \
-  X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
-  X(invalidArrayBound, "invalid array bound") \
-  X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
-  X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine") \
-  X(illegalInstruction, "illegal instruction") \
-  X(stackOverflow, "stack overflow") \
-  X(stackUnderflow, "stack underflow") \
-  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
-  X(attemptToCallNonCallableValue, "attempt to call not callable value") \
-  X(notInCoroutine, "not in coroutine") \
-  X(coroutineNestTooDeep, "coroutine nest too deep")
-
 #define COMPONENTS \
   X(stack) \
   X(value) \
@@ -70,7 +40,7 @@ static bool statics_init(struct fluffyvm* this) {
     foxgc_api_root_add(this->heap, value_get_object_ptr(tmp), this->staticDataRoot, &this->staticStrings.name ## RootRef); \
     foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmpRef); \
   }
-  STATIC_STRINGS
+  FLUFFYVM_STATIC_STRINGS
 # undef X
 
   return true;
@@ -80,7 +50,7 @@ static void statics_cleanup(struct fluffyvm* this) {
 # define X(name, string, ...) \
   if (this->staticStrings.name ## RootRef) \
     foxgc_api_remove_from_root2(this->heap, this->staticDataRoot, this->staticStrings.name ## RootRef);
-  STATIC_STRINGS
+  FLUFFYVM_STATIC_STRINGS
 # undef X
 }
 

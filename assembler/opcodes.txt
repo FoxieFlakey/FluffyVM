@@ -69,6 +69,7 @@ Opcode	Mnemonic		Description
 				(the A, B, C operand are used by some 
 				instruction)
 0x0A	stack_get_top(A)	R(A) = S.top
+0x0B	load_prototype(A, B)	R(A) = Proto[B]
 
 Note:
  * All operands is 16 bit unsigned integers unless noted

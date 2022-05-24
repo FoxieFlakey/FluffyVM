@@ -76,8 +76,7 @@ bool stack_pop(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result,
   if (stack->sp - 1 < 0) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow);
     return false;
-  }
-  
+  } 
 
   stack->sp--;
   if (result) {

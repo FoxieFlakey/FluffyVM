@@ -1,4 +1,5 @@
 #include <pthread.h>
+#include <setjmp.h>
 #include <stdatomic.h>
 #include <stddef.h>
 #include <assert.h>
@@ -6,6 +7,7 @@
 #include <string.h>
 #include <Block.h>
 #include <inttypes.h>
+#include <pthread.h>
 
 #include "closure.h"
 #include "fiber.h"
@@ -30,14 +32,26 @@
     foxgc_api_descriptor_remove(vm->coroutineStaticData->name); \
 } while(0)
 
+static struct value nilRegisters[FLUFFYVM_REGISTERS_NUM] = {};
+static pthread_once_t nilRegistersOnce = PTHREAD_ONCE_INIT;
+
+static void nilRegistersInit() {
+  struct value nilValue = value_nil();
+  for (int i = 0; i < FLUFFYVM_REGISTERS_NUM; i++)
+    value_copy(&nilRegisters[i], &nilValue);
+}
+
 bool coroutine_init(struct fluffyvm* vm) {
+  pthread_once(&nilRegistersOnce, nilRegistersInit);
+
   vm->coroutineStaticData = malloc(sizeof(*vm->coroutineStaticData));
   if (!vm->coroutineStaticData)
     return false;
   
   create_descriptor(desc_coroutine, struct fluffyvm_coroutine, {
     offsetof(struct fluffyvm_coroutine, gc_this),
-    offsetof(struct fluffyvm_coroutine, gc_stack)
+    offsetof(struct fluffyvm_coroutine, gc_stack),
+    offsetof(struct fluffyvm_coroutine, thrownedErrorObject)
   });
   
   create_descriptor(desc_callState, struct fluffyvm_call_state, {
@@ -62,15 +76,24 @@ void coroutine_cleanup(struct fluffyvm* vm) {
 
 static void internal_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   // Abort on underflow
-  pthread_mutex_lock(&co->callStackLock);
   bool tmp = stack_pop(vm, co->callStack, NULL, NULL);
   assert(tmp);
   if (!stack_peek(vm, co->callStack, (void**) &co->currentCallState))
     co->currentCallState = NULL;
-  pthread_mutex_unlock(&co->callStackLock);
 }
 
 void coroutine_function_epilog(struct fluffyvm* vm) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+
+  interpreter_function_epilog(vm, co);
+
+  pthread_mutex_lock(&co->callStackLock);
+  internal_function_epilog(vm, co);
+  pthread_mutex_unlock(&co->callStackLock);
+}
+
+void coroutine_function_epilog_no_lock(struct fluffyvm* vm) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
 
@@ -113,7 +136,8 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
       foxgc_api_write_field(callState->gc_this, 1, tmp);
       callState->registersObjectArray = foxgc_api_object_get_data(tmp);
       foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-      memset(callState->registers, 0, sizeof(callState->registers));
+
+      memcpy(callState->registers, nilRegisters, sizeof(callState->registers));
     } else {
       foxgc_api_write_field(callState->gc_this, 1, NULL);
     }
@@ -173,8 +197,21 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
 
   this->isYieldable = true;
   this->isNativeThread = false;
+  this->hasError = false;
   this->fiber = fiber_new(Block_copy(^void () {
-    interpreter_exec(vm, this);   
+    jmp_buf buf;
+    if (setjmp(buf)) {
+      if (fluffyvm_is_errmsg_present(vm)) {
+        struct value errMsg = fluffyvm_get_errmsg(vm);
+        value_copy(&this->thrownedError, &errMsg);
+        foxgc_api_write_field(this->gc_this, 1, value_get_object_ptr(errMsg));
+      }
+      this->hasError = true; 
+      return;
+    }
+
+    this->errorHandler = &buf;
+    interpreter_exec(vm, this);
   }));
 
   return this;
@@ -217,7 +254,7 @@ bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   }
 
   fluffyvm_pop_current_coroutine(vm);
-  return res;
+  return !co->hasError;
 }
 
 bool coroutine_yield(struct fluffyvm* vm) {

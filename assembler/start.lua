@@ -4,6 +4,8 @@ local strPrint = const("print")
 local strReturnString = const("return_string")
 local strPogString = const("Pogger fox this working")
 
+local strFromAPrototype = const("This message is from inside a prototype")
+
 local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
 local COND_NONE = 0x00
@@ -30,20 +32,26 @@ stack_pop(COND_NONE, NIL)
 
 -- Print all string except the last string
 -- returned by `return_string`
--- Check opcodes.txt for what number 3 represent
+-- Check opcodes.txt for what number 4 represent
 call(COND_NONE, 0x0001, 0, 0, 4)
+
+-- Prototypes indexed from zero
+load_prototype(COND_NONE, 0x0001, 0)
+call(COND_NONE, 0x0001, 0, 0, 0)
 
 ret(COND_NONE, 0, 0)
 
 start_prototype()
-nop()
-mov(0, 0, 0)
-table_set(0, 0, 0, 0)
 
-start_prototype()
-stack_push(0, 0)
-stack_pop(0, 0)
-stack_get_top(0, 0)
+get_constant(COND_NONE, 0x0001, strFromAPrototype)
+stack_push(COND_NONE, 0x0001)
+
+get_constant(COND_NONE, 0x0001, strPrint)
+table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+
+call(COND_NONE, 0x0005, 0, 0, 2)
+
+ret(COND_NONE, 0, 0)
 end_prototype()
 
-end_prototype()
+

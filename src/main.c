@@ -56,17 +56,15 @@ static void collectAndPrintMemUsage(const char* fmt, ...) {
   free(tmp);
 }
 
-static bool stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutine* co) {
   const int tid = fluffyvm_get_thread_id(F);
   
   printf("[Thread %d] Stacktrace:\n", tid);
-  coroutine_iterate_call_stack(F, callState->owner, true, ^bool (void* _arg) {
+  coroutine_iterate_call_stack(F, co, true, ^bool (void* _arg) {
     struct fluffyvm_call_frame* frame = _arg;
     printf("[Thread %d] \t%s:%d: in %s\n", tid, frame->source, frame->line, frame->name);
     return true;
   });
-
-  return true;
 }
 
 static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
@@ -78,7 +76,7 @@ static bool stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callSta
     printf("[Thread %d] Printer: %.*s\n", tid, (int) value_get_len(string), value_get_string(string));
   }
 
-  stdlib_print_stacktrace(F, callState, NULL);
+  stdlib_print_stacktrace(F, callState->owner);
 
   return true;
 }
@@ -145,7 +143,6 @@ int main2() {
 
     registerCFunction(F, globalTable, "print", stdlib_print);
     registerCFunction(F, globalTable, "return_string", stdlib_return_string);
-    registerCFunction(F, globalTable, "print_stack", stdlib_print_stacktrace); 
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);
@@ -167,9 +164,13 @@ int main2() {
     
     collectAndPrintMemUsage("[Thread %d] Coroutine created", tid);
    
-    
-    if (!coroutine_resume(F, co))
-      goto error;
+    if (!coroutine_resume(F, co)) {
+      puts("Error Occured!");
+      struct value errMsg = co->thrownedError;
+      printf("[Thread %d] Error: %.*s\n", tid, (int) value_get_len(errMsg), value_get_string(errMsg));
+      stdlib_print_stacktrace(F, co);
+      return NULL;
+    }
     
     collectAndPrintMemUsage("[Thread %d] Bytecode executed", tid);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);

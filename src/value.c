@@ -274,8 +274,8 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       break;
 
     case FLUFFYVM_TVALUE_NIL:
-      foxgc_api_root_add(vm->heap, value_get_object_ptr(vm->staticStrings.typenames.nil), fluffyvm_get_root(vm), rootRef);
-      return vm->staticStrings.typenames.nil;
+      foxgc_api_root_add(vm->heap, value_get_object_ptr(vm->staticStrings.typenames_nil), fluffyvm_get_root(vm), rootRef);
+      return vm->staticStrings.typenames_nil;
     
     case FLUFFYVM_TVALUE_TABLE:
       bufLen = snprintf(NULL, 0, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
@@ -341,17 +341,17 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
 struct value value_typename(struct fluffyvm* vm, struct value value) {
   switch (value.type) {
     case FLUFFYVM_TVALUE_STRING:
-      return vm->staticStrings.typenames.string;
+      return vm->staticStrings.typenames_string;
     case FLUFFYVM_TVALUE_LONG:
-      return vm->staticStrings.typenames.longNum;
+      return vm->staticStrings.typenames_longNum;
     case FLUFFYVM_TVALUE_DOUBLE:
-      return vm->staticStrings.typenames.doubleNum;
+      return vm->staticStrings.typenames_doubleNum;
     case FLUFFYVM_TVALUE_NIL:
-      return vm->staticStrings.typenames.nil;
+      return vm->staticStrings.typenames_nil;
     case FLUFFYVM_TVALUE_TABLE:
-      return vm->staticStrings.typenames.table;
+      return vm->staticStrings.typenames_table;
     case FLUFFYVM_TVALUE_CLOSURE:
-      return vm->staticStrings.typenames.closure;
+      return vm->staticStrings.typenames_closure;
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort();

@@ -27,10 +27,7 @@ struct fluffyvm_call_state {
 
   int pc;
   int sp;
-
-  // For C call only!
-  jmp_buf* errorHandler;
-
+  
   foxgc_object_t** registersObjectArray;
 
   foxgc_object_t* gc_this;
@@ -45,11 +42,15 @@ struct fluffyvm_coroutine {
   bool isYieldable;
 
   struct fiber* fiber;
-
   struct fluffyvm_call_state* currentCallState;
-  
+  jmp_buf* errorHandler;
+
   pthread_mutex_t callStackLock;
   struct fluffyvm_stack* callStack;
+  
+  bool hasError;
+  struct value thrownedError;
+  foxgc_object_t* thrownedErrorObject;
 
   foxgc_object_t* gc_this;
   foxgc_object_t* gc_stack;
@@ -78,6 +79,7 @@ bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* coroutine)
 
 struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struct fluffyvm_closure* func);
 void coroutine_function_epilog(struct fluffyvm* vm);
+void coroutine_function_epilog_no_lock(struct fluffyvm* vm);
 
 void coroutine_disallow_yield(struct fluffyvm* vm);
 void coroutine_allow_yield(struct fluffyvm* vm);

@@ -62,7 +62,8 @@ local opcode = {
   get_constant = 0x07,
   ret = 0x08,
   extra = 0x09,
-  stack_get_top = 0x0A
+  stack_get_top = 0x0A,
+  load_prototype = 0x0B
 }
 ---------------------------------------------------
 function isValidReg(reg)
@@ -93,6 +94,10 @@ end
 
 function checkShort(reg)
   assert(isValidShort(reg), ("Invalid short integer flag '%s'"):format(tostring(reg)))
+end
+
+function checkProto(proto)
+  assert(isValidShort(proto), ("Invalid prototype '%s'"):format(tostring(proto)))
 end
 
 function isValidConst(const)
@@ -154,7 +159,8 @@ end
 -- Create constant in constant pool and return
 -- constant reference which can be used
 -- with get_constant
-function global.const(data)  assert(constantPointer < 0xFFFF, "Number of constant limit reached")
+function global.const(data)
+  assert(constantPointer < 0xFFFF, "Number of constant limit reached")
   assert(type(data) == "string" or
          math.type(data) == "integer",
          "Expect string or integer")
@@ -179,6 +185,15 @@ function global.get_constant(cond, reg, const)
   
   emitInstruction(opcode.get_constant, 0, 
                   reg, constants[const])
+end
+---------------------------------------------------
+function global.load_prototype(cond, reg, proto)
+  checkCond(cond)
+  checkReg(reg)
+  checkProto(proto)
+  
+  emitInstruction(opcode.load_prototype, 0, 
+                  reg, proto)
 end
 ---------------------------------------------------
 function global.table_get(cond, result, table, key)

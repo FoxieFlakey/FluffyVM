@@ -9,6 +9,38 @@
 #include "foxgc.h"
 #include "collections/list.h"
 
+// X macro idea is awsome
+#define FLUFFYVM_STATIC_STRINGS \
+  X(outOfMemory, "out of memory") \
+  X(outOfMemoryWhileHandlingError, "out of memory while handling another error") \
+  X(outOfMemoryWhileAnErrorOccured, "out of memory while another error occured") \
+  X(strtodDidNotProcessAllTheData, "strtod did not process all the data") \
+  X(typenames_nil, "nil") \
+  X(typenames_string, "string") \
+  X(typenames_doubleNum, "double") \
+  X(typenames_longNum, "long") \
+  X(typenames_table, "table") \
+  X(typenames_closure, "function") \
+  X(invalidCapacity, "invalid capacity") \
+  X(badKey, "bad key") \
+  X(protobufFailedToUnpackData, "protobuf failed to unpack data") \
+  X(unsupportedBytecode, "unsupported bytecode version") \
+  X(pthreadCreateError, "pthread_create call unsuccessful") \
+  X(invalidBytecode, "invalid bytecode") \
+  X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
+  X(invalidArrayBound, "invalid array bound") \
+  X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
+  X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine") \
+  X(illegalInstruction, "illegal instruction") \
+  X(stackOverflow, "stack overflow") \
+  X(stackUnderflow, "stack underflow") \
+  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
+  X(attemptToCallNonCallableValue, "attempt to call not callable value") \
+  X(notInCoroutine, "not in coroutine") \
+  X(coroutineNestTooDeep, "coroutine nest too deep") \
+  X(attemptToLoadNonExistentPrototype, "attempt to load not existent prototype") \
+  X(attemptToCallNilValue, "attempt to call nil value")
+
 struct fluffyvm {
   foxgc_heap_t* heap;
   
@@ -43,89 +75,10 @@ struct fluffyvm {
 
   // Static strings
   struct { 
-    struct value invalidCapacity;
-    foxgc_root_reference_t* invalidCapacityRootRef;
-   
-    struct value badKey;
-    foxgc_root_reference_t* badKeyRootRef;
-    
-    struct value outOfMemory;
-    foxgc_root_reference_t* outOfMemoryRootRef;
-    
-    struct value outOfMemoryWhileHandlingError;
-    foxgc_root_reference_t* outOfMemoryWhileHandlingErrorRootRef;
-    
-    struct value outOfMemoryWhileAnErrorOccured;
-    foxgc_root_reference_t* outOfMemoryWhileAnErrorOccuredRootRef;
-    
-    struct value strtodDidNotProcessAllTheData;
-    foxgc_root_reference_t* strtodDidNotProcessAllTheDataRootRef;
-    
-    struct value protobufFailedToUnpackData;
-    foxgc_root_reference_t* protobufFailedToUnpackDataRootRef;
-    
-    struct value pthreadCreateError;
-    foxgc_root_reference_t* pthreadCreateErrorRootRef;
-    
-    struct value unsupportedBytecode;
-    foxgc_root_reference_t* unsupportedBytecodeRootRef;
-    
-    struct value invalidBytecode;
-    foxgc_root_reference_t* invalidBytecodeRootRef;
-
-    struct value invalidArrayBound;
-    foxgc_root_reference_t* invalidArrayBoundRootRef;
-    
-    struct value cannotResumeDeadCoroutine;
-    foxgc_root_reference_t* cannotResumeDeadCoroutineRootRef;
-    
-    struct value cannotResumeRunningCoroutine;
-    foxgc_root_reference_t* cannotResumeRunningCoroutineRootRef;
-    
-    struct value cannotSuspendTopLevelCoroutine;
-    foxgc_root_reference_t* cannotSuspendTopLevelCoroutineRootRef;
-    
-    struct value illegalInstruction;
-    foxgc_root_reference_t* illegalInstructionRootRef;
-    
-    struct value stackOverflow;
-    foxgc_root_reference_t* stackOverflowRootRef;
-    
-    struct value stackUnderflow;
-    foxgc_root_reference_t* stackUnderflowRootRef;
-    
-    struct value attemptToIndexNonIndexableValue;
-    foxgc_root_reference_t* attemptToIndexNonIndexableValueRootRef;
-    
-    struct value attemptToCallNonCallableValue;
-    foxgc_root_reference_t* attemptToCallNonCallableValueRootRef;
-    
-    struct value notInCoroutine;
-    foxgc_root_reference_t* notInCoroutineRootRef;
-    
-    struct value coroutineNestTooDeep;
-    foxgc_root_reference_t* coroutineNestTooDeepRootRef;
-
-    // Type names
-    struct {
-      struct value nil;
-      foxgc_root_reference_t* nilRootRef;
-      
-      struct value longNum;
-      foxgc_root_reference_t* longNumRootRef;
-      
-      struct value doubleNum;
-      foxgc_root_reference_t* doubleNumRootRef;
-      
-      struct value string;
-      foxgc_root_reference_t* stringRootRef;
-      
-      struct value table;
-      foxgc_root_reference_t* tableRootRef;
-      
-      struct value closure;
-      foxgc_root_reference_t* closureRootRef;
-    } typenames;
+#   define X(name, ...) struct value name;\
+                        foxgc_root_reference_t* name ## RootRef;
+    FLUFFYVM_STATIC_STRINGS
+#   undef X
   } staticStrings;
 };
 
