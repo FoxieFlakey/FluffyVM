@@ -133,18 +133,28 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
-bool interpreter_pcall(struct fluffyvm* vm, struct fluffyvm_call_state* callState, runnable_t thingToExecute) {
+bool interpreter_xpcall(struct fluffyvm* vm, struct fluffyvm_call_state* callState, runnable_t thingToExecute, runnable_t handler) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
 
   jmp_buf env;
   jmp_buf* prevErrorHandler = co->errorHandler;
+  struct fluffyvm_call_state* callerState = co->currentCallState;
 
   if (co->currentCallState->closure->func) {
     co->errorHandler = &env;
     
-    if (setjmp(env))
+    if (setjmp(env)) {
+      if (handler)
+        handler();
+      
+      // Fix call stack
+      pthread_mutex_lock(&co->callStackLock);
+      while (co->currentCallState != callerState)
+        coroutine_function_epilog_no_lock(vm);
+      pthread_mutex_unlock(&co->callStackLock);
       return false;
+    }
   }
   
   thingToExecute();

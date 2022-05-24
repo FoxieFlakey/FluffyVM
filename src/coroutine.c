@@ -200,18 +200,21 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   this->hasError = false;
   this->errorHandler = NULL;
   this->fiber = fiber_new(Block_copy(^void () {
-    bool res = interpreter_pcall(vm, this->currentCallState, ^void () {
-      interpreter_exec(vm, this);
-    });
-
-    if (!res) {
+    jmp_buf buf;
+    if (setjmp(buf)) {
       if (fluffyvm_is_errmsg_present(vm)) {
         struct value errMsg = fluffyvm_get_errmsg(vm);
         value_copy(&this->thrownedError, &errMsg);
         foxgc_api_write_field(this->gc_this, 1, value_get_object_ptr(errMsg));
       }
       this->hasError = true;
+      this->errorHandler = NULL;
+      return;
     }
+  
+    this->errorHandler = &buf;
+    interpreter_exec(vm, this);
+    this->errorHandler = NULL;
   }));
 
   return this;
