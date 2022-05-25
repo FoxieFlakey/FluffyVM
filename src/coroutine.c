@@ -109,6 +109,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
     goto no_memory;
+  
   pthread_mutex_lock(&co->callStackLock);
   if (!stack_push(vm, co->callStack, obj))
     goto error;
@@ -123,35 +124,33 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   callState->closure = func;
   callState->owner = co;
   
-  {
-    foxgc_root_reference_t* tmpRootRef = NULL;
-    foxgc_object_t* tmp = NULL;
-    
-    if (!callState->closure->func) {
-      // Allocate register objects array
-      // to store value which contain GC object
-      tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
-      if (!tmp)
-        goto no_memory;
-      foxgc_api_write_field(callState->gc_this, 1, tmp);
-      callState->registersObjectArray = foxgc_api_object_get_data(tmp);
-      foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-
-      memcpy(callState->registers, nilRegisters, sizeof(callState->registers));
-    } else {
-      foxgc_api_write_field(callState->gc_this, 1, NULL);
-    }
-
-    // Allocate register objects stack
+  foxgc_root_reference_t* tmpRootRef = NULL;
+  foxgc_object_t* tmp = NULL;
+  
+  foxgc_api_write_field(callState->gc_this, 1, NULL);
+  
+  if (!callState->closure->func) {
+    // Allocate register objects array
     // to store value which contain GC object
-    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
+    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
     if (!tmp)
       goto no_memory;
-    foxgc_api_write_field(callState->gc_this, 4, tmp);
-    callState->generalObjectStack = foxgc_api_object_get_data(tmp);
+    foxgc_api_write_field(callState->gc_this, 1, tmp);
+    callState->registersObjectArray = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+
+    memcpy(callState->registers, nilRegisters, sizeof(callState->registers));
   }
 
+  // Allocate register objects stack
+  // to store value which contain GC object
+  tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
+  if (!tmp)
+    goto no_memory;
+  foxgc_api_write_field(callState->gc_this, 4, tmp);
+  callState->generalObjectStack = foxgc_api_object_get_data(tmp);
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+  
   co->currentCallState = callState;
   
   if (!interpreter_function_prolog(vm, co, func))
@@ -167,12 +166,12 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
 }
 
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, ^void (foxgc_object_t* obj) {
     struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
     // I have no clue how this->fiber be null
     if (this->fiber)
       fiber_free(this->fiber);
-  }));
+  });
 
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
@@ -208,13 +207,15 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
         foxgc_api_write_field(this->gc_this, 1, value_get_object_ptr(errMsg));
       }
       this->hasError = true;
-      this->errorHandler = NULL;
-      return;
+      goto quit_coroutine;
     }
   
     this->errorHandler = &buf;
     interpreter_exec(vm, this);
+    
+    quit_coroutine:
     this->errorHandler = NULL;
+    coroutine_function_epilog(vm); 
   }));
 
   return this;
@@ -342,6 +343,7 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
     if (!res)
       goto exit_function;
   }
+  
   exit_function:
   pthread_mutex_unlock(&co->callStackLock);
 }

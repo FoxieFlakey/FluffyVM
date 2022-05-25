@@ -103,6 +103,7 @@ bool stack_push(struct fluffyvm* vm, struct fluffyvm_stack* stack, foxgc_object_
 bool stack_peek(struct fluffyvm* vm, struct fluffyvm_stack* stack, void** result) {
   if (stack->sp - 1 < 0)
     return false;
+
   *result = foxgc_api_object_get_data(stack->stack[stack->sp - 1]);
   return true;
 }

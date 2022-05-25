@@ -93,15 +93,14 @@ bool fiber_resume(struct fiber* fiber, fiber_state_t* prevState) {
   sanitizer_finish_switch_fiber();
 
   pthread_mutex_lock(&fiber->lock);
-  if (fiber->state != FIBER_DEAD) {
-    fiber->state = FIBER_SUSPENDED;
-  } else {
+  if (fiber->state == FIBER_DEAD) {
     // At here we are sure that stack wont be 
     // used anymore because the fiber is done
     // executing the code
     free(fiber->resumeContext.uc_stack.ss_sp);
     fiber->resumeContext.uc_stack.ss_sp = NULL;
   }
+
   pthread_mutex_unlock(&fiber->lock);
   return true;
 }
@@ -109,12 +108,16 @@ bool fiber_resume(struct fiber* fiber, fiber_state_t* prevState) {
 bool fiber_yield(struct fiber* fiber) {
   pthread_mutex_lock(&fiber->lock);
   
-  // No, impossible (atleast under
-  // normal circumstances)
+  // This is treated as error in caller code
+  // Its illegal to yield dead fiber
   assert(fiber->state != FIBER_DEAD);
 
-  if (fiber->state != FIBER_RUNNING)
+  if (fiber->state != FIBER_RUNNING) {
+    pthread_mutex_unlock(&fiber->lock);
     return false;
+  }
+  
+  fiber->state = FIBER_SUSPENDED;
   pthread_mutex_unlock(&fiber->lock);
 
   sanitizer_start_switch_fiber(fiber->suspendContext.uc_stack.ss_sp, 

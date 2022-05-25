@@ -71,9 +71,8 @@ static void initThread(struct fluffyvm* this, int* threadIdStorage, foxgc_root_t
 
 static void validateThisThread(struct fluffyvm* this) {
   // If thread root not set, abort
-  if (pthread_getspecific(this->currentThreadRootKey) == NULL) {
+  if (!pthread_getspecific(this->currentThreadRootKey))
     abort();
-  }
 }
 
 int fluffyvm_get_thread_id(struct fluffyvm* this) {
@@ -110,9 +109,6 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   if (initCounts < 0)
     initCounts = sizeof(calls) / sizeof(calls[0]);
 
-  // Cast to smaller integer in this case
-  // is safe because why would i have over
-  // 2 billions components to clean up
   for (int i = initCounts - 1; i >= 0; i--)
     calls[i](this);
 
@@ -195,6 +191,7 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
     
     free(msg);
   }
+  pthread_setspecific(vm->errMsgRootRefKey, NULL);
 
   if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
     pthread_setspecific(vm->errMsgKey, NULL);
@@ -206,8 +203,7 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
   if ((ptr = value_get_object_ptr(val))) {
     foxgc_root_reference_t* ref = NULL;
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), &ref);
-  } else {
-    pthread_setspecific(vm->errMsgRootRefKey, NULL);
+    pthread_setspecific(vm->errMsgRootRefKey, ref);
   }
 
   msg = malloc(sizeof(val));
@@ -230,6 +226,7 @@ struct value fluffyvm_get_errmsg(struct fluffyvm* vm) {
   validateThisThread(vm);
   if (!fluffyvm_is_errmsg_present(vm))
     return value_not_present();
+  
   return *((struct value*) pthread_getspecific(vm->errMsgKey));
 }
 
@@ -257,7 +254,10 @@ static void* threadStub(void* _args) {
   struct thread_args* args = _args;
   fluffyvm_thread_routine_t routine = args->routine;
   void* routine_args = args;
-  
+
+  // This call cannot be moved to the
+  // fluffyvm_start_thread due its
+  // setting something on pthread keys  
   initThread(args->vm, args->tidStorage, args->newRoot, args->coroutinesStack);
 
   void* ret = routine(routine_args);
@@ -314,6 +314,7 @@ bool fluffyvm_start_thread(struct fluffyvm* this, pthread_t* newthread, pthread_
   }
 
   return true;
+
   cannot_create_thread:
   cannot_alloc_coroutine_stack:
   foxgc_api_delete_root(this->heap, newRoot);
@@ -333,8 +334,10 @@ foxgc_root_t* fluffyvm_get_root(struct fluffyvm* this) {
 struct fluffyvm_coroutine* fluffyvm_get_executing_coroutine(struct fluffyvm* this) {
   validateThisThread(this);
   void* co = NULL;
+
   if (!stack_peek(this, pthread_getspecific(this->coroutinesStack), &co))
     return NULL;
+
   return co;
 }
 

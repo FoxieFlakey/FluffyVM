@@ -142,6 +142,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   prototype_write_instructions_array(this, instructionsArray);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), instructionsRef);
   
+  prototype_write_line_info_array(this, NULL);
   if (proto->n_lineinfo > 0) {
     foxgc_root_reference_t* lineInfoRef = NULL;
     foxgc_object_t* lineInfoArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &lineInfoRef, sizeof(fluffyvm_instruction_t), proto->n_lineinfo, NULL);
@@ -149,8 +150,6 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
       goto no_memory;
     prototype_write_line_info_array(this, lineInfoArray);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), lineInfoRef);
-  } else {
-    prototype_write_line_info_array(this, NULL);
   }
 
   // Filling data

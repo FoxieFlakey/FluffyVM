@@ -167,7 +167,11 @@ static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_objec
 }
 
 static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity, int desiredCapacity) {
-  assert(desiredCapacity && (!(desiredCapacity & (desiredCapacity - 1))));
+  if (!(desiredCapacity && (!(desiredCapacity & (desiredCapacity - 1))))) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidCapacity);
+    return false;
+  }
+
   foxgc_root_reference_t* newTableRootRef = NULL;
 
   foxgc_object_t* oldTable = this->gc_table;
@@ -279,10 +283,13 @@ struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct v
 
     current = current->next;
   }
-  pthread_rwlock_unlock(&this->lock);
  
   if (current && value_get_object_ptr(current->value))
     foxgc_api_root_add(vm->heap, value_get_object_ptr(current->value), fluffyvm_get_root(vm), rootRef);
-  return current ? current->value : value_not_present();
+  
+  struct value result = current ? current->value : value_not_present();
+  pthread_rwlock_unlock(&this->lock);
+
+  return result;
 }
 

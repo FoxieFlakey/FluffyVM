@@ -367,6 +367,11 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_STRING:
       errno = 0;
       number = strtod(foxgc_api_object_get_data(value.data.str->str), &lastChar);
+      if (*lastChar != '\0') {
+        fluffyvm_set_errmsg(vm, vm->staticStrings.strtodDidNotProcessAllTheData);
+        return valueNotPresent;
+      }
+
       if (errno != 0) {
         static const char* format = "strtod errored with %d (%d)";
         
@@ -391,11 +396,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
 
         free(errMsg);
         return valueNotPresent;
-      } else if (*lastChar != '\0') {
-        fluffyvm_set_errmsg(vm, vm->staticStrings.strtodDidNotProcessAllTheData);
-        return valueNotPresent;
-      }
-
+      } 
       break;
 
     case FLUFFYVM_TVALUE_LONG:
@@ -456,6 +457,9 @@ bool value_equals(struct value op1, struct value op2) {
 
   if (op1.type != op2.type)
     return false;
+  size_t maxLength = value_get_len(op2);
+  if (value_get_len(op1) > maxLength)
+    maxLength = value_get_len(op1);
 
   switch (op1.type) {
     case FLUFFYVM_TVALUE_STRING:
@@ -465,7 +469,7 @@ bool value_equals(struct value op1, struct value op2) {
       value_hash_code(op2, &op2Hash);
 
       if (op1Hash == op2Hash)
-        result = memcmp(value_get_string(op1), value_get_string(op2), value_get_len(op1)) == 0;
+        result = memcmp(value_get_string(op1), value_get_string(op2), maxLength) == 0;
       break;
     case FLUFFYVM_TVALUE_TABLE:
       result = op1.data.table == op2.data.table;

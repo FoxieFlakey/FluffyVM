@@ -17,7 +17,6 @@ struct fiber {
   // To guard the state variable
   pthread_mutex_t lock;
 
-  // Compiler may optimize this away
   volatile fiber_state_t state;
   runnable_t task;
 
