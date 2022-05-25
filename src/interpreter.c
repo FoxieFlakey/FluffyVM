@@ -127,7 +127,7 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
-bool interpreter_xpcall(struct fluffyvm* vm, struct fluffyvm_call_state* callState, runnable_t thingToExecute, runnable_t handler) {
+bool interpreter_xpcall(struct fluffyvm* vm, runnable_t thingToExecute, runnable_t handler) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
 

@@ -79,13 +79,11 @@ Note:
  * Constant pool is indexed from 0
  * S.top represent pointer to a valid entry in stack
 
-When function called its stack must contain the
-args and stack_get_top must give number of args
-passed to the function
+When calling:
+  The stack of the callee function is filled 
+  so that S(0) will have first argument, S(1) second
+  argument, and so on
 
-The stack of the callee function is filled 
-so that S(0) will have first argument, S(1) second
-argument, and so on
 
 
 

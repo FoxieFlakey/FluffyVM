@@ -25,7 +25,9 @@ int interpreter_get_top(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
 struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state* callState);
 
 // handler is optional (can be NULL)
-bool interpreter_xpcall(struct fluffyvm* F, struct fluffyvm_call_state* callState, runnable_t thingToExecute, runnable_t handler);
+// Block_release is not called for 
+// `thingToExecute` and `handler`
+bool interpreter_xpcall(struct fluffyvm* F, runnable_t thingToExecute, runnable_t handler);
 
 #endif
 
