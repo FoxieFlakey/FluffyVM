@@ -14,11 +14,11 @@ local NIL = 0xFFFF
 local COND_NONE = 0x00
 
 get_constant(COND_NONE, 0x0001, strAProtoString)
-stack_push(COND_NONE, 0x0001)
-
--- Prototypes indexed from zero
 load_prototype(COND_NONE, 0x0002, 0)
 table_set(COND_NONE, ENV_TABLE, 0x0001, 0x0002)
+stack_push(COND_NONE, 0x0002)
+
+stack_push(COND_NONE, ENV_TABLE)
 
 get_constant(COND_NONE, 0x0001, strHello)
 stack_push(COND_NONE, 0x0001)
@@ -31,19 +31,16 @@ get_constant(COND_NONE, 0x0001, strReturnString)
 table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
 call(COND_NONE, 0x0001, 1, 0, 0)
 
--- Call the "print" string with all argument from 
--- 0 to top of stack
+-- Call the "print" function
 get_constant(COND_NONE, 0x0001, strPrint)
 table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
--- Check opcodes.txt for what number 1 represent
 call(COND_NONE, 0x0001, 0, 0, 1)
 
 stack_pop(COND_NONE, NIL)
 
 -- Print all string except the last string
 -- returned by `return_string`
--- Check opcodes.txt for what number 4 represent
-call(COND_NONE, 0x0001, 0, 0, 4)
+call(COND_NONE, 0x0001, 0, 0, 1)
 
 load_prototype(COND_NONE, 0x0001, 1)
 call(COND_NONE, 0x0001, 0, 0, 0)

@@ -320,7 +320,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
       bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.table);
       break;
     case FLUFFYVM_TVALUE_CLOSURE:
-      bufLen = snprintf(buffer, bufLen, "table 0x%" PRIXPTR, (uintptr_t) value.data.closure->gc_this);
+      bufLen = snprintf(buffer, bufLen, "function 0x%" PRIXPTR, (uintptr_t) value.data.closure->gc_this);
       break;
 
     case FLUFFYVM_TVALUE_STRING:

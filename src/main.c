@@ -71,9 +71,13 @@ static void stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callSta
   const int tid = fluffyvm_get_thread_id(F);
 
   for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
-    struct value string;
-    interpreter_peek(F, callState, i, &string);
+    struct value data;
+    foxgc_root_reference_t* tmpRootRef = NULL;
+    interpreter_peek(F, callState, i, &data);
+    struct value string = value_tostring(F, data, &tmpRootRef);
+
     printf("[Thread %d] Printer: %.*s\n", tid, (int) value_get_len(string), value_get_string(string));
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
 
   stdlib_print_stacktrace(F, callState->owner);
