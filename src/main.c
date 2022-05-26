@@ -99,6 +99,18 @@ static void stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state*
   }
 }
 
+static void stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  struct value data;
+  interpreter_peek(F, callState, 0, &data);
+  interpreter_call(F, data);
+}
+
+static void stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  struct value data;
+  interpreter_peek(F, callState, 0, &data);
+  interpreter_error(F, callState, data);
+}
+
 static void registerCFunction(struct fluffyvm* F, struct value globalTable, const char* name, closure_cfunction_t cfunc) {
   foxgc_root_reference_t* printRootRef = NULL;
   foxgc_root_reference_t* printStringRootRef = NULL;
@@ -143,6 +155,8 @@ int main2() {
 
     registerCFunction(F, globalTable, "print", stdlib_print);
     registerCFunction(F, globalTable, "return_string", stdlib_return_string);
+    registerCFunction(F, globalTable, "call_func", stdlib_call_func);
+    registerCFunction(F, globalTable, "error", stdlib_error);
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);
@@ -165,22 +179,21 @@ int main2() {
     collectAndPrintMemUsage("[Thread %d] Coroutine created", tid);
    
     if (!coroutine_resume(F, co)) {
-      puts("Error Occured!");
       struct value errMsg = co->thrownedError;
       printf("[Thread %d] Error: %.*s\n", tid, (int) value_get_len(errMsg), value_get_string(errMsg));
       stdlib_print_stacktrace(F, co);
-      return NULL;
+      goto coroutine_crashed;
     }
-    
-    collectAndPrintMemUsage("[Thread %d] Bytecode executed", tid);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
     
     collectAndPrintMemUsage("[Thread %d] After test", tid);
     return NULL;
 
-    error:;
+    coroutine_crashed:
+    if (coroutineRootRef)
+      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
+    error:
     if (fluffyvm_is_errmsg_present(F))
-      collectAndPrintMemUsage("[Thread %d] Error: %.*s\n", tid, (int) value_get_len(fluffyvm_get_errmsg(F)), value_get_string(fluffyvm_get_errmsg(F)));
+      collectAndPrintMemUsage("[Thread %d] Error: %.*s", tid, (int) value_get_len(fluffyvm_get_errmsg(F)), value_get_string(fluffyvm_get_errmsg(F)));
     return NULL;
   };
   
@@ -211,18 +224,12 @@ int main2() {
   pthread_join(testThread5, NULL);
   pthread_join(testThread6, NULL); */
   
+  fluffyvm_clear_errmsg(F);
+  
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("Before VM destruction but after test");
   
-  fluffyvm_clear_errmsg(F);
-
-  error:
-  if (fluffyvm_is_errmsg_present(F)) {
-    printMemUsage("At error");
-    printf("Error: %s\n", value_get_string(fluffyvm_get_errmsg(F)));
-  }
-
   fluffyvm_free(F);
 
   cannotCreateVm:

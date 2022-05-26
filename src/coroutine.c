@@ -207,15 +207,14 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
         foxgc_api_write_field(this->gc_this, 1, value_get_object_ptr(errMsg));
       }
       this->hasError = true;
-      goto quit_coroutine;
+      this->errorHandler = NULL;
+      return;
     }
   
     this->errorHandler = &buf;
     interpreter_exec(vm, this);
-    
-    quit_coroutine:
-    this->errorHandler = NULL;
     coroutine_function_epilog(vm); 
+    this->errorHandler = NULL;
   }));
 
   return this;

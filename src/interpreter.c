@@ -127,6 +127,22 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
+bool interpreter_call(struct fluffyvm* F, struct value func) {
+  struct fluffyvm_closure* closure = func.data.closure;
+  if (!coroutine_function_prolog(F, closure))
+    goto error;
+  
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(F);
+  assert(co);
+  interpreter_exec(F, co);
+  
+  coroutine_function_epilog(F);
+  return true;
+  
+  error:
+  return false;
+}
+
 bool interpreter_xpcall(struct fluffyvm* vm, runnable_t thingToExecute, runnable_t handler) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);

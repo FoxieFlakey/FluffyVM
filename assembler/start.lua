@@ -1,13 +1,17 @@
 -- Abusing lua as assembly
-local strHello = const("Hello World!")
 local strPrint = const("print")
 local strReturnString = const("return_string")
-local strPogString = const("Pogger fox this working")
+local strCallFunc = const("call_func")
 local strAProtoString = const("a_proto")
+local strError = const("error")
 
+local strHello = const("Hello World!")
+local strPogString = const("Pogger fox this working")
 local strFromAPrototype = const("This message is from inside a prototype")
 local strFromAPrototypeInsideAnotherPrototype = const("This message is from a prototype that is inside another prototype")
 local strFromAPrototypeSettedInTheEnv = const("This message is from a prototype setted in env table")
+local strFromFunctionCalledByC = const("This message is from a prototype called from C function")
+local strErrorMessage = const("An error thrown through C function")
 
 local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
@@ -45,6 +49,9 @@ call(COND_NONE, 0x0001, 0, 0, 1)
 load_prototype(COND_NONE, 0x0001, 1)
 call(COND_NONE, 0x0001, 0, 0, 0)
 
+load_prototype(COND_NONE, 0x0001, 2)
+call(COND_NONE, 0x0001, 0, 0, 0)
+
 ret(COND_NONE, 0, 0)
 
 --
@@ -62,6 +69,8 @@ start_prototype()
 
   ret(COND_NONE, 0, 0)
 end_prototype()
+
+
 
 start_prototype()
   get_constant(COND_NONE, 0x0001, strFromAPrototype)
@@ -96,5 +105,40 @@ start_prototype()
   end_prototype()
 end_prototype()
 
+
+start_prototype()
+  load_prototype(COND_NONE, 0x0001, 0)
+  stack_push(COND_NONE, 0x0001)
+  get_constant(COND_NONE, 0x0001, strCallFunc)
+  table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+  call(COND_NONE, 0x0001, 0, 0, 2)
+
+  ret(COND_NONE, 0, 0)
+
+  
+  --
+  -- Prototypes under here
+  --
+  start_prototype()
+    get_constant(COND_NONE, 0x0001, strFromFunctionCalledByC)
+    stack_push(COND_NONE, 0x0001)
+
+    get_constant(COND_NONE, 0x0001, strPrint)
+    table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+
+    call(COND_NONE, 0x0001, 0, 0, 2)
+    
+    stack_pop(COND_NONE, NIL)
+    
+    get_constant(COND_NONE, 0x0001, strErrorMessage)
+    stack_push(COND_NONE, 0x0001)
+    
+    get_constant(COND_NONE, 0x0001, strError)
+    table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+    call(COND_NONE, 0x0001, 0, 0, 2)
+
+    ret(COND_NONE, 0, 0)
+  end_prototype()
+end_prototype()
 
 

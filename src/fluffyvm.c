@@ -188,10 +188,9 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
     foxgc_root_reference_t* ref;
     if ((ref = pthread_getspecific(vm->errMsgRootRefKey)))
       foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
-    
     free(msg);
+    pthread_setspecific(vm->errMsgRootRefKey, NULL);
   }
-  pthread_setspecific(vm->errMsgRootRefKey, NULL);
 
   if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
     pthread_setspecific(vm->errMsgKey, NULL);

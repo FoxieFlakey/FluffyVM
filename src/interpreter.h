@@ -29,5 +29,10 @@ struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state
 // `thingToExecute` and `handler`
 bool interpreter_xpcall(struct fluffyvm* F, runnable_t thingToExecute, runnable_t handler);
 
+// Unprotected call
+// that means when error occur it
+// can longjmp through C functions
+bool interpreter_call(struct fluffyvm* F, struct value func);
+
 #endif
 
