@@ -6,10 +6,11 @@
 
 struct fluffyvm_call_state;
 
+// Return is number of values returned
 // Note: Any closure can yield across
 //       C function boundry if you dont
 //       call `coroutine_disallow_yield`
-typedef void (*closure_cfunction_t)(struct fluffyvm* vm, struct fluffyvm_call_state* callState, void* udata);
+typedef int (*closure_cfunction_t)(struct fluffyvm* vm, struct fluffyvm_call_state* callState, void* udata);
 
 // Warning: The finalizer for the udate
 //          must be minimum and cannot

@@ -67,7 +67,7 @@ static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutin
   });
 }
 
-static void stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   const int tid = fluffyvm_get_thread_id(F);
 
   for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
@@ -81,9 +81,10 @@ static void stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callSta
   }
 
   stdlib_print_stacktrace(F, callState->owner);
+  return 0;
 }
 
-static void stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   foxgc_root_reference_t* tmpRootRef = NULL;
   
   {
@@ -97,18 +98,24 @@ static void stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state*
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
+
+  return 2;
 }
 
-static void stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   struct value data;
   interpreter_peek(F, callState, 0, &data);
   interpreter_call(F, data);
+  
+  return 0;
 }
 
-static void stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+static int stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   struct value data;
   interpreter_peek(F, callState, 0, &data);
   interpreter_error(F, callState, data);
+  
+  return 0;
 }
 
 static void registerCFunction(struct fluffyvm* F, struct value globalTable, const char* name, closure_cfunction_t cfunc) {

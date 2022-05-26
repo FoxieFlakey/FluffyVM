@@ -61,8 +61,7 @@ bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState,
   if ((ptr = value_get_object_ptr(val)))
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
   
-  foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL);
-  
+  foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL); 
   return true;
 }
 
@@ -73,7 +72,8 @@ static bool interpreter_pop2(struct fluffyvm* vm, struct fluffyvm_call_state* ca
     return false;
 
   setRegister(vm, callState, destination, val);
-  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
+  if (ref)
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), ref);
   return true;
 }
 
@@ -171,17 +171,16 @@ bool interpreter_xpcall(struct fluffyvm* vm, runnable_t thingToExecute, runnable
   return true;
 }
 
-void interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+  if (co->currentCallState->closure->prototype == NULL)
+    return co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
+  
   int pc = 0;
   struct fluffyvm_call_state* callState = co->currentCallState;
-  
-  if (co->currentCallState->closure->prototype == NULL) {
-    co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
-    goto done_function;
-  }
 
   int instructionsLen = co->currentCallState->closure->prototype->instructions_len;
   assert(instructionsLen >= pc);
+  int retCount = 0;
 
   const fluffyvm_instruction_t* instructionsArray = co->currentCallState->closure->prototype->instructions;
   while (pc < instructionsLen) {
@@ -324,13 +323,13 @@ void interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
           // Actually executing
           callState->pc = pc;
-          interpreter_exec(vm, co);
+          int actualRetCount = interpreter_exec(vm, co);
           
           // Copying the return values
           if (ins.B == 1)
             returnCount = co->currentCallState->sp;
           
-          int startPos = co->currentCallState->sp - returnCount;
+          int startPos = co->currentCallState->sp - actualRetCount;
           if (startPos < 0)
             startPos = 0;
           
@@ -364,7 +363,10 @@ void interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         }
       case FLUFFYVM_OPCODE_RETURN:
         printf("0x%08X: ret(R(%d)..R(%d))\n", pc, ins.A, ins.A + ins.B - 1);
-        goto done_function; 
+        for (int i = ins.A; i < ins.A + ins.B; i++)
+          interpreter_push(vm, callState, getRegister(vm, callState, i));
+        retCount = ins.B;
+        goto done_function;
       case FLUFFYVM_OPCODE_NOP:
         printf("0x%08X: nop\n", pc);
         break;
@@ -382,7 +384,7 @@ void interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
   done_function:
   callState->pc = pc;
-  return;
+  return retCount;
 
   illegal_instruction:
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
