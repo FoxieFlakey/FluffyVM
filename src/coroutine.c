@@ -123,7 +123,11 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_api_write_field(obj, 3, co->gc_this);
   callState->closure = func;
   callState->owner = co;
-  
+
+  callState->nativeDebugInfo.funcName = NULL;
+  callState->nativeDebugInfo.source = NULL;
+  callState->nativeDebugInfo.line = -1;
+
   foxgc_root_reference_t* tmpRootRef = NULL;
   foxgc_object_t* tmp = NULL;
   
@@ -290,18 +294,13 @@ void coroutine_allow_yield(struct fluffyvm* vm) {
   co->isYieldable = true;
 }
 
-void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer) {
+void coroutine_iterate_call_stack_real(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer) {
   pthread_mutex_lock(&co->callStackLock);
   int usage = co->callStack->sp;
   for (int i = 0; i < usage; i++) {
     int pos = backward ? usage - i - 1 : i;
     struct fluffyvm_call_state* callState = foxgc_api_object_get_data(co->callStack->stack[pos]);
-    struct fluffyvm_call_state* callerState = NULL;
     
-    // Get caller of current call state
-    if (pos - 1 >= 0)
-      callerState = foxgc_api_object_get_data(co->callStack->stack[pos-1]);
-
     struct fluffyvm_call_frame frame = {
       .isNative = callState->closure->func != NULL,
       .closure = callState->closure,
@@ -315,8 +314,17 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
 
     if (frame.isNative) {
       util_asprintf((char**) &frame.name, "0x%08" PRIXPTR, (uintptr_t) callState->closure->func);
-      frame.source = "[Native]";
-    } else {
+      if (!callState->nativeDebugInfo.source)
+        frame.source = "[Native]";
+      else
+        util_asprintf((char**) &frame.source, "[Native %s]", callState->nativeDebugInfo.source);
+      
+      if (callState->nativeDebugInfo.line > 0)
+        frame.line = callState->nativeDebugInfo.line;
+
+      if (callState->nativeDebugInfo.funcName)
+        frame.name = callState->nativeDebugInfo.funcName;
+    } else { 
       // I couldn't find any solution 
       // that give this meaningful name
       // for function defined in global
@@ -335,8 +343,10 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
     
     bool res = consumer(&frame);
     
-    if (frame.isNative)
-      free((void*) frame.name);
+    if (frame.isNative) {
+      if (!callState->nativeDebugInfo.funcName)
+        free((void*) frame.name);
+    }
 
     if (!res)
       goto exit_function;
@@ -346,4 +356,10 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
   pthread_mutex_unlock(&co->callStackLock);
 }
 
+void coroutine_set_debug_info(struct fluffyvm* vm, const char* source, const char* funcName, int line) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  co->currentCallState->nativeDebugInfo.funcName = funcName;
+  co->currentCallState->nativeDebugInfo.source = source;
+  co->currentCallState->nativeDebugInfo.line = line;
+}
 

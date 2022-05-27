@@ -1,10 +1,13 @@
 #ifndef header_1652092729_interpreter_h
 #define header_1652092729_interpreter_h
 
+#include <stddef.h>
+
 #include "coroutine.h"
 #include "fluffyvm.h"
 #include "util/functional/functional.h"
 #include "value.h"
+#include "config.h"
 
 #define FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL (0xFFFF)
 #define FLUFFYVM_INTERPRETER_REGISTER_ENV (0xFFFE)
@@ -18,7 +21,7 @@ void interpreter_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine*
 bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value* result, foxgc_root_reference_t** rootRef);
 bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value value);
 bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result); 
-void interpreter_error(struct fluffyvm* vm, struct value errmsg);
+void interpreter_error_real(struct fluffyvm* vm, struct value errmsg);
 
 // Return index to last accessible stack entry
 // so when do bound check use <= not <
@@ -34,7 +37,30 @@ bool interpreter_xpcall(struct fluffyvm* F, runnable_t thingToExecute, runnable_
 // Unprotected call
 // that means when error occur it
 // can longjmp through C functions
-void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nresults);
+void interpreter_call_real(struct fluffyvm* F, struct value func, int nargs, int nresults);
+
+#ifdef FLUFFYVM_DEBUG_C_FUNCTION
+# define interpreter_call(F, ...) do {\
+  struct fluffyvm* _vm = (F); \
+  coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
+  interpreter_call_real(_vm, __VA_ARGS__); \
+  coroutine_set_debug_info(_vm, NULL, NULL, -1); \
+} while(0)
+# define interpreter_error(F, ...) do {\
+  struct fluffyvm* _vm = (F); \
+  coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
+  interpreter_error_real(_vm, __VA_ARGS__); \
+  coroutine_set_debug_info(_vm, NULL, NULL, -1); \
+} while(0)
+#else
+# define interpreter_call interpreter_call_real
+# define interpreter_error interpreter_call_error
+#endif
 
 #endif
+
+
+
+
+
 

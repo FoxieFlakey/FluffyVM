@@ -15,6 +15,9 @@
 // Maximum coroutine nesting depth
 #define FLUFFYVM_MAX_COROUTINE_NEST (64)
 
+// Debug C function
+#define FLUFFYVM_DEBUG_C_FUNCTION (1)
+
 ////////////////////////////////////////
 // Compiler config                    //
 ////////////////////////////////////////
