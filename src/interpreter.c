@@ -1,3 +1,5 @@
+#define FLUFFYVM_INTERNAL
+
 #include <setjmp.h>
 #include <stdint.h>
 #include <stdio.h>
@@ -127,7 +129,7 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
-void interpreter_call_real(struct fluffyvm* F, struct value func, int nargs, int nret) {
+void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(F);
   assert(co);
   
@@ -455,7 +457,7 @@ struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state
   return callState->closure->env;
 }
 
-void interpreter_error_real(struct fluffyvm* vm, struct value errmsg) {
+void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
   fluffyvm_set_errmsg(vm, errmsg);
 
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);

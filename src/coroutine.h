@@ -93,26 +93,25 @@ void coroutine_allow_yield(struct fluffyvm* vm);
 // Iterates the call stack
 // Note: Do not store pointer of the call frame
 //       it is stack allocated
-void coroutine_iterate_call_stack_real(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer);
+void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer);
 
 // This function is for assisting debugging native
 // modules
 void coroutine_set_debug_info(struct fluffyvm* vm, const char* source, const char* funcName, int line);
 
-#ifdef FLUFFYVM_DEBUG_C_FUNCTION
-# define coroutine_iterate_call_stack(F, ...) do {\
-  struct fluffyvm* _vm = (F); \
-  if (fluffyvm_get_executing_coroutine(_vm)) { \
-    coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
-  } \
-  coroutine_iterate_call_stack_real(_vm, __VA_ARGS__); \
-   \
-  if (fluffyvm_get_executing_coroutine(_vm)) { \
-    coroutine_set_debug_info(_vm, NULL, NULL, -1); \
-  } \
-} while(0)
-#else
-# define coroutine_iterate_call_stack coroutine_iterate_call_stack_real
+#ifndef FLUFFYVM_INTERNAL
+# ifdef FLUFFYVM_DEBUG_C_FUNCTION
+#   define coroutine_iterate_call_stack(F, ...) do {\
+      struct fluffyvm* _vm = (F); \
+      if (fluffyvm_get_executing_coroutine(_vm)) { \
+        coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
+      } \
+      coroutine_iterate_call_stack(_vm, __VA_ARGS__); \
+      if (fluffyvm_get_executing_coroutine(_vm)) { \
+        coroutine_set_debug_info(_vm, NULL, NULL, -1); \
+      } \
+    } while(0)
+# endif
 #endif
 
 #endif

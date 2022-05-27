@@ -10,6 +10,7 @@
 #include <stdint.h>
 
 #include "types.h"
+#include "config.h"
 
 // Types
 typedef struct fluffyvm lua_State;
@@ -29,8 +30,22 @@ FLUFFYVM_DECLARE(void, lua_call, lua_State* L, int nargs, int nresults);
 FLUFFYVM_DECLARE(void, lua_checkstack, lua_State* L, int n); 
 FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 
-#ifdef FLUFFYVM_COMPAT_LAYER_REDIRECT_CALL
+#ifndef FLUFFYVM_INTERNAL
+# ifdef FLUFFYVM_COMPAT_LAYER_REDIRECT_CALL
 
+# endif
+
+# ifdef FLUFFYVM_API_DEBUG_C_FUNCTION
+#   ifndef FLUFFYVM_INSERT_DEBUG_INFO
+#     define FLUFFYVM_INSERT_DEBUG_INFO(func, F, ...) do {\
+        struct fluffyvm* _vm = (F); \
+        coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
+        func(_vm, __VA_ARGS__); \
+        coroutine_set_debug_info(_vm, NULL, NULL, -1); \
+      } while(0)
+#   endif
+#   define fluffyvm_compat_lua54_lua_call(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_call, F, __VA_ARGS__)
+# endif
 #endif
 
 #endif

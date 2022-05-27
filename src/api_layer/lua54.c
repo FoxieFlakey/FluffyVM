@@ -1,3 +1,5 @@
+#define FLUFFYVM_INTERNAL
+
 #include "lua54.h"
 
 #include "../fluffyvm.h"

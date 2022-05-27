@@ -1,3 +1,5 @@
+#define FLUFFYVM_INTERNAL
+
 #include <pthread.h>
 #include <setjmp.h>
 #include <stdatomic.h>
@@ -294,7 +296,7 @@ void coroutine_allow_yield(struct fluffyvm* vm) {
   co->isYieldable = true;
 }
 
-void coroutine_iterate_call_stack_real(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer) {
+void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine* co, bool backward, consumer_t consumer) {
   pthread_mutex_lock(&co->callStackLock);
   int usage = co->callStack->sp;
   for (int i = 0; i < usage; i++) {
