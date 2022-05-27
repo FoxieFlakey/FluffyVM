@@ -466,4 +466,59 @@ void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
   longjmp(*co->errorHandler, 1);
 }
 
+bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count) {
+  if (index >= callState->sp ||
+      index - (count - 1) < 0) {
+    abort();
+    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidRemoveCall);
+    return false;
+  }
+
+  if (count == 0)
+    return true;
+
+  /*
+   1
+   2
+   3
+   4 <-|
+   5   |-- remove
+   6 <-|
+   7
+   8
+   9 < Top
+
+   1
+   2
+   3
+   7
+   8
+   9 < Top
+   */
+  int top = callState->sp - 1;
+  int copySrc = index + 1;
+  struct value notPresent = value_not_present();
+  callState->sp = index - count + 1;
+  while (copySrc <= top) {
+    interpreter_push(vm, callState, callState->generalStack[copySrc]);
+    
+    value_copy(&callState->generalStack[copySrc], &notPresent);
+    foxgc_api_write_array(callState->gc_generalObjectStack, copySrc, NULL);
+    
+    copySrc++;
+  }
+
+  return true;
+}
+
+
+
+
+
+
+
+
+
+
+
 

@@ -92,12 +92,26 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
+  
+  {
+    struct value string = value_new_string(F, "Does not exist #1", &tmpRootRef);
+    interpreter_push(F, callState, string);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  }
+  
+  {
+    struct value string = value_new_string(F, "Does not exist #2", &tmpRootRef);
+    interpreter_push(F, callState, string);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  }
 
   {
     struct value string = value_new_string(F, "Returned from C function (Only printed once) (arg #2)", &tmpRootRef);
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
+
+  interpreter_remove(F, callState, 2, 2);
 
   return 2;
 }
