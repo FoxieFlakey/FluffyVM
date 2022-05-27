@@ -12,6 +12,25 @@
 
 #define EXPORT ATTRIBUTE((visibility("default")))
 
+static struct value getValueAtStackIndex(lua_State* L, int idx) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  assert(co);
+  // Check if its pseudo index
+  if (FLUFFYVM_COMPAT_LAYER_IS_PSEUDO_INDEX(idx)) {
+    switch (idx) {
+      default:
+        abort(); /* Unknown pseudo index */
+    }
+  }
+
+  int index = fluffyvm_compat_lua54_lua_absindex(L, idx);
+  struct value tmp;
+  if (!interpreter_peek(L, co->currentCallState, index, &tmp))
+    interpreter_error(L, fluffyvm_get_errmsg(L));
+
+  return tmp;
+}
+
 EXPORT FLUFFYVM_DECLARE(void, lua_call, lua_State* L, int nargs, int nresults) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
   assert(co);
@@ -60,4 +79,71 @@ EXPORT FLUFFYVM_DECLARE(int, lua_gettop, lua_State* L) {
   assert(co);
   return co->currentCallState->sp;
 }
+
+EXPORT FLUFFYVM_DECLARE(int, lua_absindex, lua_State* L, int idx) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  int result = idx;
+  assert(co);
+  
+  if (idx == 0)
+    goto invalid_stack_index;
+  
+  if (idx < 0) {
+    result = co->currentCallState->sp + idx + 1;
+    if (result <= 0)
+      goto invalid_stack_index;
+  }
+
+  if (result > co->currentCallState->sp)
+    goto invalid_stack_index;
+
+  return result;
+
+  invalid_stack_index:
+  interpreter_error(L, L->staticStrings.invalidStackIndex);
+  abort();
+}
+
+
+EXPORT FLUFFYVM_DECLARE(void, lua_copy, lua_State* L, int fromidx, int toidx) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  assert(co);
+  struct fluffyvm_call_state* callState = co->currentCallState;
+
+  int src = fluffyvm_compat_lua54_lua_absindex(L, fromidx);
+  int dest = fluffyvm_compat_lua54_lua_absindex(L, toidx);
+    
+  value_copy(&callState->generalStack[dest - 1], &callState->generalStack[src - 1]);
+  foxgc_api_write_array(callState->gc_generalObjectStack, dest - 1, callState->generalObjectStack[src - 1]);
+}
+
+EXPORT FLUFFYVM_DECLARE(void, lua_pop, lua_State* L, int count) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  assert(co);
+
+  if (count == 0)
+    return;
+  
+  if (count < 0)
+    interpreter_error(L, L->staticStrings.expectNonZeroGotNegative);
+
+  struct fluffyvm_call_state* callState = co->currentCallState;
+  int top = interpreter_get_top(L, callState);
+  
+  if (!interpreter_remove(L, callState, top, count))
+    interpreter_error(L, L->staticStrings.invalidStackIndex);
+}
+
+EXPORT FLUFFYVM_DECLARE(void, lua_remove, lua_State* L, int idx) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  assert(co);
+  struct fluffyvm_call_state* callState = co->currentCallState;
+  int top = fluffyvm_compat_lua54_lua_absindex(L, idx) - 1;
+  
+  if (!interpreter_remove(L, callState, top, 1))
+    abort(); /* Unreachable due lua_absindex also perform bound check */
+}
+
+
+
 

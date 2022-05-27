@@ -21,7 +21,7 @@ struct fluffyvm_call_state {
   struct fluffyvm_coroutine* owner;
   
   struct value generalStack[FLUFFYVM_GENERAL_STACK_SIZE];
-  foxgc_object_t* generalObjectStack;
+  foxgc_object_t** generalObjectStack;
 
   struct value registers[FLUFFYVM_REGISTERS_NUM];
 

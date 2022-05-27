@@ -6,7 +6,7 @@ for Lua 5.4 C API
 
 Status         | Name
 --------------------------------------
-Not done       | lua_absindex
+Done           | lua_absindex
 Not done       | lua_arith
 Not done       | lua_atpanic
 Done           | lua_call
@@ -16,7 +16,7 @@ Not done       | lua_close
 Not done       | lua_closeslot
 Not done       | lua_compare
 Not done       | lua_concat
-Not done       | lua_copy
+Done           | lua_copy
 Not done       | lua_createtable
 Not done       | lua_dump
 Not done       | lua_error
@@ -62,7 +62,7 @@ Not done       | lua_next
 Not done       | lua_numbertointeger
 Not done       | lua_pcall
 Not done       | lua_pcallk
-Not done       | lua_pop
+Done           | lua_pop
 Not done       | lua_pushboolean
 Not done       | lua_pushcclosure
 Not done       | lua_pushcfunction
@@ -87,7 +87,7 @@ Not done       | lua_rawset
 Not done       | lua_rawseti
 Not done       | lua_rawsetp
 Not done       | lua_register
-Not done       | lua_remove
+Done           | lua_remove
 Not done       | lua_replace
 Not done       | lua_resetthread
 Not done       | lua_resume
