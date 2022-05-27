@@ -6,6 +6,7 @@
 #include <stdbool.h>
 
 #include "foxgc.h"
+#include "api_layer/types.h"
 
 struct fluffyvm;
 typedef enum value_types {
@@ -48,8 +49,8 @@ typedef struct value {
     // struct hashtable*
     foxgc_object_t* table;
 
-    double doubleData;
-    int64_t longNum;
+    fluffyvm_number doubleData;
+    fluffyvm_integer longNum;
     struct fluffyvm_closure* closure;
   } data;
 } value_t;
@@ -64,8 +65,8 @@ void value_cleanup(struct fluffyvm* vm);
 
 struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef);
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
-struct value value_new_long(struct fluffyvm* vm, int64_t integer);
-struct value value_new_double(struct fluffyvm* vm, double number);
+struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer);
+struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number);
 struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
 struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure); 
 struct value value_not_present();

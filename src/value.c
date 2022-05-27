@@ -6,6 +6,7 @@
 #include <Block.h>
 #include <inttypes.h>
 
+#include "api_layer/types.h"
 #include "value.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
@@ -76,7 +77,7 @@ struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_
   return value_new_string2(vm, cstr, strlen(cstr), rootRef);
 }
 
-struct value value_new_long(struct fluffyvm* vm, int64_t integer) {
+struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer) {
   struct value value = {
    .data.longNum = integer,
    .type = FLUFFYVM_TVALUE_LONG
@@ -190,10 +191,10 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
       break;
     
     case FLUFFYVM_TVALUE_LONG:
-      hash = do_hash((void*) (&value.data.longNum), sizeof(long));
+      hash = do_hash((void*) (&value.data.longNum), sizeof(fluffyvm_integer));
       break;
     case FLUFFYVM_TVALUE_DOUBLE:
-      hash = do_hash((void*) (&value.data.doubleData), sizeof(double));
+      hash = do_hash((void*) (&value.data.doubleData), sizeof(fluffyvm_number));
       break;
     case FLUFFYVM_TVALUE_TABLE:
       hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
@@ -215,7 +216,7 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
   return true;
 }
 
-struct value value_new_double(struct fluffyvm* vm, double number) {
+struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number) {
   struct value value = {
     .data.doubleData = number,
     .type = FLUFFYVM_TVALUE_DOUBLE

@@ -127,20 +127,63 @@ static struct instruction decode(fluffyvm_instruction_t instruction) {
   return ins;
 }
 
-bool interpreter_call(struct fluffyvm* F, struct value func) {
-  struct fluffyvm_closure* closure = func.data.closure;
-  if (!coroutine_function_prolog(F, closure))
-    goto error;
-  
+void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(F);
   assert(co);
-  interpreter_exec(F, co);
   
-  coroutine_function_epilog(F);
-  return true;
+  struct fluffyvm_closure* closure = func.data.closure;
+  struct fluffyvm_call_state* callerState = co->currentCallState;
   
+  int argsEnd = 0;
+  int argsStart = callerState->sp - nargs;
+  if (argsStart < 0)
+    argsStart = 0;
+  
+  if (!coroutine_function_prolog(F, closure))
+    goto error;
+
+  // Copy args
+  argsEnd = argsStart + nargs - 1;
+  
+  // varargs
+  if (nargs == -1)
+    argsEnd = co->currentCallState->sp - 1;
+
+  for (int i = argsStart; i <= argsEnd; i++)
+    if (!interpreter_push(F, co->currentCallState, callerState->generalStack[i]))
+      goto error;
+
+  int actualRetCount = interpreter_exec(F, co);
+  
+  // Copy return values
+  int returnCount = nret;
+
+  // vararg return
+  if (nret == -1)
+    returnCount = co->currentCallState->sp;
+
+  int startPos = co->currentCallState->sp - actualRetCount;
+  if (startPos < 0)
+    startPos = 0;
+  
+  for (int i = 0; i < returnCount; i++) {
+    struct value val = value_nil();
+
+    // Copy only if current pos is valid
+    if (startPos + i <= co->currentCallState->sp - 1)
+      value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
+
+    // Error here
+    if (!interpreter_push(F, callerState, val))
+      goto error;
+  }
+
+  coroutine_function_epilog(F);  
+  return;
+ 
   error:
-  return false;
+  interpreter_error(F, fluffyvm_get_errmsg(F));
+  abort();
 }
 
 bool interpreter_xpcall(struct fluffyvm* vm, runnable_t thingToExecute, runnable_t handler) {
@@ -293,7 +336,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           
           if (returnCount < 0)
             returnCount = 0;
-           
+
           printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
           struct value val = getRegister(vm, callState, ins.A);
 
@@ -390,7 +433,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
   error:
   callState->pc = pc;
-  interpreter_error(vm, callState, fluffyvm_get_errmsg(vm));
+  interpreter_error(vm, fluffyvm_get_errmsg(vm));
   
   // Can't be reached
   abort();
@@ -412,8 +455,9 @@ struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state
   return callState->closure->env;
 }
 
-void interpreter_error(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value errmsg) {
+void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
   fluffyvm_set_errmsg(vm, errmsg);
+
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
   

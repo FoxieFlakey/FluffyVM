@@ -88,13 +88,13 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
   foxgc_root_reference_t* tmpRootRef = NULL;
   
   {
-    struct value string = value_new_string(F, "Returned from C function (Printed twice)", &tmpRootRef);
+    struct value string = value_new_string(F, "Returned from C function (Printed twice) (arg #1)", &tmpRootRef);
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
 
   {
-    struct value string = value_new_string(F, "Returned from C function (Only printed once)", &tmpRootRef);
+    struct value string = value_new_string(F, "Returned from C function (Only printed once) (arg #2)", &tmpRootRef);
     interpreter_push(F, callState, string);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
@@ -105,7 +105,31 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
 static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   struct value data;
   interpreter_peek(F, callState, 0, &data);
-  interpreter_call(F, data);
+  interpreter_call(F, data, 0, 0);
+  
+  return 0;
+}
+
+static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  struct value data;
+  interpreter_peek(F, callState, 0, &data);
+    
+  foxgc_root_reference_t* tmpRootRef = NULL;
+  
+  {
+    struct value string = value_new_string(F, "Passing an argument to function (args #1)", &tmpRootRef);
+    interpreter_push(F, callState, string);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  }
+
+  {
+    struct value string = value_new_string(F, "Passing an argument to function (args #2)", &tmpRootRef);
+    interpreter_push(F, callState, string);
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  }
+
+  interpreter_call(F, data, 2, 2);
+  interpreter_call(F, data, 2, 0);
   
   return 0;
 }
@@ -113,7 +137,7 @@ static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* call
 static int stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   struct value data;
   interpreter_peek(F, callState, 0, &data);
-  interpreter_error(F, callState, data);
+  interpreter_error(F, data);
   
   return 0;
 }
@@ -164,6 +188,7 @@ int main2() {
     registerCFunction(F, globalTable, "return_string", stdlib_return_string);
     registerCFunction(F, globalTable, "call_func", stdlib_call_func);
     registerCFunction(F, globalTable, "error", stdlib_error);
+    registerCFunction(F, globalTable, "call_func2", stdlib_call_func2); 
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);

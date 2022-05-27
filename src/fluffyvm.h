@@ -39,7 +39,8 @@
   X(notInCoroutine, "not in coroutine") \
   X(coroutineNestTooDeep, "coroutine nest too deep") \
   X(attemptToLoadNonExistentPrototype, "attempt to load not existent prototype") \
-  X(attemptToCallNilValue, "attempt to call nil value")
+  X(attemptToCallNilValue, "attempt to call nil value") \
+  X(expectNonZeroGotNegative, "expect non zero got negative")
 
 struct fluffyvm {
   foxgc_heap_t* heap;
