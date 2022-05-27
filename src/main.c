@@ -20,6 +20,8 @@
 #include "closure.h"
 #include "interpreter.h"
 
+#include "api_layer/lua54.h"
+
 #define KB (1024)
 #define MB (1024 * KB)
 
@@ -117,17 +119,19 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
 }
 
 static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  struct value data;
-  interpreter_peek(F, callState, 0, &data);
-  interpreter_call(F, data, 0, 0);
-  
+  //struct value data;
+  //interpreter_peek(F, callState, 0, &data);
+  //interpreter_call(F, data, 0, 0);
+  fluffyvm_compat_lua54_lua_call(F, 0, 0);
+
   return 0;
 }
 
 static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   struct value data;
   interpreter_peek(F, callState, 0, &data);
-    
+  interpreter_push(F, callState, data); 
+
   foxgc_root_reference_t* tmpRootRef = NULL;
   
   {
@@ -142,9 +146,11 @@ static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* cal
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
   }
 
-  interpreter_call(F, data, 2, 2);
-  interpreter_call(F, data, 2, 0);
-  
+  //interpreter_call(F, data, 2, 2);
+  //interpreter_call(F, data, 2, 0);
+  fluffyvm_compat_lua54_lua_call(F, 2, 2);
+  fluffyvm_compat_lua54_lua_call(F, 2, 0);
+
   return 0;
 }
 

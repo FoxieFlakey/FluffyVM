@@ -159,8 +159,9 @@ start_prototype()
       stack_pop(COND_NONE, NIL);
       
       get_constant(COND_NONE, 0x0000, strThisReturnedToC)
-      stack_pop(COND_NONE, 0x0001);
-      mov(COND_NONE, 0x0000, NIL)
+      stack_pop(COND_NONE, 0x0000);
+      
+      get_constant(COND_NONE, 0x0001, strHello)
 
       ret(COND_NONE, 0, 2)
     end_prototype()

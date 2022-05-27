@@ -2,6 +2,7 @@
 #define header_1653536277_lua54_h
 
 // Compatibility layer for Lua 5.4 C API
+// From C API section: https://www.lua.org/manual/5.4/contents.html#index
 
 #ifdef lua_h
 # error "Don't include 'lua.h' file; This compat layer serve as replacement for 'lua.h'"
@@ -27,8 +28,10 @@ typedef fluffyvm_unsigned lua_Unsigned;
 
 // Declarations
 FLUFFYVM_DECLARE(void, lua_call, lua_State* L, int nargs, int nresults); 
-FLUFFYVM_DECLARE(void, lua_checkstack, lua_State* L, int n); 
-FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
+FLUFFYVM_DECLARE(int, lua_checkstack, lua_State* L, int n); 
+FLUFFYVM_DECLARE(int, lua_gettop, lua_State* L); 
+
+//FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 
 #ifndef FLUFFYVM_INTERNAL
 # ifdef FLUFFYVM_COMPAT_LAYER_REDIRECT_CALL
@@ -45,6 +48,7 @@ FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults);
       } while(0)
 #   endif
 #   define fluffyvm_compat_lua54_lua_call(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_call, F, __VA_ARGS__)
+#   define fluffyvm_compat_lua54_lua_checkstack(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_checkstack, F, __VA_ARGS__)
 # endif
 #endif
 

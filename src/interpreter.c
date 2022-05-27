@@ -442,8 +442,13 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 }
 
 bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result) {
-  if (index < 0 || index >= callState->sp)
+  if (index < 0 || index >= callState->sp) {
+    if (index < 0) 
+      fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow);
+    else
+      fluffyvm_set_errmsg(vm, vm->staticStrings.stackOverflow);
     return false;
+  }
 
   value_copy(result, &callState->generalStack[index]);
   return true;
