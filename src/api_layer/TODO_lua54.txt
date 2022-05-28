@@ -111,11 +111,11 @@ Not done       | lua_tocfunction
 Not done       | lua_toclose
 Not done       | lua_tointeger
 Not done       | lua_tointegerx
-Done  
+Done           | lua_tolstring
 Not done       | lua_tonumber
 Not done       | lua_tonumberx
 Not done       | lua_topointer
-Done  
+Done           | lua_tostring
 Not done       | lua_tothread
 Not done       | lua_touserdata
 Not done       | lua_type
