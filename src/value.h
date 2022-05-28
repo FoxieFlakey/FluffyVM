@@ -20,6 +20,11 @@ typedef enum value_types {
   FLUFFYVM_TVALUE_STRING,
   FLUFFYVM_TVALUE_TABLE,
   FLUFFYVM_TVALUE_CLOSURE,
+  FLUFFYVM_TVALUE_BOOL,
+  
+  // Userdata
+  FLUFFYVM_TVALUE_FULL_USERDATA,
+  FLUFFYVM_TVALUE_LIGHT_USERDATA,
 
   FLUFFYVM_TVALUE_LAST
 } value_types_t;
@@ -29,6 +34,27 @@ typedef enum {
   FLUFFYVM_CALL_CANT_CALL,
   FLUFFYVM_CALL_RESULT_ERROR
 } value_call_status_t;
+
+typedef void (^value_userdata_finalizer)();
+
+struct value_userdata {
+  foxgc_object_t* dataObj;
+  void* data;
+  bool isFull;
+
+  // Library or host can freely assign any
+  // value for `typeID` but `moduleID` must
+  // be fetch from `value_get_module_id` and
+  // the module ID is only valid for entire
+  // process lifetime (this make it easier
+  // to decide whether a given userdata
+  // is own by a module or not)
+  //
+  // Module ID zero is invalid in all
+  // context unless noted
+  int moduleID;
+  int typeID;
+};
 
 struct value_string {
   // 64-bit as i was forgot that
@@ -53,6 +79,9 @@ typedef struct value {
     fluffyvm_number doubleData;
     fluffyvm_integer longNum;
     struct fluffyvm_closure* closure;
+
+    struct value_userdata* userdata;
+    bool boolean;
   } data;
 } value_t;
 
@@ -70,6 +99,10 @@ struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer);
 struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number);
 struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
 struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure); 
+struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int typeID, size_t size, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
+struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typeID, void* data, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
+struct value value_new_bool(struct fluffyvm* vm, bool boolean);
+
 struct value value_not_present();
 struct value value_nil();
 
@@ -98,8 +131,11 @@ struct value value_todouble(struct fluffyvm* vm, struct value value);
 
 // Action to do if this table
 bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, struct value value);
+bool value_table_remove(struct fluffyvm* vm, struct value table, struct value key);
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef);
 bool value_table_is_indexable(struct value val);
+
+int value_get_module_id();
 
 #endif
 

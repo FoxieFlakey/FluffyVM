@@ -21,6 +21,9 @@
   X(typenames_longNum, "long") \
   X(typenames_table, "table") \
   X(typenames_closure, "function") \
+  X(typenames_light_userdata, "userdata") \
+  X(typenames_full_userdata, "userdata") \
+  X(typenames_bool, "boolean") \
   X(invalidCapacity, "invalid capacity") \
   X(badKey, "bad key") \
   X(protobufFailedToUnpackData, "protobuf failed to unpack data") \
@@ -43,7 +46,9 @@
   X(expectNonZeroGotNegative, "expect non zero got negative") \
   X(invalidRemoveCall, "invalid argument for interpreter_remove") \
   X(invalidStackIndex, "invalid stack index for C function (lua C API compatibility layer)") \
-  X(expectLongOrDoubleOrString, "expect long or double or string")
+  X(expectLongOrDoubleOrString, "expect long or double or string") \
+  X(bool_true, "true") \
+  X(bool_false, "false")
 
 struct fluffyvm {
   foxgc_heap_t* heap;

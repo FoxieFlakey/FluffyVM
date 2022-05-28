@@ -293,3 +293,40 @@ struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct v
   return result;
 }
 
+void hashtable_remove(struct fluffyvm* vm, struct hashtable* this, struct value key) {
+  uint64_t hash = -1;
+  if (!value_hash_code(key, &hash))
+    return;
+  
+  pthread_rwlock_wrlock(&this->lock);
+  uint64_t index = hash & (this->capacity - 1);
+ 
+  struct pair* current = this->table[index] ? foxgc_api_object_get_data(this->table[index]) : NULL;
+  struct pair* prev = NULL; 
+  while (current) {
+    uint64_t hash2 = -1;
+    bool res = value_hash_code(current->key, &hash2);
+    assert(res); /* Cannot happen unless there is bug
+                    in the value_hash_code function */
+    
+    if (hash == hash2 && value_equals(current->key, key)) {
+      if (prev)
+        pair_write_next(prev, NULL);
+      else
+        foxgc_api_write_array(this->gc_table, index, NULL);
+      goto quit_function;
+    }
+
+    prev = current;
+    current = current->next;
+  }
+
+  quit_function:
+  pthread_rwlock_unlock(&this->lock);
+}
+
+
+
+
+
+

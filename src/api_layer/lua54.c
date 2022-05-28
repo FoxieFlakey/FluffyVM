@@ -235,6 +235,131 @@ EXPORT FLUFFYVM_DECLARE(const char*, lua_tostring, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_tolstring(L, idx, NULL);
 }
 
+FLUFFYVM_DECLARE(const void*, lua_topointer, lua_State* L, int idx) {
+  return value_get_unique_ptr(getValueAtStackIndex(L, idx));
+}
+
+EXPORT FLUFFYVM_DECLARE(lua_Number, lua_tonumberx, lua_State* L, int idx, int* isnum) {
+  struct value sourceValue = getValueAtStackIndex(L, idx);
+  struct value number = value_todouble(L, sourceValue);
+
+  if (number.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
+    if (isnum)
+      *isnum = false;
+    return 0;
+  }
+
+  if (isnum)
+    *isnum = true;
+  return number.data.doubleData;
+}
+
+EXPORT FLUFFYVM_DECLARE(lua_Number, lua_tonumber, lua_State* L, int idx) {
+  return fluffyvm_compat_lua54_lua_tonumberx(L, idx, NULL);
+}
+
+EXPORT FLUFFYVM_DECLARE(lua_Integer, lua_tointegerx, lua_State* L, int idx, int* isnum) {
+  return (lua_Integer) fluffyvm_compat_lua54_lua_tonumberx(L, idx, isnum);
+}
+
+EXPORT FLUFFYVM_DECLARE(lua_Integer, lua_tointeger, lua_State* L, int idx) {
+  return (lua_Integer) fluffyvm_compat_lua54_lua_tointegerx(L, idx, NULL);
+}
+
+EXPORT FLUFFYVM_DECLARE(void*, lua_touserdata, lua_State* L, int idx) {
+  struct value val = getValueAtStackIndex(L, idx);
+  if (val.type != FLUFFYVM_TVALUE_FULL_USERDATA && val.type != FLUFFYVM_TVALUE_LIGHT_USERDATA)
+    return NULL;
+
+  return val.data.userdata->data;
+}
+
+EXPORT FLUFFYVM_DECLARE(int, lua_type, lua_State* L, int idx) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(L);
+  assert(co);
+  struct fluffyvm_call_state* callState = co->currentCallState;
+  
+  if (idx == 0)
+    return LUA_TNONE;
+  
+  if (idx > callState->sp)
+    return LUA_TNONE;
+  else if (idx < 0)
+    if (callState->sp + idx + 1 < 0)
+      return LUA_TNONE;
+
+  struct value val = getValueAtStackIndex(L, idx);
+  switch (val.type) {
+    case FLUFFYVM_TVALUE_STRING:
+      return LUA_TSTRING;
+    case FLUFFYVM_TVALUE_LONG:
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return LUA_TNUMBER;
+    case FLUFFYVM_TVALUE_TABLE:
+      return LUA_TTABLE;
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return LUA_TFUNCTION;
+    case FLUFFYVM_TVALUE_FULL_USERDATA:
+      return LUA_TUSERDATA;
+    case FLUFFYVM_TVALUE_BOOL:
+      return LUA_TBOOLEAN;
+    case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+      return LUA_TLIGHTUSERDATA;
+    case FLUFFYVM_TVALUE_NIL:
+      return LUA_TNIL;
+
+    case FLUFFYVM_TVALUE_LAST:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
+      abort();
+  }
+
+  abort(); /* No impossible */
+}
+
+EXPORT FLUFFYVM_DECLARE(const char*, lua_typename, lua_State* L, int type) {
+  switch ((lua_Type) type) {
+    case LUA_TBOOLEAN:
+      return "boolean";
+    case LUA_TNIL:
+      return "nil";
+    case LUA_TNUMBER:
+      return "number";
+    case LUA_TLIGHTUSERDATA:
+    case LUA_TUSERDATA:
+      return "userdata";
+    case LUA_TTABLE:
+      return "table";
+    case LUA_TFUNCTION:
+      return "function";
+    case LUA_TSTRING:
+      return "string";
+    case LUA_TTHREAD:
+      return "thread";
+
+    case LUA_TNONE:
+      break;;
+  }
+
+  abort();
+}
+
+// Return version of Lua C API which this compat
+// layer trying to support
+EXPORT FLUFFYVM_DECLARE(lua_Number, lua_version, lua_State* L) {
+  return 504;
+}
+
+EXPORT FLUFFYVM_DECLARE(void, lua_replace, lua_State* L, int idx) {
+  fluffyvm_compat_lua54_lua_copy(L, -1, idx);
+  fluffyvm_compat_lua54_lua_pop(L, 1);
+}
+
+
+
+
+
+
+
 
 
 

@@ -38,6 +38,20 @@ enum {
   LUA_ERRFILE
 };
 
+// Lua types
+typedef enum {
+  LUA_TNONE,
+  LUA_TNIL,
+  LUA_TNUMBER,
+  LUA_TBOOLEAN,
+  LUA_TSTRING,
+  LUA_TTABLE,
+  LUA_TFUNCTION,
+  LUA_TUSERDATA,
+  LUA_TTHREAD,
+  LUA_TLIGHTUSERDATA
+} lua_Type;
+
 // Pseudo indexes
 #define FLUFFYVM_COMPAT_LAYER_PSEUDO_INDEX(loc) (0x80000000 | loc)
 #define FLUFFYVM_COMPAT_LAYER_IS_PSEUDO_INDEX(idx) ((idx & 0x8000000) != 0)
@@ -62,6 +76,16 @@ FLUFFYVM_DECLARE(void, lua_error, lua_State* L);
 FLUFFYVM_DECLARE(void, lua_pushvalue, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(const char*, lua_tolstring, lua_State* L, int idx, size_t* len); 
 FLUFFYVM_DECLARE(const char*, lua_tostring, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(const void*, lua_topointer, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(lua_Number, lua_tonumberx, lua_State* L, int idx, int* isnum); 
+FLUFFYVM_DECLARE(lua_Number, lua_tonumber, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(lua_Integer, lua_tointegerx, lua_State* L, int idx, int* isnum); 
+FLUFFYVM_DECLARE(lua_Integer, lua_tointeger, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(void*, lua_touserdata, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_type, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(const char*, lua_typename, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(lua_Number, lua_version, lua_State* L); 
+FLUFFYVM_DECLARE(void, lua_replace, lua_State* L, int idx); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 

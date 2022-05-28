@@ -88,7 +88,7 @@ Not done       | lua_rawseti
 Not done       | lua_rawsetp
 Not done       | lua_register
 Done           | lua_remove
-Not done       | lua_replace
+Done           | lua_replace
 Not done       | lua_resetthread
 Not done       | lua_resume
 Not done       | lua_rotate
@@ -109,21 +109,21 @@ Not done       | lua_stringtonumber
 Not done       | lua_toboolean
 Not done       | lua_tocfunction
 Not done       | lua_toclose
-Not done       | lua_tointeger
-Not done       | lua_tointegerx
+Done           | lua_tointeger
+Done           | lua_tointegerx
 Done           | lua_tolstring
-Not done       | lua_tonumber
-Not done       | lua_tonumberx
-Not done       | lua_topointer
+Done           | lua_tonumber
+Done           | lua_tonumberx
+Done           | lua_topointer
 Done           | lua_tostring
 Not done       | lua_tothread
-Not done       | lua_touserdata
-Not done       | lua_type
-Not done       | lua_typename
+Done           | lua_touserdata
+Done           | lua_type
+Done           | lua_typename
 Not done       | lua_upvalueid
 Not done       | lua_upvalueindex
 Not done       | lua_upvaluejoin
-Not done       | lua_version
+Done           | lua_version
 Not done       | lua_warning
 Not done       | lua_xmove
 Not done       | lua_yield

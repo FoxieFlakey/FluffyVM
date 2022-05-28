@@ -72,25 +72,26 @@ static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutin
 static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   const int tid = fluffyvm_get_thread_id(F);
 
-  for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(F); i++) {
-    const char* str = fluffyvm_compat_lua54_lua_tostring(F, i + 1);
-    printf("[Thread %d] Printer: %s\n", tid, str);
-  }
+  for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(F); i++)
+    printf("[Thread %d] Printer: %s\n", tid, fluffyvm_compat_lua54_lua_tostring(F, i + 1));
 
   stdlib_print_stacktrace(F, callState->owner);
   return 0;
 }
 
 static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
- fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Printed twice) (arg #1)");
+  fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Printed twice) (arg #1)");
   fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
   fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
   fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
-  fluffyvm_compat_lua54_lua_pop(F,  1);  
-  fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Only printed once) (arg #2)");
+  fluffyvm_compat_lua54_lua_pop(F, 1);  
+  fluffyvm_compat_lua54_lua_pushstring(F, "Be replaced");
 
   fluffyvm_compat_lua54_lua_remove(F, -3);
   fluffyvm_compat_lua54_lua_remove(F, -2);
+  
+  fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Only printed once) (arg #2)");
+  fluffyvm_compat_lua54_lua_replace(F, -2);
 
   return 2;
 }

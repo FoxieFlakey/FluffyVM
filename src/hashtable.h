@@ -37,5 +37,8 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initial
 bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key, struct value value);
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef);
 
+// Remove key value pair
+void hashtable_remove(struct fluffyvm* vm, struct hashtable* this, struct value key);
+
 #endif
 
