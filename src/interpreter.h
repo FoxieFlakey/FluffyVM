@@ -18,6 +18,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 bool interpreter_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func);
 void interpreter_function_epilog(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 
+// Sets errmsg on error
 bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value* result, foxgc_root_reference_t** rootRef);
 bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState, struct value value);
 bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result); 

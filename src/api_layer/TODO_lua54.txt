@@ -19,7 +19,7 @@ Not done       | lua_concat
 Done           | lua_copy
 Not done       | lua_createtable
 Not done       | lua_dump
-Not done       | lua_error
+Done           | lua_error
 Not done       | lua_gc
 Not done       | lua_getallocf
 Not done       | lua_getextraspace
@@ -70,13 +70,13 @@ Not done       | lua_pushfstring
 Not done       | lua_pushglobaltable
 Not done       | lua_pushinteger
 Not done       | lua_pushlightuserdata
-Not done       | lua_pushliteral
+Done           | lua_pushliteral
 Not done       | lua_pushlstring
-Not done       | lua_pushnil
+Done           | lua_pushnil
 Not done       | lua_pushnumber
-Not done       | lua_pushstring
+Done           | lua_pushstring
 Not done       | lua_pushthread
-Not done       | lua_pushvalue
+Done           | lua_pushvalue
 Not done       | lua_pushvfstring
 Not done       | lua_rawequal
 Not done       | lua_rawget
@@ -111,11 +111,11 @@ Not done       | lua_tocfunction
 Not done       | lua_toclose
 Not done       | lua_tointeger
 Not done       | lua_tointegerx
-Not done       | lua_tolstring
+Done  
 Not done       | lua_tonumber
 Not done       | lua_tonumberx
 Not done       | lua_topointer
-Not done       | lua_tostring
+Done  
 Not done       | lua_tothread
 Not done       | lua_touserdata
 Not done       | lua_type

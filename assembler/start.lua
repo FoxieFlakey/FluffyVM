@@ -22,9 +22,9 @@ local COND_NONE = 0x00
 get_constant(COND_NONE, 0x0001, strAProtoString)
 load_prototype(COND_NONE, 0x0002, 0)
 table_set(COND_NONE, ENV_TABLE, 0x0001, 0x0002)
-stack_push(COND_NONE, 0x0002)
+--stack_push(COND_NONE, 0x0002)
 
-stack_push(COND_NONE, ENV_TABLE)
+--stack_push(COND_NONE, ENV_TABLE)
 
 get_constant(COND_NONE, 0x0001, strHello)
 stack_push(COND_NONE, 0x0001)

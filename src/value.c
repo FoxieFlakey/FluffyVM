@@ -49,7 +49,7 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
     return valueNotPresent;
   }
 
-  foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, len, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, len + 1, Block_copy(^void (foxgc_object_t* obj) {
     free(strStruct);
   }));
 
@@ -70,6 +70,9 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
   // memcpy because the string could have embedded
   // null to mimic lua for the string
   memcpy(foxgc_api_object_get_data(strObj), str, len);
+  
+  // Null terminator
+  ((char*) foxgc_api_object_get_data(strStruct->str))[len] = '\0';
   return value;
 }
 
@@ -246,7 +249,7 @@ size_t value_get_len(struct value value) {
 
   switch (value.type) {
     case FLUFFYVM_TVALUE_STRING:
-      return foxgc_api_get_array_length(value.data.str->str);
+      return foxgc_api_get_array_length(value.data.str->str) - 1;
     case FLUFFYVM_TVALUE_TABLE:
       return ((struct hashtable*) foxgc_api_object_get_data(value.data.table))->usage;
     default:

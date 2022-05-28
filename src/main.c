@@ -72,14 +72,9 @@ static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutin
 static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
   const int tid = fluffyvm_get_thread_id(F);
 
-  for (int i = 0; i <= interpreter_get_top(F, callState); i++) {
-    struct value data;
-    foxgc_root_reference_t* tmpRootRef = NULL;
-    interpreter_peek(F, callState, i, &data);
-    struct value string = value_tostring(F, data, &tmpRootRef);
-
-    printf("[Thread %d] Printer: %.*s\n", tid, (int) value_get_len(string), value_get_string(string));
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
+  for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(F); i++) {
+    const char* str = fluffyvm_compat_lua54_lua_tostring(F, i + 1);
+    printf("[Thread %d] Printer: %s\n", tid, str);
   }
 
   stdlib_print_stacktrace(F, callState->owner);
@@ -87,40 +82,13 @@ static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callStat
 }
 
 static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  foxgc_root_reference_t* tmpRootRef = NULL;
-  
-  {
-    struct value string = value_new_string(F, "Returned from C function (Printed twice) (arg #1)", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-  
-  {
-    struct value string = value_new_string(F, "Does not exist #1", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-  
-  {
-    struct value string = value_new_string(F, "Does not exist #2", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-  
-  {
-    struct value string = value_new_string(F, "Does not exist #3", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
+ fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Printed twice) (arg #1)");
+  fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
+  fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
+  fluffyvm_compat_lua54_lua_pushstring(F, "Does not exist #1");
   fluffyvm_compat_lua54_lua_pop(F,  1);  
+  fluffyvm_compat_lua54_lua_pushstring(F, "Returned from C function (Only printed once) (arg #2)");
 
-  {
-    struct value string = value_new_string(F, "Returned from C function (Only printed once) (arg #2)", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-
-  //interpreter_remove(F, callState, 2, 2);
   fluffyvm_compat_lua54_lua_remove(F, -3);
   fluffyvm_compat_lua54_lua_remove(F, -2);
 
@@ -128,46 +96,22 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
 }
 
 static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  //struct value data;
-  //interpreter_peek(F, callState, 0, &data);
-  //interpreter_call(F, data, 0, 0);
   fluffyvm_compat_lua54_lua_call(F, 0, 0);
-
   return 0;
 }
 
 static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  struct value data;
-  interpreter_peek(F, callState, 0, &data);
-  interpreter_push(F, callState, data); 
+  fluffyvm_compat_lua54_lua_pushvalue(F, -1);
+  fluffyvm_compat_lua54_lua_pushstring(F, "Passing an argument to function (args #1)");
+  fluffyvm_compat_lua54_lua_pushstring(F, "Passing an argument to function (args #2)");
 
-  foxgc_root_reference_t* tmpRootRef = NULL;
-  
-  {
-    struct value string = value_new_string(F, "Passing an argument to function (args #1)", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-
-  {
-    struct value string = value_new_string(F, "Passing an argument to function (args #2)", &tmpRootRef);
-    interpreter_push(F, callState, string);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), tmpRootRef);
-  }
-
-  //interpreter_call(F, data, 2, 2);
-  //interpreter_call(F, data, 2, 0);
   fluffyvm_compat_lua54_lua_call(F, 2, 2);
   fluffyvm_compat_lua54_lua_call(F, 2, 0);
-
   return 0;
 }
 
 static int stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  struct value data;
-  interpreter_peek(F, callState, 0, &data);
-  interpreter_error(F, data);
-  
+  fluffyvm_compat_lua54_lua_error(F);
   return 0;
 }
 
@@ -241,7 +185,7 @@ int main2() {
    
     if (!coroutine_resume(F, co)) {
       struct value errMsg = co->thrownedError;
-      printf("[Thread %d] Error: %.*s\n", tid, (int) value_get_len(errMsg), value_get_string(errMsg));
+      printf("[Thread %d] Error: %s\n", tid, value_get_string(errMsg));
       stdlib_print_stacktrace(F, co);
       goto coroutine_crashed;
     }
@@ -254,7 +198,7 @@ int main2() {
       foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
     error:
     if (fluffyvm_is_errmsg_present(F))
-      collectAndPrintMemUsage("[Thread %d] Error: %.*s", tid, (int) value_get_len(fluffyvm_get_errmsg(F)), value_get_string(fluffyvm_get_errmsg(F)));
+      collectAndPrintMemUsage("[Thread %d] Error: %s", tid, value_get_string(fluffyvm_get_errmsg(F)));
     return NULL;
   };
   

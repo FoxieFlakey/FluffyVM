@@ -9,6 +9,7 @@
 #endif
 
 #include <stdint.h>
+#include <stddef.h>
 
 #include "types.h"
 #include "config.h"
@@ -38,9 +39,9 @@ enum {
 };
 
 // Pseudo indexes
-#define FLUFFYVM_COMPAT_LAYER_PSEUDO_INDEX(loc) (0x80000000 & loc)
-#define FLUFFYVM_COMPAT_LAYER_IS_PSEUDO_INDEX(idx) ((idx & 0x80000000) != 0)
-#define LUA_REGISTRYINDEX FLUFFYVM_COMPAT_LAYER_PSEUDO_INDEX(0)
+#define FLUFFYVM_COMPAT_LAYER_PSEUDO_INDEX(loc) (0x80000000 | loc)
+#define FLUFFYVM_COMPAT_LAYER_IS_PSEUDO_INDEX(idx) ((idx & 0x8000000) != 0)
+#define LUA_REGISTRYINDEX FLUFFYVM_COMPAT_LAYER_PSEUDO_INDEX(1)
 
 // Registry indexes
 #define LUA_RIDX_MAINTHREAD (0)
@@ -54,6 +55,13 @@ FLUFFYVM_DECLARE(void, lua_copy, lua_State* L, int fromidx, int toidx);
 FLUFFYVM_DECLARE(int, lua_absindex, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(void, lua_pop, lua_State* L, int n); 
 FLUFFYVM_DECLARE(void, lua_remove, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(void, lua_pushnil, lua_State* L); 
+FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s); 
+FLUFFYVM_DECLARE(const char*, lua_pushliteral, lua_State* L, const char* s); 
+FLUFFYVM_DECLARE(void, lua_error, lua_State* L); 
+FLUFFYVM_DECLARE(void, lua_pushvalue, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(const char*, lua_tolstring, lua_State* L, int idx, size_t* len); 
+FLUFFYVM_DECLARE(const char*, lua_tostring, lua_State* L, int idx); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 

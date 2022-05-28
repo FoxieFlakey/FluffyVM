@@ -42,7 +42,8 @@
   X(attemptToCallNilValue, "attempt to call nil value") \
   X(expectNonZeroGotNegative, "expect non zero got negative") \
   X(invalidRemoveCall, "invalid argument for interpreter_remove") \
-  X(invalidStackIndex, "invalid stack index for C function (lua C API compatibility layer)")
+  X(invalidStackIndex, "invalid stack index for C function (lua C API compatibility layer)") \
+  X(expectLongOrDoubleOrString, "expect long or double or string")
 
 struct fluffyvm {
   foxgc_heap_t* heap;

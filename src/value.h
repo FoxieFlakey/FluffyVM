@@ -38,6 +38,7 @@ struct value_string {
   
   // const char*
   foxgc_object_t* str;
+  bool hasNullTerminator;
 };
 
 typedef struct value {
