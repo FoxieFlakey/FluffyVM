@@ -17,7 +17,7 @@ Not done       | lua_closeslot
 Not done       | lua_compare
 Not done       | lua_concat
 Done           | lua_copy
-Not done       | lua_createtable
+Done           | lua_createtable
 Not done       | lua_dump
 Done           | lua_error
 Not done       | lua_gc
@@ -38,24 +38,24 @@ Not done       | lua_gettable
 Done           | lua_gettop
 Not done       | lua_getupvalue
 Not done       | lua_insert
-Not done       | lua_isboolean
-Not done       | lua_iscfunction
-Not done       | lua_isfunction
-Not done       | lua_isinteger
-Not done       | lua_islightuserdata
-Not done       | lua_isnil
-Not done       | lua_isnone
-Not done       | lua_isnoneornil
-Not done       | lua_isnumber
-Not done       | lua_isstring
-Not done       | lua_istable
-Not done       | lua_isthread
-Not done       | lua_isuserdata
-Not done       | lua_isyieldable
-Not done       | lua_len
+Done           | lua_isboolean
+Done           | lua_iscfunction
+Done           | lua_isfunction
+Done           | lua_isinteger
+Done           | lua_islightuserdata
+Done           | lua_isnil
+Done           | lua_isnone
+Done           | lua_isnoneornil
+Done           | lua_isnumber
+Done           | lua_isstring
+Done           | lua_istable
+Done           | lua_isthread
+Done           | lua_isuserdata
+Done           | lua_isyieldable
+Done           | lua_len
 Not done       | lua_load
-Not done       | lua_newstate
-Not done       | lua_newtable
+Incompatible   | lua_newstate
+Done           | lua_newtable
 Not done       | lua_newthread
 Not done       | lua_newuserdatauv
 Not done       | lua_next

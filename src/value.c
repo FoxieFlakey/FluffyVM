@@ -7,6 +7,7 @@
 #include <Block.h>
 #include <inttypes.h>
 
+#include "coroutine.h"
 #include "value.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
@@ -112,7 +113,7 @@ struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* clo
   return value;
 }
 
-struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef) {
+struct value value_new_table(struct fluffyvm* vm, double loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef) {
   struct hashtable* hashtable = hashtable_new(vm, loadFactor, initialCapacity, fluffyvm_get_root(vm), rootRef);
 
   if (!hashtable) {
@@ -138,8 +139,10 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
   }
   
   foxgc_object_t* userdataObj = foxgc_api_new_object_opaque(vm->heap, fluffyvm_get_root(vm), rootRef, size, Block_copy(^void (foxgc_object_t* obj) {
-    finalizer();
-    Block_release(finalizer);
+    if (finalizer) {
+      finalizer();
+      Block_release(finalizer);
+    }
     free(userdata);
   }));
   userdata->dataObj = userdataObj;
@@ -183,6 +186,8 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       return value.data.userdata->data;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      return value.data.coroutine->gc_this;
 
     case FLUFFYVM_TVALUE_LONG:
     case FLUFFYVM_TVALUE_DOUBLE:
@@ -273,6 +278,9 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
     case FLUFFYVM_TVALUE_BOOL:
       hash = do_hash((void*) (&value.data.boolean), sizeof(bool));
       break;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      hash = do_hash((void*) (&value.data.coroutine->gc_this), sizeof(foxgc_object_t*));
+      break;
     
     case FLUFFYVM_TVALUE_NIL:
       hash = 0;
@@ -291,6 +299,15 @@ struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number) {
   struct value value = {
     .data.doubleData = number,
     .type = FLUFFYVM_TVALUE_DOUBLE
+  };
+
+  return value;
+}
+
+struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* closure, foxgc_root_reference_t** rootRef) {
+  struct value value = {
+    .data.coroutine = coroutine_new(vm, rootRef, closure),
+    .type = FLUFFYVM_TVALUE_COROUTINE
   };
 
   return value;
@@ -363,10 +380,12 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_CLOSURE:
       bufLen = snprintf(NULL, 0, "function 0x%" PRIXPTR, (uintptr_t) value.data.closure->gc_this);
       break;
-    
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       bufLen = snprintf(NULL, 0, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->data);
+      break;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      bufLen = snprintf(NULL, 0, "coroutine 0x%" PRIXPTR, (uintptr_t) value.data.coroutine->gc_this);
       break;
 
     case FLUFFYVM_TVALUE_LAST:    
@@ -412,6 +431,9 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       snprintf(buffer, bufLen, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->data);
       break;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      bufLen = snprintf(buffer, bufLen, "coroutine 0x%" PRIXPTR, (uintptr_t) value.data.coroutine->gc_this);
+      break;
 
     case FLUFFYVM_TVALUE_STRING:
     case FLUFFYVM_TVALUE_NIL:  
@@ -449,6 +471,8 @@ struct value value_typename(struct fluffyvm* vm, struct value value) {
       return vm->staticStrings.typenames_full_userdata;
     case FLUFFYVM_TVALUE_BOOL:
       return vm->staticStrings.typenames_bool;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      return vm->staticStrings.typenames_coroutine;
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort();
@@ -508,6 +532,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_TABLE:
     case FLUFFYVM_TVALUE_NIL:
+    case FLUFFYVM_TVALUE_COROUTINE:
     case FLUFFYVM_TVALUE_BOOL:
       return valueNotPresent;
     
@@ -533,6 +558,8 @@ void* value_get_unique_ptr(struct value value) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       return value.data.userdata->data;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      return value.data.coroutine->gc_this;
     
     case FLUFFYVM_TVALUE_LONG:
     case FLUFFYVM_TVALUE_BOOL:
@@ -593,6 +620,9 @@ bool value_equals(struct value op1, struct value op2) {
       break;
     case FLUFFYVM_TVALUE_BOOL:
       result = op1.data.boolean == op2.data.boolean;
+      break;
+    case FLUFFYVM_TVALUE_COROUTINE:
+      result = op1.data.coroutine == op2.data.coroutine;
       break;
     case FLUFFYVM_TVALUE_NIL:
       return true;
@@ -658,6 +688,7 @@ bool value_table_is_indexable(struct value val) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
+    case FLUFFYVM_TVALUE_COROUTINE:
       return false;
     
     case FLUFFYVM_TVALUE_TABLE:
@@ -680,6 +711,7 @@ bool value_is_callable(struct value val) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
+    case FLUFFYVM_TVALUE_COROUTINE:
       return false;
     
     case FLUFFYVM_TVALUE_CLOSURE:

@@ -24,6 +24,7 @@
   X(typenames_light_userdata, "userdata") \
   X(typenames_full_userdata, "userdata") \
   X(typenames_bool, "boolean") \
+  X(typenames_coroutine, "coroutine") \
   X(invalidCapacity, "invalid capacity") \
   X(badKey, "bad key") \
   X(protobufFailedToUnpackData, "protobuf failed to unpack data") \

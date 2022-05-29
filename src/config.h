@@ -18,6 +18,9 @@
 // Debug C function
 #define FLUFFYVM_DEBUG_C_FUNCTION (1)
 
+// Default load factor
+#define FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR (0.75)
+
 ////////////////////////////////////////
 // Compiler config                    //
 ////////////////////////////////////////

@@ -165,7 +165,7 @@ int main2() {
     const int tid = fluffyvm_get_thread_id(F);
 
     foxgc_root_reference_t* globalTableRootRef = NULL;
-    struct value globalTable = value_new_table(F, 75, 32, &globalTableRootRef);
+    struct value globalTable = value_new_table(F, 0.75, 32, &globalTableRootRef);
 
     registerCFunction(F, globalTable, "print", stdlib_print);
     registerCFunction(F, globalTable, "return_string", stdlib_return_string);

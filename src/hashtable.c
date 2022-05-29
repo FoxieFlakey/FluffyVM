@@ -206,7 +206,7 @@ static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity
   return true;
 }
 
-struct hashtable* hashtable_new(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_t* root, foxgc_root_reference_t** rootRef) {
+struct hashtable* hashtable_new(struct fluffyvm* vm, double loadFactor, int initialCapacity, foxgc_root_t* root, foxgc_root_reference_t** rootRef) {
   if (!(initialCapacity > 0 && (!(initialCapacity & (initialCapacity - 1))))) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.invalidCapacity);
     return NULL;

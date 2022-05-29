@@ -86,6 +86,22 @@ FLUFFYVM_DECLARE(int, lua_type, lua_State* L, int idx);
 FLUFFYVM_DECLARE(const char*, lua_typename, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(lua_Number, lua_version, lua_State* L); 
 FLUFFYVM_DECLARE(void, lua_replace, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isboolean, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_iscfunction, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isfunction, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isinteger, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_islightuserdata, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isnil, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isnone, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isnumber, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isstring, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_istable, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isthread, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isuserdata, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L); 
+FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec); 
+FLUFFYVM_DECLARE(void, lua_newtable, lua_State* L); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 

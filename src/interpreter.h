@@ -44,6 +44,7 @@ bool interpreter_xpcall(struct fluffyvm* F, runnable_t thingToExecute, runnable_
 // can longjmp through C functions
 void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nresults);
 
+/*
 #ifndef FLUFFYVM_INTERNAL
 #  ifdef FLUFFYVM_DEBUG_C_FUNCTION
 #   ifndef FLUFFYVM_INSERT_DEBUG_INFO
@@ -58,6 +59,7 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nres
 #   define interpreter_error(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(interpreter_error, F, __VA_ARGS__)
 #  endif
 #endif
+*/
 
 #endif
 

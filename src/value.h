@@ -21,6 +21,7 @@ typedef enum value_types {
   FLUFFYVM_TVALUE_TABLE,
   FLUFFYVM_TVALUE_CLOSURE,
   FLUFFYVM_TVALUE_BOOL,
+  FLUFFYVM_TVALUE_COROUTINE,
   
   // Userdata
   FLUFFYVM_TVALUE_FULL_USERDATA,
@@ -82,6 +83,8 @@ typedef struct value {
 
     struct value_userdata* userdata;
     bool boolean;
+
+    struct fluffyvm_coroutine* coroutine;
   } data;
 } value_t;
 
@@ -97,11 +100,12 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
 struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer);
 struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number);
-struct value value_new_table(struct fluffyvm* vm, int loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
+struct value value_new_table(struct fluffyvm* vm, double loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
 struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure); 
 struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int typeID, size_t size, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
 struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typeID, void* data, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
 struct value value_new_bool(struct fluffyvm* vm, bool boolean);
+struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* closure, foxgc_root_reference_t** rootRef);
 
 struct value value_not_present();
 struct value value_nil();
