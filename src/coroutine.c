@@ -313,6 +313,7 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
       .isNative = callState->closure->isNative,
       .closure = callState->closure,
       .source = NULL,
+      .isMain = pos == 0,
 
       .line = -1,
       .bytecode = NULL,

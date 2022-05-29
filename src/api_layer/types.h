@@ -10,6 +10,7 @@ typedef double fluffyvm_number;
 
 // Structs 
 typedef struct fluffyvm fluffyvm;
+typedef struct fluffyvm_coroutine fluffyvm_coroutine;
 typedef struct fluffyvm_call_state fluffyvm_call_state;
 
 // Functions

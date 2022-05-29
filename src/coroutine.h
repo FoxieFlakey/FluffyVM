@@ -75,6 +75,8 @@ struct fluffyvm_call_frame {
   
   struct fluffyvm_bytecode* bytecode;
   struct fluffyvm_prototype* prototype;
+
+  bool isMain;
 };
 
 bool coroutine_init(struct fluffyvm* vm);

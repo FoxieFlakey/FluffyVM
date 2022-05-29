@@ -15,7 +15,7 @@
 #include "config.h"
 
 // Types
-typedef struct fluffyvm lua_State;
+typedef fluffyvm_coroutine lua_State;
 typedef int (*lua_CFunction)(lua_State*);
 typedef fluffyvm_integer lua_Integer;
 typedef fluffyvm_number lua_Number;
@@ -95,16 +95,17 @@ FLUFFYVM_DECLARE(void, lua_replace, lua_State* L, int idx);
 # endif
 
 # ifdef FLUFFYVM_API_DEBUG_C_FUNCTION
-#   ifndef FLUFFYVM_INSERT_DEBUG_INFO
-#     define FLUFFYVM_INSERT_DEBUG_INFO(func, F, ...) do {\
-        struct fluffyvm* _vm = (F); \
+#   ifndef FLUFFYVM_COMPAT_LAYER_INSERT_DEBUG_INFO
+#     define FLUFFYVM_COMPAT_LAYER_INSERT_DEBUG_INFO(func, F, ...) do {\
+        struct fluffyvm_coroutine* _co = (F) ;\
+        struct fluffyvm* _vm = (_co->owner); \
         coroutine_set_debug_info(_vm, __FILE__, __func__, __LINE__); \
-        func(_vm, __VA_ARGS__); \
+        func(_co, __VA_ARGS__); \
         coroutine_set_debug_info(_vm, NULL, NULL, -1); \
       } while(0)
 #   endif
-#   define fluffyvm_compat_lua54_lua_call(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_call, F, __VA_ARGS__)
-#   define fluffyvm_compat_lua54_lua_checkstack(F, ...) FLUFFYVM_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_checkstack, F, __VA_ARGS__)
+#   define fluffyvm_compat_lua54_lua_call(F, ...) FLUFFYVM_COMPAT_LAYER_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_call, F, __VA_ARGS__)
+#   define fluffyvm_compat_lua54_lua_checkstack(F, ...) FLUFFYVM_COMPAT_LAYER_INSERT_DEBUG_INFO(fluffyvm_compat_lua54_lua_checkstack, F, __VA_ARGS__)
 # endif
 #endif
 
