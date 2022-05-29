@@ -25,6 +25,7 @@ struct fluffyvm_closure {
   closure_cfunction_t func; 
   void* udata;
   closure_udata_finalizer_t finalizer;
+  bool isNative;
 
   // _ENV table
   struct value env;

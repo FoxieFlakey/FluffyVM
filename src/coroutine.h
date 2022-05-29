@@ -44,6 +44,8 @@ struct fluffyvm_call_state {
 };
 
 struct fluffyvm_coroutine {
+  struct fluffyvm* owner;
+  
   bool isNativeThread;
   bool isYieldable;
 

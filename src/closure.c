@@ -73,6 +73,7 @@ static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_ro
 struct fluffyvm_closure* closure_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_prototype* prototype, struct value env) {
   struct fluffyvm_closure* this = closure_new_common(vm, rootRef, env);
   this->prototype = prototype;
+  this->isNative = false;
   foxgc_api_write_field(this->gc_this, CLOSURE_OFFSET_PROTOTYPE, prototype->gc_this);
   return this;
 }
@@ -82,6 +83,7 @@ struct fluffyvm_closure* closure_from_cfunction(struct fluffyvm* vm, foxgc_root_
   this->func = func;
   this->udata= udata;
   this->finalizer = finalizer;
+  this->isNative = true;
   foxgc_api_write_field(this->gc_this, CLOSURE_OFFSET_PROTOTYPE, NULL);
   return this;
 }

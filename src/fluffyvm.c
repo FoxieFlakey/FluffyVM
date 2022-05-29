@@ -6,6 +6,7 @@
 #include <assert.h>
 
 #include "config.h"
+#include "fiber.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "hashtable.h"
@@ -173,7 +174,33 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
     goto error;
   COMPONENTS
 # undef X
+  
+  // Create coroutine for main thread
+  foxgc_root_reference_t* closureRootRef = NULL;
+  foxgc_root_reference_t* coroutineRootRef = NULL;
+  
+  struct fluffyvm_closure* dummyClosure = closure_from_cfunction(this, &closureRootRef, NULL, NULL, NULL, value_nil());
+  if (!dummyClosure)
+    goto error;
+  
+  struct fluffyvm_coroutine* mainThread = coroutine_new(this, &coroutineRootRef, dummyClosure);
+  if (!mainThread) {
+    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), closureRootRef);
+    goto error;
+  }
+  
+  fluffyvm_push_current_coroutine(this, mainThread);
+  coroutine_function_prolog(this, dummyClosure);
 
+  struct value tmp = value_not_present();
+  value_copy(&dummyClosure->env, &tmp);
+  
+  foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), closureRootRef);
+  foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), coroutineRootRef);
+
+  this->mainThread = mainThread;
+  this->mainThread->fiber->state = FIBER_RUNNING;
+  this->mainThread->isNativeThread = true;
   return this;
   
   error: 

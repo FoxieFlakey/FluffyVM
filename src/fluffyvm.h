@@ -48,7 +48,8 @@
   X(invalidStackIndex, "invalid stack index for C function (lua C API compatibility layer)") \
   X(expectLongOrDoubleOrString, "expect long or double or string") \
   X(bool_true, "true") \
-  X(bool_false, "false")
+  X(bool_false, "false") \
+  X(nativeFunctionExplicitlyDisabledYieldingForThisCoroutine, "A native function explicitly disabled yielding for this coroutine")
 
 struct fluffyvm {
   foxgc_heap_t* heap;
@@ -81,6 +82,9 @@ struct fluffyvm {
   pthread_key_t currentThreadID;
 
   bool hasInit;
+
+  // Main thread
+  struct fluffyvm_coroutine* mainThread;
 
   // Static strings
   struct { 

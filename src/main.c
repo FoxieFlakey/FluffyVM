@@ -204,7 +204,7 @@ int main2() {
   };
   
   test(NULL);
-
+   
   /* pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   

@@ -188,6 +188,7 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   
   foxgc_root_reference_t* stackRootRef = NULL;
   this->callStack = stack_new(vm, &stackRootRef, FLUFFYVM_CALL_STACK_SIZE);
+  this->owner = vm;
   if (!this->callStack)
     goto error;
   foxgc_api_write_field(obj, 1, this->callStack->gc_this);
@@ -272,8 +273,13 @@ bool coroutine_yield(struct fluffyvm* vm) {
     return false;
   }
   
-  if (!co->isYieldable || co->isNativeThread) {
+  if (co->isNativeThread) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.cannotSuspendTopLevelCoroutine);
+    return false;
+  }
+  
+  if (!co->isYieldable) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.nativeFunctionExplicitlyDisabledYieldingForThisCoroutine);
     return false;
   }
 
@@ -304,7 +310,7 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
     struct fluffyvm_call_state* callState = foxgc_api_object_get_data(co->callStack->stack[pos]);
     
     struct fluffyvm_call_frame frame = {
-      .isNative = callState->closure->func != NULL,
+      .isNative = callState->closure->isNative,
       .closure = callState->closure,
       .source = NULL,
 
