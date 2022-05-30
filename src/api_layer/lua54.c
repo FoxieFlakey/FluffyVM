@@ -7,6 +7,7 @@
 #include "lua54.h"
 #include "types.h"
 #include "../fluffyvm.h"
+#include "../fluffyvm_types.h"
 #include "../coroutine.h"
 #include "../config.h"
 #include "../interpreter.h"
@@ -127,10 +128,10 @@ EXPORT FLUFFYVM_DECLARE(void, lua_pop, lua_State* L, int count) {
     interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
 
   struct fluffyvm_call_state* callState = L->currentCallState;
-  int top = interpreter_get_top(L->owner, callState);
   
-  if (!interpreter_remove(L->owner, callState, top, count))
-    interpreter_error(L->owner, L->owner->staticStrings.stackUnderflow);
+  for (int i = 0; i < count; i++)
+    if (!interpreter_pop(L->owner, L->currentCallState, NULL, NULL))
+      interpreter_error(L->owner, L->owner->staticStrings.stackUnderflow);
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_remove, lua_State* L, int idx) { 
@@ -475,24 +476,15 @@ FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
-  foxgc_root_reference_t* closureRootRef = NULL;
   foxgc_root_reference_t* coroutineRootRef = NULL;
   
-  struct fluffyvm_closure* trampolineClosure = closure_from_cfunction(L->owner, &closureRootRef, trampoline, NULL, NULL, value_nil());
-  if (!trampolineClosure)
+  struct value thread = value_new_coroutine(L->owner, L->owner->compatLayerLua54StaticData->coroutineTrampoline, &coroutineRootRef);
+  if (thread.type == FLUFFYVM_TVALUE_NOT_PRESENT)
     interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
   
-  struct value thread = value_new_coroutine(L->owner, trampolineClosure, &coroutineRootRef);
-  if (thread.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
-    foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef);
-    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
-  }
-  //interpreter_push(L->owner, L->currentCallState, thread);
-  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef);
+  interpreter_push(L->owner, L->currentCallState, thread);
   foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), coroutineRootRef);
   
-  struct value tmp = value_not_present();
-  value_copy(&trampolineClosure->env, &tmp);
   return thread.data.coroutine;
 }
 
@@ -530,8 +522,41 @@ FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number number) {
   interpreter_push(L->owner, L->currentCallState, value_new_double(L->owner, number));
 }
 
+static int cFunctionTrampoline(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  return ((lua_CFunction) udata)(fluffyvm_get_executing_coroutine(F));
+}
 
+FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  foxgc_root_reference_t* closureRootRef = NULL;
+  struct fluffyvm_closure* closure = closure_from_cfunction(L->owner, &closureRootRef, cFunctionTrampoline, f, NULL, L->currentCallState->closure->env);
+  if (!closure)
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+  interpreter_push(L->owner, L->currentCallState, value_new_closure(L->owner, closure));
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef); 
+}
 
+bool fluffyvm_compat_layer_lua54_init(struct fluffyvm* vm) {
+  vm->compatLayerLua54StaticData = malloc(sizeof(*vm->compatLayerLua54StaticData));
+  if (!vm->compatLayerLua54StaticData)
+    return false;
+    
+  foxgc_root_reference_t* closureRootRef = NULL;
+  struct fluffyvm_closure* trampolineClosure = closure_from_cfunction(vm, &closureRootRef, trampoline, NULL, NULL, value_nil());
+  if (!trampolineClosure)
+    return false;
+
+  struct value tmp = value_not_present();
+  value_copy(&trampolineClosure->env, &tmp);
+  vm->compatLayerLua54StaticData->coroutineTrampoline = trampolineClosure;
+  return true;
+}
+
+void fluffyvm_compat_layer_lua54_cleanup(struct fluffyvm* F) {
+  free(F->compatLayerLua54StaticData);
+}
 
 
 

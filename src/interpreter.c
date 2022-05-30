@@ -51,18 +51,21 @@ bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState,
     return false;
   }
   
-  *rootRef = NULL;
+  if (rootRef)
+    *rootRef = NULL;
   
   callState->sp--;
   int index = callState->sp;
   assert(callState->generalStack[index].type != FLUFFYVM_TVALUE_NOT_PRESENT);
   struct value val = callState->generalStack[index];
-  value_copy(result, &val);
+  
+  if (result)
+    value_copy(result, &val);
 
   foxgc_object_t* ptr;
-  if ((ptr = value_get_object_ptr(val)))
+  if ((ptr = value_get_object_ptr(val)) && rootRef)
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
-   
+
   struct value notPresent = value_not_present();
   value_copy(&callState->generalStack[index], &notPresent);
   foxgc_api_write_array(callState->gc_generalObjectStack, index, NULL);
@@ -489,14 +492,15 @@ void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
 
 bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count) {
   if (index >= callState->sp ||
-      index - (count - 1) < 0) {
+      index - (count - 1) < 0 ||
+      count < 0) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.invalidRemoveCall);
     return false;
   }
 
   if (count == 0)
     return true;
-
+  
   /*
    1
    2
@@ -517,16 +521,22 @@ bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
    */
   int top = callState->sp - 1;
   int copySrc = index + 1;
+  int copyDest = index - count + 1;
   struct value notPresent = value_not_present();
-  callState->sp = index - count + 1;
   while (copySrc <= top) {
-    interpreter_push(vm, callState, callState->generalStack[copySrc]);
+    struct value value = callState->generalStack[copySrc];
+    value_copy(&callState->generalStack[copyDest], &value);
+    if (value.type != FLUFFYVM_TVALUE_NOT_PRESENT)
+      foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, value_get_object_ptr(value));
+    else
+      foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL);
     
     value_copy(&callState->generalStack[copySrc], &notPresent);
     foxgc_api_write_array(callState->gc_generalObjectStack, copySrc, NULL);
     
     copySrc++;
   }
+  callState->sp -= count;
 
   return true;
 }

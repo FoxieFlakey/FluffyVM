@@ -54,6 +54,9 @@ static void collectAndPrintMemUsage(const char* fmt, ...) {
 
   //foxgc_api_do_full_gc(heap);
   //foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
+  //foxgc_api_do_full_gc(heap);
   printMemUsage(tmp);
   free(tmp);
 }
@@ -125,7 +128,9 @@ static int stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callStat
   return 0;
 }
 
-static void registerCFunction(struct fluffyvm* F, struct value globalTable, const char* name, closure_cfunction_t cfunc) {
+static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfunction_t cfunc) {
+  struct value globalTable = fluffyvm_get_global(F);
+
   foxgc_root_reference_t* printRootRef = NULL;
   foxgc_root_reference_t* printStringRootRef = NULL;
   struct fluffyvm_closure* printFunc = closure_from_cfunction(F, &printRootRef, cfunc, NULL, NULL, globalTable);
@@ -160,19 +165,23 @@ int main2() {
   }
 
   collectAndPrintMemUsage("After VM creation but before test");
+    
+  registerCFunction(F, "print", stdlib_print);
+  registerCFunction(F, "return_string", stdlib_return_string);
+  registerCFunction(F, "call_func", stdlib_call_func);
+  registerCFunction(F, "error", stdlib_error);
+  registerCFunction(F, "call_func2", stdlib_call_func2);
+  
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  collectAndPrintMemUsage("After global table initialization but before test");
   
   fluffyvm_thread_routine_t test = ^void* (void* _) {
     const int tid = fluffyvm_get_thread_id(F);
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
-
-    foxgc_root_reference_t* globalTableRootRef = NULL;
-    struct value globalTable = value_new_table(F, 0.75, 32, &globalTableRootRef);
-
-    registerCFunction(F, globalTable, "print", stdlib_print);
-    registerCFunction(F, globalTable, "return_string", stdlib_return_string);
-    registerCFunction(F, globalTable, "call_func", stdlib_call_func);
-    registerCFunction(F, globalTable, "error", stdlib_error);
-    registerCFunction(F, globalTable, "call_func2", stdlib_call_func2); 
+    lua_State* L = fluffyvm_get_executing_coroutine(F);
 
     foxgc_root_reference_t* bytecodeRootRef = NULL;
     struct fluffyvm_bytecode* bytecode = bytecode_loader_json_load(F, &bytecodeRootRef, bytecodeRaw, bytecodeRawLen);
@@ -180,19 +189,21 @@ int main2() {
       goto error; 
     
     foxgc_root_reference_t* closureRootRef = NULL;
-    struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype, globalTable);
+    struct fluffyvm_closure* closure = closure_new(F, &closureRootRef, bytecode->mainPrototype, fluffyvm_get_global(F));
+    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), bytecodeRootRef);
+    
     if (!closure)
       goto error;
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), bytecodeRootRef);
-    foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), globalTableRootRef);
 
     lua_State* L2 = fluffyvm_compat_lua54_lua_newthread(L);
+    struct value val = value_new_closure(F, closure);
+    interpreter_push(F, L2->currentCallState, val);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
     collectAndPrintMemUsage("[Thread %d] Coroutine created", tid);
-   
+
     if (fluffyvm_compat_lua54_lua_resume(L, L2, 0, NULL) != LUA_OK) {
       struct value errMsg = L2->thrownedError;
-      printf("[Thread %d] Coroutine error: %s\n", tid, value_get_string(errMsg));
+      //printf("[Thread %d] Coroutine error: %s\n", tid, value_get_string(errMsg));
       stdlib_print_stacktrace(F, L2);
       goto coroutine_crashed;
     }
@@ -213,7 +224,7 @@ int main2() {
   
   test(NULL);
 
-  /* pthread_t testThread;
+  /*pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   
   pthread_t testThread2;
@@ -239,7 +250,11 @@ int main2() {
   pthread_join(testThread6, NULL); */
   
   fluffyvm_clear_errmsg(F);
-  
+  fluffyvm_set_global(F, value_nil());
+
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("Before VM destruction but after test");
@@ -247,6 +262,9 @@ int main2() {
   fluffyvm_free(F);
 
   cannotCreateVm:
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
+  foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("After VM destruction");

@@ -69,7 +69,8 @@ struct fluffyvm {
   struct coroutine_static_data* coroutineStaticData;
   struct closure_static_data* closureStaticData;
   struct stack_static_data* stackStaticData;
-
+  struct compat_layer_lua54_static_data* compatLayerLua54StaticData;
+  
   foxgc_root_t* staticDataRoot;
 
   // Essentially like errno
@@ -82,10 +83,11 @@ struct fluffyvm {
   atomic_int currentAvailableThreadID;
   pthread_key_t currentThreadID;
 
-  bool hasInit;
+  pthread_rwlock_t globalTableLock;
+  struct value globalTable;
+  foxgc_root_reference_t* globalTableRootRef;
 
-  // Main thread
-  struct fluffyvm_coroutine* mainThread;
+  bool hasInit;
 
   struct {
     struct {
@@ -121,6 +123,9 @@ typedef void* (^fluffyvm_thread_routine_t)(void*);
 struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap);
 
 bool fluffyvm_is_managed(struct fluffyvm* this);
+
+void fluffyvm_set_global(struct fluffyvm* this, struct value val);
+struct value fluffyvm_get_global(struct fluffyvm* this);
 
 //////////////////////////////////////////////////
 // Calls below this line will call abort        //

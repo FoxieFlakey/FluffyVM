@@ -26,5 +26,9 @@ struct stack_static_data {
   foxgc_descriptor_t* desc_stack;
 };
 
+struct compat_layer_lua54_static_data {
+  struct fluffyvm_closure* coroutineTrampoline;
+};
+
 #endif
 

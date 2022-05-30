@@ -10,6 +10,7 @@
 
 #include <stdint.h>
 #include <stddef.h>
+#include <stdbool.h>
 
 #include "types.h"
 #include "config.h"
@@ -107,8 +108,14 @@ FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* from, int nargs, int*
 FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr); 
 FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer); 
 FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number integer); 
+FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
+
+#ifdef FLUFFYVM_INTERNAL
+bool fluffyvm_compat_layer_lua54_init(struct fluffyvm* F);
+void fluffyvm_compat_layer_lua54_cleanup(struct fluffyvm* F);
+#endif
 
 #ifndef FLUFFYVM_INTERNAL
 # ifdef FLUFFYVM_COMPAT_LAYER_REDIRECT_CALL
