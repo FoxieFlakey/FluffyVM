@@ -163,6 +163,7 @@ int main2() {
   
   fluffyvm_thread_routine_t test = ^void* (void* _) {
     const int tid = fluffyvm_get_thread_id(F);
+  lua_State* L = fluffyvm_get_executing_coroutine(F);
 
     foxgc_root_reference_t* globalTableRootRef = NULL;
     struct value globalTable = value_new_table(F, 0.75, 32, &globalTableRootRef);
@@ -185,35 +186,32 @@ int main2() {
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), bytecodeRootRef);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), globalTableRootRef);
 
-    foxgc_root_reference_t* coroutineRootRef = NULL;
-    struct fluffyvm_coroutine* co = coroutine_new(F, &coroutineRootRef, closure);
+    lua_State* L2 = fluffyvm_compat_lua54_lua_newthread(L);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
-    if (!co)
-      goto error;
-    
     collectAndPrintMemUsage("[Thread %d] Coroutine created", tid);
    
-    if (!coroutine_resume(F, co)) {
-      struct value errMsg = co->thrownedError;
-      printf("[Thread %d] Error: %s\n", tid, value_get_string(errMsg));
-      stdlib_print_stacktrace(F, co);
+    if (fluffyvm_compat_lua54_lua_resume(L, L2, 0, NULL) != LUA_OK) {
+      struct value errMsg = L2->thrownedError;
+      printf("[Thread %d] Coroutine error: %s\n", tid, value_get_string(errMsg));
+      stdlib_print_stacktrace(F, L2);
       goto coroutine_crashed;
     }
     
+    fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
+    fluffyvm_clear_errmsg(F);
     collectAndPrintMemUsage("[Thread %d] After test", tid);
     return NULL;
 
     coroutine_crashed:
-    if (coroutineRootRef)
-      foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), coroutineRootRef);
     error:
+    fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
     if (fluffyvm_is_errmsg_present(F))
       collectAndPrintMemUsage("[Thread %d] Error: %s", tid, value_get_string(fluffyvm_get_errmsg(F)));
+    fluffyvm_clear_errmsg(F);
     return NULL;
   };
   
   test(NULL);
-  stdlib_print_stacktrace(F, fluffyvm_get_executing_coroutine(F));
 
   /* pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);

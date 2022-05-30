@@ -130,7 +130,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_pop, lua_State* L, int count) {
   int top = interpreter_get_top(L->owner, callState);
   
   if (!interpreter_remove(L->owner, callState, top, count))
-    interpreter_error(L->owner, L->owner->staticStrings.invalidStackIndex);
+    interpreter_error(L->owner, L->owner->staticStrings.stackUnderflow);
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_remove, lua_State* L, int idx) { 
@@ -148,8 +148,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_pushnil, lua_State* L) {
     interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
 }
 
-FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s) {
-  
+FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s) { 
   struct fluffyvm_call_state* callState = L->currentCallState;
   
   foxgc_root_reference_t* tmpRootRef = NULL;
@@ -165,12 +164,13 @@ EXPORT FLUFFYVM_DECLARE(const char*, lua_pushliteral, lua_State* L, const char* 
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_error, lua_State* L) {
-  
   struct fluffyvm_call_state* callState = L->currentCallState;
   
   struct value err;
-  if (!interpreter_peek(L->owner, callState, fluffyvm_compat_lua54_lua_gettop(L) - 1, &err)) 
+  if (!interpreter_peek(L->owner, callState, fluffyvm_compat_lua54_lua_gettop(L) - 1, &err))
     interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+  
+  assert(fluffyvm_get_executing_coroutine(L->owner) == L); /* Why throw error from another coroutine??? */
   interpreter_error(L->owner, err);  
 }
 
@@ -332,7 +332,7 @@ EXPORT FLUFFYVM_DECLARE(const char*, lua_typename, lua_State* L, int type) {
   abort();
 }
 
-// Return version of Lua C API which this compat
+// Return version of Lua C API which L->owner compat
 // layer trying to support
 EXPORT FLUFFYVM_DECLARE(lua_Number, lua_version, lua_State* L) {
   return 504;
@@ -415,7 +415,8 @@ FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L) {
 }
 
 FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
-  fluffyvm_compat_lua54_lua_checkstack(L, 1);
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
 
   struct value val = getValueAtStackIndex(L, idx);
   if (val.type == FLUFFYVM_TVALUE_STRING) {
@@ -436,6 +437,9 @@ FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
 }
 
 FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
   foxgc_root_reference_t* rootRef;
   struct value table = value_new_table(L->owner, FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR, nrec, &rootRef);
   if (table.type == FLUFFYVM_TVALUE_NOT_PRESENT)
@@ -448,7 +452,83 @@ FLUFFYVM_DECLARE(void, lua_newtable, lua_State* L) {
   fluffyvm_compat_lua54_lua_createtable(L, 0, 0);
 }
 
+static int trampoline(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
+  lua_State* L = fluffyvm_get_executing_coroutine(F);
+  assert(fluffyvm_compat_lua54_lua_gettop(L) >= 2);
 
+  int* nresults = (void*) fluffyvm_compat_lua54_lua_topointer(L, -2);
+  int nargs = fluffyvm_compat_lua54_lua_tonumber(L, -1);
+  fluffyvm_compat_lua54_lua_pop(L, 2);
+  
+  if (!fluffyvm_compat_lua54_lua_isfunction(L, 1)) {
+    fluffyvm_compat_lua54_lua_pushliteral(L, "main function is not present");
+    fluffyvm_compat_lua54_lua_error(L);
+  }
+
+  fluffyvm_compat_lua54_lua_call(L, nargs, LUA_MULTRET);
+  if (nresults)
+    *nresults = fluffyvm_compat_lua54_lua_gettop(L);
+  return 0;
+}
+
+FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  foxgc_root_reference_t* closureRootRef = NULL;
+  foxgc_root_reference_t* coroutineRootRef = NULL;
+  
+  struct fluffyvm_closure* trampolineClosure = closure_from_cfunction(L->owner, &closureRootRef, trampoline, NULL, NULL, value_nil());
+  if (!trampolineClosure)
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+  
+  struct value thread = value_new_coroutine(L->owner, trampolineClosure, &coroutineRootRef);
+  if (thread.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
+    foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef);
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+  }
+  //interpreter_push(L->owner, L->currentCallState, thread);
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef);
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), coroutineRootRef);
+  
+  struct value tmp = value_not_present();
+  value_copy(&trampolineClosure->env, &tmp);
+  return thread.data.coroutine;
+}
+
+FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int nargs, int* nresults) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(target, 8 + nargs))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+ 
+  fluffyvm_compat_lua54_lua_pushlightuserdata(target, nresults);
+  fluffyvm_compat_lua54_lua_pushinteger(target, nargs);
+  coroutine_resume(target->owner, target);
+  return !LUA_OK;
+}
+
+FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  foxgc_root_reference_t* rootRef;
+  struct value data = value_new_light_userdata(L->owner, L->owner->modules.compatLayer_Lua54.moduleID, L->owner->modules.compatLayer_Lua54.type.userdata, ptr, &rootRef, NULL);
+  interpreter_push(L->owner, L->currentCallState, data);
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), rootRef);
+}
+
+FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  interpreter_push(L->owner, L->currentCallState, value_new_long(L->owner, integer));
+}
+
+FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number number) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  interpreter_push(L->owner, L->currentCallState, value_new_double(L->owner, number));
+}
 
 
 

@@ -62,8 +62,10 @@ bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState,
   foxgc_object_t* ptr;
   if ((ptr = value_get_object_ptr(val)))
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
-  
-  foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL); 
+   
+  struct value notPresent = value_not_present();
+  value_copy(&callState->generalStack[index], &notPresent);
+  foxgc_api_write_array(callState->gc_generalObjectStack, index, NULL);
   return true;
 }
 
@@ -468,13 +470,26 @@ void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
 
+  if (co->errorHandler == NULL) {
+    if (fluffyvm_is_errmsg_present(vm)) {
+      foxgc_root_reference_t* tmpRootRef;
+      struct value errMsg = value_tostring(vm, errmsg, &tmpRootRef);
+      if (errMsg.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+        fprintf(stderr, "[FATAL] Error thrown without any handler (conversion error!)");
+      else
+        fprintf(stderr, "[FATAL] Error thrown without any handler: %s\n", value_get_string(errMsg));
+    } else {
+      fprintf(stderr, "[FATAL] Error thrown without any handler (error message not present)");
+    }
+    abort(); // Error thrown without any handler
+  }
+
   longjmp(*co->errorHandler, 1);
 }
 
 bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count) {
   if (index >= callState->sp ||
       index - (count - 1) < 0) {
-    abort();
     fluffyvm_set_errmsg(vm, vm->staticStrings.invalidRemoveCall);
     return false;
   }

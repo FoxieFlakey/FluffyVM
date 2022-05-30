@@ -169,7 +169,8 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
 struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typeID, void* data, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer) {
   struct value tmp = value_new_full_userdata(vm, moduleID, typeID, sizeof(void*), rootRef, finalizer);
   tmp.data.userdata->isFull = false;
-  
+  *((void**) tmp.data.userdata->data) = data;
+
   // Im hating this
   *((value_types_t*) &tmp.type) = FLUFFYVM_TVALUE_LIGHT_USERDATA;
   return tmp;
@@ -185,7 +186,7 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
       return value.data.closure->gc_this;
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
-      return value.data.userdata->data;
+      return value.data.userdata->dataObj;
     case FLUFFYVM_TVALUE_COROUTINE:
       return value.data.coroutine->gc_this;
 

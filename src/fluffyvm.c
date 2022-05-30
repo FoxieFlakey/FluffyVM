@@ -174,7 +174,10 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
     goto error;
   COMPONENTS
 # undef X
-  
+
+  this->modules.compatLayer_Lua54.moduleID = value_get_module_id();
+  this->modules.compatLayer_Lua54.type.userdata = 1;
+
   // Create coroutine for main thread
   foxgc_root_reference_t* closureRootRef = NULL;
   foxgc_root_reference_t* coroutineRootRef = NULL;
@@ -190,7 +193,6 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   }
   
   fluffyvm_push_current_coroutine(this, mainThread);
-  coroutine_function_prolog(this, dummyClosure);
 
   struct value tmp = value_not_present();
   value_copy(&dummyClosure->env, &tmp);

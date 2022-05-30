@@ -102,6 +102,11 @@ FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L);
 FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec); 
 FLUFFYVM_DECLARE(void, lua_newtable, lua_State* L); 
+FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L); 
+FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* from, int nargs, int* nresults); 
+FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr); 
+FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer); 
+FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number integer); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 

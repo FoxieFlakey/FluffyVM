@@ -87,6 +87,15 @@ struct fluffyvm {
   // Main thread
   struct fluffyvm_coroutine* mainThread;
 
+  struct {
+    struct {
+      int moduleID;
+      struct {
+        int userdata;
+      } type;
+    } compatLayer_Lua54;
+  } modules; 
+
   // Static strings
   struct { 
 #   define X(name, ...) struct value name;\

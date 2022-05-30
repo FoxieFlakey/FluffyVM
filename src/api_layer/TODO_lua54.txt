@@ -56,7 +56,7 @@ Done           | lua_len
 Not done       | lua_load
 Incompatible   | lua_newstate
 Done           | lua_newtable
-Not done       | lua_newthread
+Done           | lua_newthread
 Not done       | lua_newuserdatauv
 Not done       | lua_next
 Not done       | lua_numbertointeger
@@ -69,7 +69,7 @@ Not done       | lua_pushcfunction
 Not done       | lua_pushfstring
 Not done       | lua_pushglobaltable
 Not done       | lua_pushinteger
-Not done       | lua_pushlightuserdata
+Done           | lua_pushlightuserdata
 Done           | lua_pushliteral
 Not done       | lua_pushlstring
 Done           | lua_pushnil
@@ -90,7 +90,7 @@ Not done       | lua_register
 Done           | lua_remove
 Done           | lua_replace
 Not done       | lua_resetthread
-Not done       | lua_resume
+Done           | lua_resume
 Not done       | lua_rotate
 Not done       | lua_setallocf
 Not done       | lua_setfield

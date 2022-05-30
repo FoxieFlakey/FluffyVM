@@ -259,6 +259,7 @@ bool coroutine_resume(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         abort();
     }
 
+    fluffyvm_pop_current_coroutine(vm);
     return false;
   }
 
@@ -320,9 +321,8 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
       .name = NULL,
       .prototype = NULL
     };
-
+ 
     if (frame.isNative) {
-      util_asprintf((char**) &frame.name, "0x%08" PRIXPTR, (uintptr_t) callState->closure->func);
       if (!callState->nativeDebugInfo.source)
         frame.source = "[Native]";
       else
@@ -333,6 +333,8 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
 
       if (callState->nativeDebugInfo.funcName)
         frame.name = callState->nativeDebugInfo.funcName;
+      else
+        util_asprintf((char**) &frame.name, "0x%08" PRIXPTR, (uintptr_t) callState->closure->func);
     } else { 
       // I couldn't find any solution 
       // that give this meaningful name
@@ -355,6 +357,8 @@ void coroutine_iterate_call_stack(struct fluffyvm* vm, struct fluffyvm_coroutine
     if (frame.isNative) {
       if (!callState->nativeDebugInfo.funcName)
         free((void*) frame.name);
+      if (callState->nativeDebugInfo.source)
+        free((void*) frame.source);
     }
 
     if (!res)
