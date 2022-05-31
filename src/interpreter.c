@@ -143,7 +143,7 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret
   
   int argsEnd = 0;
   int argsStart = callerState->sp - nargs;
-  if (argsStart < 0)
+  if (argsStart < 0 || nargs == -1)
     argsStart = 0;
   
   if (!coroutine_function_prolog(F, closure))
@@ -159,6 +159,10 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret
   for (int i = argsStart; i <= argsEnd; i++)
     if (!interpreter_push(F, co->currentCallState, callerState->generalStack[i]))
       goto error;
+
+  // Remove from caller stack
+  for (int i = argsStart; i <= argsEnd; i++)
+    interpreter_pop(F, callerState, NULL, NULL); 
 
   int actualRetCount = interpreter_exec(F, co);
   
@@ -179,7 +183,7 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret
     // Copy only if current pos is valid
     if (startPos + i <= co->currentCallState->sp - 1)
       value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
-
+    
     // Error here
     if (!interpreter_push(F, callerState, val))
       goto error;
@@ -490,6 +494,7 @@ void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
   longjmp(*co->errorHandler, 1);
 }
 
+/* BROKEN DONT USE
 bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count) {
   if (index >= callState->sp ||
       index - (count - 1) < 0 ||
@@ -501,7 +506,7 @@ bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
   if (count == 0)
     return true;
   
-  /*
+  / *
    1
    2
    3
@@ -518,7 +523,7 @@ bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
    7
    8
    9 < Top
-   */
+   * /
   int top = callState->sp - 1;
   int copySrc = index + 1;
   int copyDest = index - count + 1;
@@ -540,7 +545,7 @@ bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callSta
 
   return true;
 }
-
+*/
 
 
 

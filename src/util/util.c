@@ -17,6 +17,7 @@
 #include <unistd.h>
 #include <errno.h>
 #include <Block.h>
+#include <assert.h>
 
 #include "functional/functional.h"
 
@@ -185,6 +186,22 @@ bool util_run_thread(runnable_t runnable, pthread_t* thread) {
     return false;
    
   return pthread_create(thread ? thread : &t, NULL, runner, runnable) == 0;
+}
+
+// Adapted from https://www.javatpoint.com/c-program-to-right-rotate-the-elements-of-an-array
+void util_collections_rotate(int len, int _distance, util_array_set setter, util_array_get getter) {
+  int distance = _distance % len;
+  if (distance == 0)
+    return;
+  if (distance < 0)
+    distance = len + distance;
+
+  for(int i = 0; i < distance; i++) {        
+    void* last = getter(len - 1);    
+    for(int j = len - 1; j > 0; j--)
+      setter(j, getter(j - 1));  
+    setter(0, last);    
+  }    
 }
 
 

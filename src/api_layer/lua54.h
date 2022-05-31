@@ -109,6 +109,9 @@ FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr);
 FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer); 
 FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number integer); 
 FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f); 
+FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n); 
+FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size_t len); 
+FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L); 
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 

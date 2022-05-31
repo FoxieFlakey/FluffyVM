@@ -24,7 +24,8 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
 bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value* result); 
 
 // Remove at `index` until `index - (count - 1)`
-bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count);
+// Very broken do not use
+//bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count);
 
 void interpreter_error(struct fluffyvm* vm, struct value errmsg);
 

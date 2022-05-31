@@ -67,11 +67,11 @@ Not done       | lua_pushboolean
 Not done       | lua_pushcclosure
 Done           | lua_pushcfunction
 Not done       | lua_pushfstring
-Not done       | lua_pushglobaltable
+Done           | lua_pushglobaltable
 Not done       | lua_pushinteger
 Done           | lua_pushlightuserdata
 Done           | lua_pushliteral
-Not done       | lua_pushlstring
+Done           | lua_pushlstring
 Done           | lua_pushnil
 Not done       | lua_pushnumber
 Done           | lua_pushstring
@@ -87,7 +87,7 @@ Not done       | lua_rawset
 Not done       | lua_rawseti
 Not done       | lua_rawsetp
 Not done       | lua_register
-Broken         | lua_remove
+Done           | lua_remove
 Done           | lua_replace
 Not done       | lua_resetthread
 Done           | lua_resume

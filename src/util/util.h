@@ -46,6 +46,13 @@ char* util_bin2hex(uint8_t* src, size_t len);
 // Start new thread
 bool util_run_thread(runnable_t runnable, pthread_t* thread);
 
+// This interface should be flexible enough
+// This is inplace rotation Positive for right 
+// rotate and negative for left rotate
+typedef void (^util_array_set)(int index, void* data);
+typedef void* (^util_array_get)(int index);
+void util_collections_rotate(int len, int distance, util_array_set setter, util_array_get getter);
+
 #define UTIL_TO_STRING_impl(x) #x
 #define UTIL_TO_STRING(x) UTIL_TO_STRING_impl(x)
 #define UTIL_SOURCE_LOCATION (__FILE_NAME__ ":" UTIL_TO_STRING(__LINE__))
