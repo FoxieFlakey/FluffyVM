@@ -198,13 +198,14 @@ int main2() {
 
     lua_State* L2 = fluffyvm_compat_lua54_lua_newthread(L);
     struct value val = value_new_closure(F, closure);
-    interpreter_push(F, L2->currentCallState, val);
+    interpreter_push(F, L->currentCallState, val);
+    fluffyvm_compat_lua54_lua_xmove(L, L2, 1);
     foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), closureRootRef);
     collectAndPrintMemUsage("[Thread %d] Coroutine created", tid);
 
     if (fluffyvm_compat_lua54_lua_resume(L, L2, 0, NULL) != LUA_OK) {
       struct value errMsg = L2->thrownedError;
-      //printf("[Thread %d] Coroutine error: %s\n", tid, value_get_string(errMsg));
+      printf("[Thread %d] Coroutine error: %s\n", tid, value_get_string(errMsg));
       stdlib_print_stacktrace(F, L2);
       goto coroutine_crashed;
     }
@@ -222,6 +223,8 @@ int main2() {
     fluffyvm_clear_errmsg(F);
     return NULL;
   };
+  
+  lua_State* L = fluffyvm_get_executing_coroutine(F);
   
   test(NULL);
 
@@ -250,6 +253,7 @@ int main2() {
   pthread_join(testThread5, NULL);
   pthread_join(testThread6, NULL); */
   
+  fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
   fluffyvm_clear_errmsg(F);
   fluffyvm_set_global(F, value_nil());
 

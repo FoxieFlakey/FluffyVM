@@ -50,7 +50,9 @@
   X(expectLongOrDoubleOrString, "expect long or double or string") \
   X(bool_true, "true") \
   X(bool_false, "false") \
-  X(nativeFunctionExplicitlyDisabledYieldingForThisCoroutine, "A native function explicitly disabled yielding for this coroutine")
+  X(nativeFunctionExplicitlyDisabledYieldingForThisCoroutine, "A native function explicitly disabled yielding for this coroutine") \
+  X(attemptToXmoveOnRunningCoroutine, "attempt to xmove on running coroutine") \
+  X(attemptToXmoveOnDeadCoroutine, "attempt to xmove on dead coroutine")
 
 struct fluffyvm {
   foxgc_heap_t* heap;
@@ -86,6 +88,8 @@ struct fluffyvm {
   pthread_rwlock_t globalTableLock;
   struct value globalTable;
   foxgc_root_reference_t* globalTableRootRef;
+
+  struct fluffyvm_coroutine* mainThread;
 
   bool hasInit;
 

@@ -23,7 +23,7 @@ struct fluffyvm_call_state {
   struct value generalStack[FLUFFYVM_GENERAL_STACK_SIZE];
   foxgc_object_t** generalObjectStack;
 
-  struct value registers[FLUFFYVM_REGISTERS_NUM];
+  struct value* registers;
 
   int pc;
   int sp;
@@ -41,6 +41,7 @@ struct fluffyvm_call_state {
   foxgc_object_t* gc_closure;
   foxgc_object_t* gc_owner;
   foxgc_object_t* gc_generalObjectStack;
+  foxgc_object_t* gc_registerArray;
 };
 
 struct fluffyvm_coroutine {
@@ -93,6 +94,7 @@ void coroutine_function_epilog_no_lock(struct fluffyvm* vm);
 
 void coroutine_disallow_yield(struct fluffyvm* vm);
 void coroutine_allow_yield(struct fluffyvm* vm);
+bool coroutine_can_yield(struct fluffyvm_coroutine* co);
 
 // Iterates the call stack
 // Note: Do not store pointer of the call frame

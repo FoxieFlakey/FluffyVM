@@ -96,6 +96,7 @@ static bool lateInit(struct fluffyvm* this) {
 
   mainThread->fiber->state = FIBER_RUNNING;
   mainThread->isNativeThread = true;
+  this->mainThread = mainThread;
   
   return true;
   

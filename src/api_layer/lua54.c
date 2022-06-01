@@ -347,45 +347,45 @@ EXPORT FLUFFYVM_DECLARE(void, lua_replace, lua_State* L, int idx) {
   fluffyvm_compat_lua54_lua_pop(L, 1);
 }
 
-FLUFFYVM_DECLARE(int, lua_isboolean, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isboolean, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TBOOLEAN; 
 } 
 
-FLUFFYVM_DECLARE(int, lua_isfunction, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isfunction, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TFUNCTION; 
 }
 
-FLUFFYVM_DECLARE(int, lua_iscfunction, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_iscfunction, lua_State* L, int idx) {
   if (fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TFUNCTION)
-    return getValueAtStackIndex(L, idx).data.closure->isNative;
+    return getValueAtStackIndex(L, idx).data.closure->isNative && getValueAtStackIndex(L, idx).data.closure->luaCFunction != NULL;
   
   return 0;
 } 
 
-FLUFFYVM_DECLARE(int, lua_isinteger, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isinteger, lua_State* L, int idx) {
   if (fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TNUMBER)
     return getValueAtStackIndex(L, idx).type == FLUFFYVM_TVALUE_LONG;
   
   return 0;
 } 
 
-FLUFFYVM_DECLARE(int, lua_islightuserdata, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_islightuserdata, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TLIGHTUSERDATA; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isnil, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isnil, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TNIL; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isnone, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isnone, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TNONE; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isnoneornil, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isnoneornil, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_isnil(L, idx) || fluffyvm_compat_lua54_lua_isnone(L, idx); 
 }
 
-FLUFFYVM_DECLARE(int, lua_isnumber, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isnumber, lua_State* L, int idx) {
   switch (fluffyvm_compat_lua54_lua_type(L, idx)) {
     case LUA_TNUMBER:
       return true;
@@ -398,27 +398,27 @@ FLUFFYVM_DECLARE(int, lua_isnumber, lua_State* L, int idx) {
   return value_todouble(L->owner, getValueAtStackIndex(L, idx)).type == FLUFFYVM_TVALUE_DOUBLE;
 }
 
-FLUFFYVM_DECLARE(int, lua_isstring, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isstring, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TSTRING || fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TNUMBER; 
 }
 
-FLUFFYVM_DECLARE(int, lua_istable, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_istable, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TTABLE; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isthread, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isthread, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TTHREAD; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isuserdata, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(int, lua_isuserdata, lua_State* L, int idx) {
   return fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TUSERDATA || fluffyvm_compat_lua54_lua_type(L, idx) == LUA_TLIGHTUSERDATA; 
 }
 
-FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L) {
-  return !L->isNativeThread && L->isYieldable;
+EXPORT FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L) {
+  return coroutine_can_yield(L);
 }
 
-FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
+EXPORT FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
 
@@ -440,7 +440,7 @@ FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
   return;
 }
 
-FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec) {
+EXPORT FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -452,7 +452,7 @@ FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec) {
   foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), rootRef);
 }
 
-FLUFFYVM_DECLARE(void, lua_newtable, lua_State* L) {
+EXPORT FLUFFYVM_DECLARE(void, lua_newtable, lua_State* L) {
   fluffyvm_compat_lua54_lua_createtable(L, 0, 0);
 }
 
@@ -475,7 +475,7 @@ static int trampoline(struct fluffyvm* F, struct fluffyvm_call_state* callState,
   return 0;
 }
 
-FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
+EXPORT FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -491,7 +491,7 @@ FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
   return thread.data.coroutine;
 }
 
-FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int nargs, int* nresults) {
+EXPORT FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int nargs, int* nresults) {
   if (!fluffyvm_compat_lua54_lua_checkstack(target, 8 + nargs))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
  
@@ -501,7 +501,7 @@ FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int nargs, in
   return !LUA_OK;
 }
 
-FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
+EXPORT FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -511,14 +511,14 @@ FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
   foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), rootRef);
 }
 
-FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer) {
+EXPORT FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
   interpreter_push(L->owner, L->currentCallState, value_new_long(L->owner, integer));
 }
 
-FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number number) {
+EXPORT FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number number) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -529,7 +529,7 @@ static int cFunctionTrampoline(struct fluffyvm* F, struct fluffyvm_call_state* c
   return ((lua_CFunction) udata)(fluffyvm_get_executing_coroutine(F));
 }
 
-FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f) {
+EXPORT FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -537,6 +537,8 @@ FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f) {
   struct fluffyvm_closure* closure = closure_from_cfunction(L->owner, &closureRootRef, cFunctionTrampoline, f, NULL, L->currentCallState->closure->env);
   if (!closure)
     interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+
+  closure->luaCFunction = f;
   interpreter_push(L->owner, L->currentCallState, value_new_closure(L->owner, closure));
   foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), closureRootRef); 
 }
@@ -566,7 +568,7 @@ struct temp_data {
   struct value val;
 };
 
-FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n) {
+EXPORT FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n) {
   int start = fluffyvm_compat_lua54_lua_absindex(L, idx) - 1;
   int size = fluffyvm_compat_lua54_lua_gettop(L) - start;
   struct fluffyvm_call_state* callState = L->currentCallState;
@@ -587,7 +589,7 @@ FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n) {
   });
 }
 
-FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size_t len) {
+EXPORT FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size_t len) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
   
@@ -601,7 +603,7 @@ FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size
   return s;
 }
 
-FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L) {
+EXPORT FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L) {
   if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
     interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
 
@@ -609,14 +611,78 @@ FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L) {
   interpreter_push(L->owner, callState, callState->closure->env);
 }
   
+EXPORT FLUFFYVM_DECLARE(int, lua_pushthread, lua_State* L) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  struct fluffyvm_call_state* callState = L->currentCallState;
+  struct value string = value_new_coroutine2(L->owner, L);
+  interpreter_push(L->owner, callState, string); 
+  return L == L->owner->mainThread;
+}
 
+EXPORT FLUFFYVM_DECLARE(void, lua_xmove, lua_State* L, lua_State* to, int n) {
+  assert(L->owner == to->owner);
+  if (n < 0)
+    interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
 
+  if (to->fiber->state == FIBER_RUNNING)
+    interpreter_error(L->owner, L->owner->staticStrings.attemptToXmoveOnRunningCoroutine);
+  else if (to->fiber->state == FIBER_DEAD)
+    interpreter_error(L->owner, L->owner->staticStrings.attemptToXmoveOnDeadCoroutine);
+  
+  if (n == 0)
+    return;
 
+  if (!fluffyvm_compat_lua54_lua_checkstack(to, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
 
+  int moveStart = fluffyvm_compat_lua54_lua_gettop(L) - n;
+  if (moveStart < 0)
+    interpreter_error(L->owner, L->owner->staticStrings.stackUnderflow);
 
+  for (int i = 0; i < n; i++)
+    interpreter_push(L->owner, to->currentCallState, L->currentCallState->generalStack[moveStart + i]);
+  fluffyvm_compat_lua54_lua_pop(L, n);
+}
 
+EXPORT FLUFFYVM_DECLARE(lua_State*, lua_tothread, lua_State* L, int idx) {
+  struct value val = getValueAtStackIndex(L, idx);
+  if (val.type != FLUFFYVM_TVALUE_COROUTINE)
+    return NULL;
 
+  return val.data.coroutine;
+}
 
+EXPORT FLUFFYVM_DECLARE(int, lua_toboolean, lua_State* L, int idx) {
+  struct value val = getValueAtStackIndex(L, idx);
+  if (val.type == FLUFFYVM_TVALUE_BOOL && val.data.boolean == false)
+    return 0;
+  if (val.type == FLUFFYVM_TVALUE_NIL)
+    return 0;
+  
+  return 1;
+}
+
+EXPORT FLUFFYVM_DECLARE(lua_CFunction, lua_tocfunction, lua_State* L, int idx) {
+  struct value val = getValueAtStackIndex(L, idx);
+
+  if (val.type != FLUFFYVM_TVALUE_CLOSURE)
+    return NULL;
+  if (!val.data.closure->isNative)
+    return NULL;
+  if (!val.data.closure->luaCFunction)
+    return NULL;
+
+  return val.data.closure->luaCFunction;
+}
+
+EXPORT FLUFFYVM_DECLARE(void, lua_pushboolean, lua_State* L, int b) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  interpreter_push(L->owner, L->currentCallState, value_new_bool(L->owner, (bool) b));
+}
 
 
 

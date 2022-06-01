@@ -2,6 +2,7 @@
 #define header_1652612886_coroutine_h
 
 #include <stdbool.h>
+#include <stdatomic.h>
 #include <ucontext.h>
 #include <pthread.h>
 
@@ -14,10 +15,7 @@ typedef enum {
 } fiber_state_t;
 
 struct fiber {
-  // To guard the state variable
-  pthread_mutex_t lock;
-
-  volatile fiber_state_t state;
+  volatile atomic_int state;
   runnable_t task;
 
   ucontext_t resumeContext;

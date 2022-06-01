@@ -313,6 +313,14 @@ struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* c
 
   return value;
 }
+struct value value_new_coroutine2(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+  struct value value = {
+    .data.coroutine = co,
+    .type = FLUFFYVM_TVALUE_COROUTINE
+  };
+
+  return value;
+}
 
 static void checkPresent(struct value* value) {
   if (value->type == FLUFFYVM_TVALUE_NOT_PRESENT ||

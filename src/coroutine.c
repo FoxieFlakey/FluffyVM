@@ -1,3 +1,4 @@
+#include "api_layer/types.h"
 #define FLUFFYVM_INTERNAL
 
 #include <pthread.h>
@@ -61,7 +62,8 @@ bool coroutine_init(struct fluffyvm* vm) {
     offsetof(struct fluffyvm_call_state, gc_registerObjectArray),
     offsetof(struct fluffyvm_call_state, gc_closure),
     offsetof(struct fluffyvm_call_state, gc_owner),
-    offsetof(struct fluffyvm_call_state, gc_generalObjectStack)
+    offsetof(struct fluffyvm_call_state, gc_generalObjectStack),
+    offsetof(struct fluffyvm_call_state, gc_registerObjectArray)
   });
 
   return true;
@@ -129,6 +131,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   callState->nativeDebugInfo.funcName = NULL;
   callState->nativeDebugInfo.source = NULL;
   callState->nativeDebugInfo.line = -1;
+  callState->registers = NULL;
 
   foxgc_root_reference_t* tmpRootRef = NULL;
   foxgc_object_t* tmp = NULL;
@@ -136,6 +139,14 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_api_write_field(callState->gc_this, 1, NULL);
   
   if (!callState->closure->func) {
+    // Allocate register array
+    tmp = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, sizeof(struct value), FLUFFYVM_REGISTERS_NUM, NULL);
+    if (!tmp)
+      goto no_memory;
+    foxgc_api_write_field(callState->gc_this, 5, tmp);
+    callState->registers = foxgc_api_object_get_data(tmp);
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+
     // Allocate register objects array
     // to store value which contain GC object
     tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
@@ -145,7 +156,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     callState->registersObjectArray = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
 
-    memcpy(callState->registers, nilRegisters, sizeof(callState->registers));
+    memcpy(callState->registers, nilRegisters, sizeof(struct value) * FLUFFYVM_REGISTERS_NUM);
   }
 
   // Allocate register objects stack
@@ -293,6 +304,10 @@ void coroutine_disallow_yield(struct fluffyvm* vm) {
     return;
   
   co->isYieldable = false;
+}
+
+bool coroutine_can_yield(struct fluffyvm_coroutine* co) {
+  return co->isYieldable && !co->isNativeThread;
 }
 
 void coroutine_allow_yield(struct fluffyvm* vm) {

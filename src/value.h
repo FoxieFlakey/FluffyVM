@@ -106,6 +106,7 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
 struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typeID, void* data, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
 struct value value_new_bool(struct fluffyvm* vm, bool boolean);
 struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* closure, foxgc_root_reference_t** rootRef);
+struct value value_new_coroutine2(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 
 struct value value_not_present();
 struct value value_nil();

@@ -112,6 +112,12 @@ FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f);
 FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n); 
 FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size_t len); 
 FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L); 
+FLUFFYVM_DECLARE(int, lua_pushthread, lua_State* L); 
+FLUFFYVM_DECLARE(void, lua_xmove, lua_State* L, lua_State* to, int n); 
+FLUFFYVM_DECLARE(lua_State*, lua_tothread, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(int, lua_toboolean, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(lua_CFunction, lua_tocfunction, lua_State* L, int idx); 
+FLUFFYVM_DECLARE(void, lua_pushboolean, lua_State* L, int b);
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 
@@ -141,7 +147,6 @@ void fluffyvm_compat_layer_lua54_cleanup(struct fluffyvm* F);
 #endif
 
 #endif
-
 
 
 

@@ -30,6 +30,8 @@ struct fluffyvm_closure {
   // _ENV table
   struct value env;
 
+  void* luaCFunction;
+
   foxgc_object_t* gc_this;
   foxgc_object_t* gc_prototype;
   foxgc_object_t* gc_env;
