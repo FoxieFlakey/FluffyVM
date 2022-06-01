@@ -75,7 +75,7 @@ bool fiber_resume(struct fiber* fiber, fiber_state_t* prevState) {
     *prevState = fiber->state;
   
   fiber_state_t expect = FIBER_SUSPENDED;
-  if (!atomic_compare_exchange_strong(&fiber->state, &expect, FIBER_RUNNING))
+  if (!atomic_compare_exchange_strong(&fiber->state, (int*) &expect, FIBER_RUNNING))
     return false;
    
   sanitizer_start_switch_fiber(&fiber->resumeContext.uc_stack.ss_sp, 
@@ -95,7 +95,7 @@ bool fiber_resume(struct fiber* fiber, fiber_state_t* prevState) {
 
 bool fiber_yield(struct fiber* fiber) { 
   fiber_state_t expect = FIBER_RUNNING;
-  if (!atomic_compare_exchange_strong(&fiber->state, &expect, FIBER_SUSPENDED)) {
+  if (!atomic_compare_exchange_strong(&fiber->state, (int*) &expect, FIBER_SUSPENDED)) {
     fiber_state_t prev = expect;
     
     if (prev == FIBER_DEAD)
