@@ -350,7 +350,16 @@ struct value hashtable_next(struct fluffyvm* vm, struct hashtable* this, struct 
   pthread_rwlock_rdlock(&this->lock);
   struct value newKey = value_not_present();
   bool hasFound = false;
-  for (int bucket = 0; bucket < this->capacity; bucket++) {
+  int bucketStart = 0; 
+  uint64_t hash = -1;
+  
+  if (key.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
+    if (!value_hash_code(key, &hash))
+      return value_not_present();
+    bucketStart = hash & (this->capacity - 1);
+  }
+
+  for (int bucket = bucketStart; bucket < this->capacity; bucket++) {
     if (!this->table[bucket])
       continue;
 

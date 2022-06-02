@@ -172,6 +172,16 @@ int main2() {
   registerCFunction(F, "call_func", stdlib_call_func);
   registerCFunction(F, "error", stdlib_error);
   registerCFunction(F, "call_func2", stdlib_call_func2);
+  
+  /*
+  struct value globalTable = F->globalTable;
+  struct hashtable* table = foxgc_api_object_get_data(globalTable.data.table); 
+  struct value key = hashtable_next(F, table, value_not_present());
+  for (;key.type != FLUFFYVM_TVALUE_NOT_PRESENT;
+        value_copy(&key, hashtable_next(F, table, key))) {
+    printf("Key: %s\n", (char*) foxgc_api_object_get_data(key.data.str->str));
+  }
+  */
 
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
