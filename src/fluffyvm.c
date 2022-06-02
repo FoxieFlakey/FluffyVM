@@ -19,6 +19,7 @@
 #include "coroutine.h"
 #include "closure.h"
 #include "stack.h"
+#include "string_cache.h"
 #include "api_layer/lua54.h"
 
 #define COMPONENTS \
@@ -30,6 +31,7 @@
   X(bytecode_loader_json) \
   X(closure) \
   X(coroutine) \
+  X(string_cache) \
   X(fluffyvm_compat_layer_lua54)
 
 // Initialize static stuffs
@@ -41,7 +43,7 @@ static bool statics_init(struct fluffyvm* this) {
     struct value tmp = value_new_string(this, (string), &tmpRef); \
     if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
       return false; \
-    value_copy(&this->staticStrings.name, &tmp); \
+    value_copy(&this->staticStrings.name, tmp); \
     foxgc_api_root_add(this->heap, value_get_object_ptr(tmp), this->staticDataRoot, &this->staticStrings.name ## RootRef); \
     foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmpRef); \
   }
@@ -241,7 +243,7 @@ void fluffyvm_set_global(struct fluffyvm* this, struct value val) {
 
   if (this->globalTableRootRef)
     foxgc_api_remove_from_root2(this->heap, this->staticDataRoot, this->globalTableRootRef);
-  value_copy(&this->globalTable, &val);
+  value_copy(&this->globalTable, val);
   
   foxgc_object_t* obj = value_get_object_ptr(val);
   if (obj)
@@ -288,7 +290,7 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
   }
 
   msg = malloc(sizeof(val));
-  value_copy(msg, &val);
+  value_copy(msg, val);
   pthread_setspecific(vm->errMsgKey, msg);
 }
 
@@ -348,7 +350,7 @@ static void* threadStub(void* _args) {
   
   args->status = lateInit(args->vm);
   struct value errMsg = fluffyvm_get_errmsg(args->vm);
-  value_copy((struct value*) &args->errorMessage, &errMsg);
+  value_copy((struct value*) &args->errorMessage, errMsg);
   pthread_cond_signal(args->initCompletionSignal);
   
   if (!args->status)

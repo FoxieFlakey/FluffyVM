@@ -124,7 +124,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_copy, lua_State* L, int fromidx, int toidx) {
   int dest = fluffyvm_compat_lua54_lua_absindex(L, toidx);
   struct value sourceValue = getValueAtStackIndex(L, fromidx);  
 
-  value_copy(&callState->generalStack[dest - 1], &sourceValue);
+  value_copy(&callState->generalStack[dest - 1], sourceValue);
   foxgc_api_write_array(callState->gc_generalObjectStack, dest - 1, value_get_object_ptr(sourceValue));
 }
 
@@ -207,8 +207,8 @@ FLUFFYVM_DECLARE(const char*, lua_tolstring, lua_State* L, int idx, size_t* len)
         if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
           interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
   
-        value_copy(&callState->generalStack[location], &tmp);
-        value_copy(&val, &tmp);
+        value_copy(&callState->generalStack[location], tmp);
+        value_copy(&val, tmp);
         foxgc_api_write_array(callState->gc_generalObjectStack, location, value_get_object_ptr(tmp));
         
         foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), tmpRootRef);
@@ -554,7 +554,7 @@ bool fluffyvm_compat_layer_lua54_init(struct fluffyvm* vm) {
     return false;
 
   struct value tmp = value_not_present();
-  value_copy(&trampolineClosure->env, &tmp);
+  value_copy(&trampolineClosure->env, tmp);
   vm->compatLayerLua54StaticData->coroutineTrampoline = trampolineClosure;
   return true;
 }
@@ -575,13 +575,13 @@ EXPORT FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n) {
 
   util_collections_rotate(size, n, ^void (int idx, void* _data) {
     struct temp_data* data = _data;
-    value_copy(&callState->generalStack[start + idx], &data->val);
+    value_copy(&callState->generalStack[start + idx], data->val);
     foxgc_api_write_array(callState->gc_generalObjectStack, start + idx, value_get_object_ptr(data->val));
     foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), data->rootRef);
     free(data);
   }, ^void* (int idx) {
     struct temp_data* data = malloc(sizeof(*data));
-    value_copy(&data->val, &callState->generalStack[start + idx]);
+    value_copy(&data->val, callState->generalStack[start + idx]);
     foxgc_root_reference_t* tmp;
     foxgc_api_root_add(L->owner->heap, value_get_object_ptr(data->val), fluffyvm_get_root(L->owner), &tmp);
     data->rootRef = tmp;

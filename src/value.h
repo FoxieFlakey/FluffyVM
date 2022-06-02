@@ -91,7 +91,7 @@ typedef struct value {
 const char* value_get_string(struct value value);
 size_t value_get_len(struct value value);
 
-void value_copy(struct value* dest, struct value* src);
+void value_copy(struct value* dest, struct value src);
 
 bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);

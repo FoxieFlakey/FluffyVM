@@ -9,6 +9,7 @@
 #include <pthread.h>
 #include <stdbool.h>
 
+#include "api_layer/types.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "value.h"
@@ -37,8 +38,21 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, double loadFactor, int init
 bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key, struct value value);
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef);
 
+// Able to take string directly
+struct value hashtable_get2(struct fluffyvm* vm, struct hashtable* this, const char* key, size_t len, foxgc_root_reference_t** rootRef);
+
 // Remove key value pair
 void hashtable_remove(struct fluffyvm* vm, struct hashtable* this, struct value key);
 
+// Pretty much like `next` in lua
+// But return next key instead value
+// Return not present if there no next element
+struct value hashtable_next(struct fluffyvm* vm, struct hashtable* this, struct value key);
+
 #endif
+
+
+
+
+
 

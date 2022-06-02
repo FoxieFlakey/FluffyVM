@@ -9,16 +9,13 @@
 
 #include "coroutine.h"
 #include "value.h"
+#include "hashing.h"
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "fluffyvm_types.h"
 #include "config.h"
 #include "hashtable.h"
 #include "closure.h"
-
-#ifdef FLUFFYVM_HASH_USE_XXHASH
-# include <xxhash.h>
-#endif
 
 static struct value valueNotPresent = {
   .type = FLUFFYVM_TVALUE_NOT_PRESENT,
@@ -202,47 +199,6 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
   }
 }
 
-#ifdef FLUFFYVM_HASH_USE_OPENJDK8
-// OpenJDK 8 hash
-static uint64_t do_hash(void* data, size_t len) {
-  uint64_t hash = 0;
-  for (int i = 0; i < len; i++)
-    hash = 31 * hash + ((uint8_t*) data)[i];
-
-  return hash;
-}
-#endif
-
-#ifdef FLUFFYVM_HASH_USE_XXHASH
-// xxHash
-static uint64_t do_hash(void* data, size_t len) {
-  return (uint64_t) XXH64(data, len, FLUFFYVM_XXHASH_SEED);
-}
-#endif
-
-#ifdef FLUFFYVM_HASH_USE_FNV
-static uint64_t do_hash(void* data, size_t len) {
-  uint64_t hash = FLUFFYVM_FNV_OFFSET_BASIS;
-
-  for (int i = 0; i < len; i++) {
-    hash = hash ^ ((uint8_t*) data)[i];
-    hash = hash * FLUFFYVM_FNV_PRIME;
-  }
-
-  return hash;
-}
-#endif
-
-#ifdef FLUFFYVM_HASH_USE_TEST_MODE
-static uint64_t do_hash(void* data, size_t len) {
-  uint64_t hash = 0;
-  for (int i = 0; i < len && i < sizeof(uint64_t); i++) {
-    hash |= ((uint64_t) ((uint8_t*) data)[i]) << (i * 8);
-  }
-  return hash;
-} 
-#endif
-
 bool value_hash_code(struct value value, uint64_t* hashCode) {
   // Compute hash code
   uint64_t hash = 0;
@@ -256,31 +212,31 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
       void* data = foxgc_api_object_get_data(value.data.str->str);
       size_t len = foxgc_api_get_array_length(value.data.str->str);
 
-      hash = do_hash(data, len);
+      hash = hashing_hash_default(data, len);
       value.data.str->hashCode = hash;
       break;
      
     case FLUFFYVM_TVALUE_LONG:
-      hash = do_hash((void*) (&value.data.longNum), sizeof(fluffyvm_integer));
+      hash = hashing_hash_default((void*) (&value.data.longNum), sizeof(fluffyvm_integer));
       break;
     case FLUFFYVM_TVALUE_DOUBLE:
-      hash = do_hash((void*) (&value.data.doubleData), sizeof(fluffyvm_number));
+      hash = hashing_hash_default((void*) (&value.data.doubleData), sizeof(fluffyvm_number));
       break;
     case FLUFFYVM_TVALUE_TABLE:
-      hash = do_hash((void*) (&value.data.table), sizeof(foxgc_object_t*));
+      hash = hashing_hash_default((void*) (&value.data.table), sizeof(foxgc_object_t*));
       break;
     case FLUFFYVM_TVALUE_CLOSURE:
-      hash = do_hash((void*) (&value.data.closure->gc_this), sizeof(foxgc_object_t*));
+      hash = hashing_hash_default((void*) (&value.data.closure->gc_this), sizeof(foxgc_object_t*));
       break;
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
-      hash = do_hash((void*) (&value.data.userdata->data), sizeof(void*));
+      hash = hashing_hash_default((void*) (&value.data.userdata->data), sizeof(void*));
       break;
     case FLUFFYVM_TVALUE_BOOL:
-      hash = do_hash((void*) (&value.data.boolean), sizeof(bool));
+      hash = hashing_hash_default((void*) (&value.data.boolean), sizeof(bool));
       break;
     case FLUFFYVM_TVALUE_COROUTINE:
-      hash = do_hash((void*) (&value.data.coroutine->gc_this), sizeof(foxgc_object_t*));
+      hash = hashing_hash_default((void*) (&value.data.coroutine->gc_this), sizeof(foxgc_object_t*));
       break;
     
     case FLUFFYVM_TVALUE_NIL:
@@ -582,9 +538,8 @@ void* value_get_unique_ptr(struct value value) {
   }
 }
 
-void value_copy(struct value* dest, struct value* src) {
-  //checkPresent(src);
-  memcpy(dest, src, sizeof(struct value));
+void value_copy(struct value* dest, struct value src) {
+  memcpy(dest, &src, sizeof(struct value));
 }
 
 bool value_equals(struct value op1, struct value op2) {

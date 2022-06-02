@@ -34,7 +34,7 @@ static const char* instructionName[FLUFFYVM_OPCODE_LAST] = {
 static bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value value) {
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
   assert(value.type != FLUFFYVM_TVALUE_NOT_PRESENT);
-  value_copy(&callState->registers[index], &value);
+  value_copy(&callState->registers[index], value);
   foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
   return true;
 }
@@ -60,14 +60,13 @@ bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState,
   struct value val = callState->generalStack[index];
   
   if (result)
-    value_copy(result, &val);
+    value_copy(result, val);
 
   foxgc_object_t* ptr;
-  if ((ptr = value_get_object_ptr(val)) && rootRef)
+  if (rootRef && (ptr = value_get_object_ptr(val)))
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
 
-  struct value notPresent = value_not_present();
-  value_copy(&callState->generalStack[index], &notPresent);
+  value_copy(&callState->generalStack[index], value_not_present());
   foxgc_api_write_array(callState->gc_generalObjectStack, index, NULL);
   return true;
 }
@@ -91,7 +90,7 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
   }
   
   assert(value.type != FLUFFYVM_TVALUE_NOT_PRESENT);
-  value_copy(&callState->generalStack[callState->sp], &value);
+  value_copy(&callState->generalStack[callState->sp], value);
   foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, value_get_object_ptr(value));
   callState->sp++;
   return true;
@@ -182,7 +181,7 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret
 
     // Copy only if current pos is valid
     if (startPos + i <= co->currentCallState->sp - 1)
-      value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
+      value_copy(&val, co->currentCallState->generalStack[startPos + i]);
     
     // Error here
     if (!interpreter_push(F, callerState, val))
@@ -323,10 +322,8 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           if (!value_table_is_indexable(table) || fluffyvm_is_errmsg_present(vm))
             goto error;
           
-          if (result.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
-            struct value nil = value_nil();
-            value_copy(&result, &nil);
-          }
+          if (result.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+            value_copy(&result, value_nil());
 
           setRegister(vm, callState, ins.A, result);
           if (tmpRootRef)
@@ -392,7 +389,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
             // Copy only if current pos is valid
             if (startPos + i <= co->currentCallState->sp - 1)
-              value_copy(&val, &co->currentCallState->generalStack[startPos + i]);
+              value_copy(&val, co->currentCallState->generalStack[startPos + i]);
 
             if (!interpreter_push(vm, callState, val))
               goto call_error;
@@ -459,7 +456,7 @@ bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState
     return false;
   }
 
-  value_copy(result, &callState->generalStack[index]);
+  value_copy(result, callState->generalStack[index]);
   return true;
 }
 

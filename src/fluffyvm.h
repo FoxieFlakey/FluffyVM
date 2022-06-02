@@ -72,6 +72,7 @@ struct fluffyvm {
   struct closure_static_data* closureStaticData;
   struct stack_static_data* stackStaticData;
   struct compat_layer_lua54_static_data* compatLayerLua54StaticData;
+  struct string_cache_static_data* stringCacheStaticData;
   
   foxgc_root_t* staticDataRoot;
 

@@ -100,7 +100,7 @@ static inline void prototype_write_bytecode(struct fluffyvm_prototype* proto, st
 }
 
 static inline void prototype_write_source_file_name(struct fluffyvm_prototype* proto, struct value sourceFilename) {
-  value_copy(&proto->sourceFile, &sourceFilename);
+  value_copy(&proto->sourceFile, sourceFilename);
   foxgc_api_write_field(proto->gc_this, 5, value_get_object_ptr(sourceFilename));
 }
 
@@ -211,7 +211,7 @@ static void bytecode_write_constant(struct fluffyvm* vm, struct fluffyvm_bytecod
     foxgc_api_write_array(this->gc_constantsObject, index, ptr);
   else
     foxgc_api_write_array(this->gc_constantsObject, index, NULL);
-  value_copy(&this->constants[index], &constant);
+  value_copy(&this->constants[index], constant);
 }
 
 //////////////////////
@@ -265,24 +265,21 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         }
-        struct value tmp = value_new_string2(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef);
-        value_copy(&val, &tmp);
+        value_copy(&val, value_new_string2(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef));
         break;
       case FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__LONG:
         if (current->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_LONG_NUM) {
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         } 
-        struct value tmp2 = value_new_long(vm, current->data_longnum);
-        value_copy(&val, &tmp2);
+        value_copy(&val, value_new_long(vm, current->data_longnum));
         break;
       case FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__DOUBLE:
         if (current->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_DOUBLE_NUM) {
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         }
-        struct value tmp3 = value_new_double(vm, current->data_doublenum);
-        value_copy(&val, &tmp3);
+        value_copy(&val, value_new_double(vm, current->data_doublenum));
         break;
       // Loader does not recognize other type
       default:

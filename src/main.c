@@ -172,7 +172,7 @@ int main2() {
   registerCFunction(F, "call_func", stdlib_call_func);
   registerCFunction(F, "error", stdlib_error);
   registerCFunction(F, "call_func2", stdlib_call_func2);
-  
+
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
