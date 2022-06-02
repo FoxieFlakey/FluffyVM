@@ -138,7 +138,7 @@ static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfun
   assert(printFunc);
   
   struct value printVal = value_new_closure(F, printFunc);
-  struct value printString = value_new_string(F, name, &printStringRootRef);
+  struct value printString = value_new_string_constant(F, name, &printStringRootRef);
   assert(printString.type != FLUFFYVM_TVALUE_NOT_PRESENT);
   
   value_table_set(F, globalTable, printString, printVal);

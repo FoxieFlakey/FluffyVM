@@ -26,6 +26,7 @@ typedef enum value_types {
   // Userdata
   FLUFFYVM_TVALUE_FULL_USERDATA,
   FLUFFYVM_TVALUE_LIGHT_USERDATA,
+  FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA,
 
   FLUFFYVM_TVALUE_LAST
 } value_types_t;
@@ -40,7 +41,10 @@ typedef void (^value_userdata_finalizer)();
 
 struct value_userdata {
   foxgc_object_t* dataObj;
+  
   void* data;
+  foxgc_object_t* userGarbageCollectableData;
+  
   bool isFull;
 
   // Library or host can freely assign any
@@ -96,14 +100,22 @@ void value_copy(struct value* dest, struct value src);
 bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
 
+struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata);
 struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef);
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
+
+// Like other 2 variant but this will cache
+// the string for faster future access
+struct value value_new_string2_constant(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef);
+struct value value_new_string_constant(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
+
 struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer);
 struct value value_new_double(struct fluffyvm* vm, fluffyvm_number number);
 struct value value_new_table(struct fluffyvm* vm, double loadFactor, int initialCapacity, foxgc_root_reference_t** rootRef); 
 struct value value_new_closure(struct fluffyvm* vm, struct fluffyvm_closure* closure); 
 struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int typeID, size_t size, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
 struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typeID, void* data, foxgc_root_reference_t** rootRef, value_userdata_finalizer finalizer); 
+struct value value_new_garbage_collectable_userdata(struct fluffyvm* vm, int moduleID, int typeID, foxgc_object_t* object, foxgc_root_reference_t** rootRef); 
 struct value value_new_bool(struct fluffyvm* vm, bool boolean);
 struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* closure, foxgc_root_reference_t** rootRef);
 struct value value_new_coroutine2(struct fluffyvm* vm, struct fluffyvm_coroutine* co);

@@ -23,6 +23,7 @@
   X(typenames_closure, "function") \
   X(typenames_light_userdata, "userdata") \
   X(typenames_full_userdata, "userdata") \
+  X(typenames_garbage_collectable_userdata, "userdata") \
   X(typenames_bool, "boolean") \
   X(typenames_coroutine, "coroutine") \
   X(invalidCapacity, "invalid capacity") \
@@ -94,6 +95,8 @@ struct fluffyvm {
 
   bool hasInit;
 
+  struct string_cache* stringCache;
+
   struct {
     struct {
       int moduleID;
@@ -101,6 +104,13 @@ struct fluffyvm {
         int userdata;
       } type;
     } compatLayer_Lua54;
+
+    struct {
+      int moduleID;
+      struct {
+        int softReference;
+      } type;
+    } stringCache;
   } modules; 
 
   // Static strings

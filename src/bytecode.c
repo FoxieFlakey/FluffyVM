@@ -124,7 +124,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   if (len == 0) 
     len = -1;
   
-  struct value sourceFilename = value_new_string2(vm, proto->sourcefile, len + 1, &tmpRootRef);
+  struct value sourceFilename = value_new_string2_constant(vm, proto->sourcefile, len + 1, &tmpRootRef);
   prototype_write_source_file_name(this, sourceFilename);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
 
@@ -265,7 +265,7 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         }
-        value_copy(&val, value_new_string2(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef));
+        value_copy(&val, value_new_string2_constant(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef));
         break;
       case FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__LONG:
         if (current->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_LONG_NUM) {

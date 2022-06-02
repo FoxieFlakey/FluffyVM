@@ -32,6 +32,7 @@ struct compat_layer_lua54_static_data {
 
 struct string_cache_static_data {
   foxgc_descriptor_t* desc_string_cache;
+  foxgc_descriptor_t* desc_string_cache_entry;
 };
 
 #endif

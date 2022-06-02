@@ -27,12 +27,22 @@
   X(value) \
   X(statics) \
   X(hashtable) \
+  X(string_cache) \
+  X(caches) \
   X(bytecode) \
   X(bytecode_loader_json) \
   X(closure) \
   X(coroutine) \
-  X(string_cache) \
   X(fluffyvm_compat_layer_lua54)
+
+// Initialize caching related stuffs
+static bool caches_init(struct fluffyvm* this) {
+  foxgc_root_reference_t* tmp = NULL;
+  this->stringCache = string_cache_new(this, &tmp, value_string_allocator, NULL);
+  return this->stringCache != NULL;
+}
+
+static void caches_cleanup(struct fluffyvm* this) {}
 
 // Initialize static stuffs
 static bool statics_init(struct fluffyvm* this) {
@@ -170,6 +180,7 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   this->numberOfManagedThreads = 0;
   this->currentAvailableThreadID = 0;
   this->hasInit = false;
+  this->stringCache = NULL;
 
   pthread_key_create(&this->currentThreadRootKey, NULL);
   pthread_key_create(&this->errMsgKey, NULL);
@@ -213,8 +224,6 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   COMPONENTS
 # undef X
 
-  this->modules.compatLayer_Lua54.moduleID = value_get_module_id();
-  this->modules.compatLayer_Lua54.type.userdata = 1;
   this->globalTableRootRef = NULL;
 
   // Create global table

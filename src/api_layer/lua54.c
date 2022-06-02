@@ -295,6 +295,7 @@ EXPORT FLUFFYVM_DECLARE(int, lua_type, lua_State* L, int idx) {
     case FLUFFYVM_TVALUE_BOOL:
       return LUA_TBOOLEAN;
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
       return LUA_TLIGHTUSERDATA;
     case FLUFFYVM_TVALUE_NIL:
       return LUA_TNIL;
@@ -556,6 +557,9 @@ bool fluffyvm_compat_layer_lua54_init(struct fluffyvm* vm) {
   struct value tmp = value_not_present();
   value_copy(&trampolineClosure->env, tmp);
   vm->compatLayerLua54StaticData->coroutineTrampoline = trampolineClosure;
+  
+  vm->modules.compatLayer_Lua54.moduleID = value_get_module_id();
+  vm->modules.compatLayer_Lua54.type.userdata = 1;
   return true;
 }
 

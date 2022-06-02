@@ -16,6 +16,7 @@
 #include "config.h"
 #include "hashtable.h"
 #include "closure.h"
+#include "string_cache.h"
 
 static struct value valueNotPresent = {
   .type = FLUFFYVM_TVALUE_NOT_PRESENT,
@@ -44,7 +45,7 @@ static void commonStringInit(struct value_string* str, foxgc_object_t* strObj) {
   str->str = strObj;
 }
 
-struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
+struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata ) {
   struct value_string* strStruct = malloc(sizeof(*strStruct));
   if (!strStruct) {
     if (vm->staticStrings.outOfMemoryRootRef)
@@ -79,8 +80,22 @@ struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len,
   return value;
 }
 
+struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
+  return value_string_allocator(vm, str, len, rootRef, NULL);
+}
+
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef) {
   return value_new_string2(vm, cstr, strlen(cstr), rootRef);
+}
+
+struct value value_new_string2_constant(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
+  if (!vm->stringCache)
+    return value_string_allocator(vm, str, len, rootRef, NULL);
+  return string_cache_create_string(vm, vm->stringCache, str, len, rootRef);
+}
+
+struct value value_new_string_constant(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef) {
+  return value_new_string2_constant(vm, cstr, strlen(cstr), rootRef);
 }
 
 struct value value_new_long(struct fluffyvm* vm, fluffyvm_integer integer) {
@@ -173,6 +188,33 @@ struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typ
   return tmp;
 }
 
+struct value value_new_garbage_collectable_userdata(struct fluffyvm* vm, int moduleID, int typeID, foxgc_object_t* object, foxgc_root_reference_t** rootRef) {
+  struct value_userdata* userdata = malloc(sizeof(*userdata)); 
+  foxgc_object_t* userdataObj = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, Block_copy(^void (foxgc_object_t* obj) {
+    free(userdata);
+  }));
+  foxgc_api_write_array(userdataObj, 0, object);
+  userdata->dataObj = userdataObj;
+  userdata->userGarbageCollectableData = object;
+  userdata->moduleID = moduleID;
+  userdata->typeID = typeID;
+  userdata->isFull = true;
+
+  if (!userdataObj) {
+    if (vm->staticStrings.outOfMemoryRootRef)
+      fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
+    free(userdata);
+    return valueNotPresent;
+  }
+
+  struct value value = {
+    .data.userdata = userdata,
+    .type = FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA
+  };
+
+  return value; 
+}
+
 foxgc_object_t* value_get_object_ptr(struct value value) {
   switch (value.type) {
     case FLUFFYVM_TVALUE_STRING:
@@ -183,6 +225,7 @@ foxgc_object_t* value_get_object_ptr(struct value value) {
       return value.data.closure->gc_this;
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
       return value.data.userdata->dataObj;
     case FLUFFYVM_TVALUE_COROUTINE:
       return value.data.coroutine->gc_this;
@@ -230,6 +273,7 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
       break;
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
       hash = hashing_hash_default((void*) (&value.data.userdata->data), sizeof(void*));
       break;
     case FLUFFYVM_TVALUE_BOOL:
@@ -349,6 +393,9 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       bufLen = snprintf(NULL, 0, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->data);
       break;
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+      bufLen = snprintf(NULL, 0, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->userGarbageCollectableData);
+      break;
     case FLUFFYVM_TVALUE_COROUTINE:
       bufLen = snprintf(NULL, 0, "coroutine 0x%" PRIXPTR, (uintptr_t) value.data.coroutine->gc_this);
       break;
@@ -396,6 +443,9 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       snprintf(buffer, bufLen, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->data);
       break;
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+      snprintf(buffer, bufLen, "userdata 0x%" PRIXPTR, (uintptr_t) value.data.userdata->userGarbageCollectableData);
+      break;
     case FLUFFYVM_TVALUE_COROUTINE:
       bufLen = snprintf(buffer, bufLen, "coroutine 0x%" PRIXPTR, (uintptr_t) value.data.coroutine->gc_this);
       break;
@@ -434,6 +484,8 @@ struct value value_typename(struct fluffyvm* vm, struct value value) {
       return vm->staticStrings.typenames_light_userdata;
     case FLUFFYVM_TVALUE_FULL_USERDATA:
       return vm->staticStrings.typenames_full_userdata;
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+      return vm->staticStrings.typenames_garbage_collectable_userdata;
     case FLUFFYVM_TVALUE_BOOL:
       return vm->staticStrings.typenames_bool;
     case FLUFFYVM_TVALUE_COROUTINE:
@@ -498,6 +550,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_TABLE:
     case FLUFFYVM_TVALUE_NIL:
     case FLUFFYVM_TVALUE_COROUTINE:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
       return valueNotPresent;
     
@@ -523,6 +576,8 @@ void* value_get_unique_ptr(struct value value) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       return value.data.userdata->data;
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+      return value.data.userdata->userGarbageCollectableData;
     case FLUFFYVM_TVALUE_COROUTINE:
       return value.data.coroutine->gc_this;
     
@@ -581,6 +636,9 @@ bool value_equals(struct value op1, struct value op2) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
       result = op1.data.userdata->data == op2.data.userdata->data;
+      break;
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+      result = op1.data.userdata->userGarbageCollectableData == op2.data.userdata->userGarbageCollectableData;
       break;
     case FLUFFYVM_TVALUE_BOOL:
       result = op1.data.boolean == op2.data.boolean;
@@ -651,6 +709,7 @@ bool value_table_is_indexable(struct value val) {
     case FLUFFYVM_TVALUE_NIL:
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
     case FLUFFYVM_TVALUE_COROUTINE:
       return false;
@@ -675,6 +734,7 @@ bool value_is_callable(struct value val) {
     case FLUFFYVM_TVALUE_FULL_USERDATA:
     case FLUFFYVM_TVALUE_LIGHT_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
     case FLUFFYVM_TVALUE_COROUTINE:
       return false;
     
