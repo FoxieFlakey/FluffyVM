@@ -114,8 +114,8 @@ static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* cal
 
   fluffyvm_compat_lua54_lua_pushvalue(L, -1);
   
-  fluffyvm_compat_lua54_lua_pushstring(L, "Passing an argument to function (args #1)");
-  fluffyvm_compat_lua54_lua_pushstring(L, "Passing an argument to function (args #2)");
+  fluffyvm_compat_lua54_lua_pushliteral(L, "Passing an argument to function (args #1)");
+  fluffyvm_compat_lua54_lua_pushliteral(L, "Passing an argument to function (args #2)");
   
   fluffyvm_compat_lua54_lua_call(L, 2, 2);
   fluffyvm_compat_lua54_lua_call(L, 2, 0);

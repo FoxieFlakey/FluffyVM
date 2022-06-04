@@ -282,12 +282,12 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     setRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
     switch (ins.opcode) {
       case FLUFFYVM_OPCODE_MOV:
-        printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
+        //printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
         setRegister(vm, callState, ins.A, getRegister(vm, callState, ins.B));
         break;
       case FLUFFYVM_OPCODE_LOAD_PROTOTYPE:
       {
-        printf("0x%08X: R(%d) = Proto[%d]\n", pc, ins.A, ins.B);
+        //printf("0x%08X: R(%d) = Proto[%d]\n", pc, ins.A, ins.B);
         foxgc_root_reference_t* rootRef = NULL;
         struct fluffyvm_closure* closure = closure_new(vm, &rootRef, foxgc_api_object_get_data(callState->closure->prototype->prototypes[ins.B]), getRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ENV));
         setRegister(vm, callState, ins.A, value_new_closure(vm, closure)); 
@@ -295,7 +295,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         break;
       }
       case FLUFFYVM_OPCODE_GET_CONSTANT: 
-        printf("0x%08X: R(%d) = ConstPool[%d]\n", pc, ins.A, ins.B);
+        //printf("0x%08X: R(%d) = ConstPool[%d]\n", pc, ins.A, ins.B);
         if (ins.B >= callState->closure->prototype->bytecode->constants_len)
           goto illegal_instruction;
         
@@ -305,13 +305,13 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         setRegister(vm, callState, ins.A, value_new_long(vm, callState->sp - 1));
         break;
       case FLUFFYVM_OPCODE_STACK_POP:
-        printf("0x%08X: S.top--; R(%d) = S(S.top)\n", pc, ins.A);
+        //printf("0x%08X: S.top--; R(%d) = S(S.top)\n", pc, ins.A);
         if (!interpreter_pop2(vm, callState, ins.A))
           goto error;
         break;
       case FLUFFYVM_OPCODE_TABLE_GET:
         {
-          printf("0x%08X: R(%d) = R(%d)[R(%d)]\n", pc, ins.A, ins.B, ins.C);
+          //printf("0x%08X: R(%d) = R(%d)[R(%d)]\n", pc, ins.A, ins.B, ins.C);
           foxgc_root_reference_t* tmpRootRef = NULL;
           struct value table = getRegister(vm, callState, ins.B);
           struct value key = getRegister(vm, callState, ins.C);
@@ -331,7 +331,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           break;
         }
       case FLUFFYVM_OPCODE_STACK_PUSH:
-        printf("0x%08X: S(S.top) = R(%d); S.top++\n", pc, ins.A);
+        //printf("0x%08X: S(S.top) = R(%d); S.top++\n", pc, ins.A);
         if (!interpreter_push(vm, callState, getRegister(vm, callState, ins.A)))
           goto error;
         break;
@@ -345,7 +345,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           if (returnCount < 0)
             returnCount = 0;
 
-          printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
+          //printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
           struct value val = getRegister(vm, callState, ins.A);
 
           if (val.type == FLUFFYVM_TVALUE_NIL) {
@@ -403,7 +403,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           goto error;
         }
       case FLUFFYVM_OPCODE_TABLE_SET:
-        printf("0x%08X: R(%d)[R(%d)] = R(%d)\n", pc, ins.A, ins.B, ins.C);
+        //printf("0x%08X: R(%d)[R(%d)] = R(%d)\n", pc, ins.A, ins.B, ins.C);
         {
           struct value table = getRegister(vm, callState, ins.A);
           struct value key = getRegister(vm, callState, ins.B);
@@ -413,13 +413,13 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           break;
         }
       case FLUFFYVM_OPCODE_RETURN:
-        printf("0x%08X: ret(R(%d)..R(%d))\n", pc, ins.A, ins.A + ins.B - 1);
+        //printf("0x%08X: ret(R(%d)..R(%d))\n", pc, ins.A, ins.A + ins.B - 1);
         for (int i = ins.A; i < ins.A + ins.B; i++)
           interpreter_push(vm, callState, getRegister(vm, callState, i));
         retCount = ins.B;
         goto done_function;
       case FLUFFYVM_OPCODE_NOP:
-        printf("0x%08X: nop\n", pc);
+        //printf("0x%08X: nop\n", pc);
         break;
 
       case FLUFFYVM_OPCODE_EXTRA:

@@ -38,7 +38,8 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, double loadFactor, int init
 bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key, struct value value);
 struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct value key, foxgc_root_reference_t** rootRef);
 
-// Able to take string directly
+// Variant that able to take string directly
+bool hashtable_set2(struct fluffyvm* vm, struct hashtable* this, const char* key, size_t len, struct value value);
 struct value hashtable_get2(struct fluffyvm* vm, struct hashtable* this, const char* key, size_t len, foxgc_root_reference_t** rootRef);
 
 // Remove key value pair

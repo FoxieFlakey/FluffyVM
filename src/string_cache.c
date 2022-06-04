@@ -126,7 +126,7 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
   
   // Its fine if this failed to set
   // we can try add it to cache later
-  hashtable_set(vm, this->cache, newString, entryValue);
+  hashtable_set2(vm, this->cache, string, len, entryValue);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmp3);
   
   try_later:

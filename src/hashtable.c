@@ -7,6 +7,7 @@
 #include <assert.h>
 #include <string.h>
 
+#include "api_layer/types.h"
 #include "hashtable.h"
 #include "fluffyvm.h"
 #include "fluffyvm_types.h"
@@ -15,6 +16,9 @@
 
 struct hashtable_pair {
   struct value key;
+  const char* key2;
+  size_t key2_len;
+
   struct value value;
   
   struct hashtable_pair* next;
@@ -78,12 +82,26 @@ void hashtable_cleanup(struct fluffyvm* vm) {
 ////////////////////////////////////////////
 // struct key_value_pair* management
 
-static inline void pair_write_next(struct hashtable_pair* this, struct hashtable_pair* pair) {
+static void pair_clean(struct hashtable_pair* pair) {
+  if (pair->key2) {
+    pair->key2_len = 0;
+    free((void*) pair->key2);
+    pair->key2 = NULL;
+  }
+}
+
+static void pair_write_next(struct hashtable_pair* this, struct hashtable_pair* pair) {
   foxgc_api_write_field(this->gc_this, PAIR_OFFSET_NEXT, pair->gc_this);
   this->next = pair;
 }
 
-static inline void pair_write_key(struct hashtable_pair* this, struct value value) {
+static void pair_write_key(struct hashtable_pair* this, struct value value) {
+  if (this->key2) {
+    free((void*) this->key2);
+    this->key2 = NULL;
+    this->key2_len = 0;
+  }
+  
   foxgc_object_t* ptr;
   if ((ptr = value_get_object_ptr(value)))
     foxgc_api_write_field(this->gc_this, PAIR_OFFSET_KEY, ptr);
@@ -97,8 +115,26 @@ static inline void pair_write_value(struct hashtable_pair* this, struct value va
   value_copy(&this->value, value);
 }
 
+static uint64_t pair_get_key_hash(struct fluffyvm* vm, struct hashtable_pair* pair) {
+  uint64_t hash;
+  
+  if (pair->key2) {
+    hash = hashing_hash_default(pair->key2, pair->key2_len);
+  } else {
+    bool res = value_hash_code(pair->key, &hash);
+    assert(res); /* Cannot happen unless there is bug
+                  in the value_hash_code function */
+  }
+
+  return hash;
+}
+
 static struct hashtable_pair* new_pair(struct fluffyvm* vm, foxgc_root_reference_t** rootRef) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->hashTableStaticData->desc_pair, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->hashTableStaticData->desc_pair, Block_copy(^void (foxgc_object_t* obj) {
+    struct hashtable_pair* pair = foxgc_api_object_get_data(obj);
+    if (pair->key2)
+      free((void*) pair->key2);
+  }));
   if (!obj) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL; 
@@ -110,6 +146,8 @@ static struct hashtable_pair* new_pair(struct fluffyvm* vm, foxgc_root_reference
   foxgc_api_write_field(obj, PAIR_OFFSET_KEY, NULL);
   foxgc_api_write_field(obj, PAIR_OFFSET_VALUE, NULL);
   pair->next = NULL;
+  pair->key2 = NULL;
+  pair->key2_len = 0;
   value_copy(&pair->key, value_not_present());
   value_copy(&pair->value, value_not_present());
   
@@ -123,12 +161,9 @@ static inline void hashtable_write_table(struct hashtable* this, foxgc_object_t*
   this->table = foxgc_api_object_get_data(obj);
 }
 
-static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, struct value key, struct value value) {
-  uint64_t hash = -1;
-  if (!value_hash_code(key, &hash)) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
-    return false;
-  }
+typedef bool (^equal_operation)(struct value key);
+typedef void (^save_pair)(struct hashtable_pair* pair);
+static bool set_entry2(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, uint64_t hash, equal_operation equals, save_pair save) {
   uint64_t index = hash & (capacity - 1);
 
   // Try insert
@@ -136,15 +171,11 @@ static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_objec
   struct hashtable_pair* current = table[index] ? foxgc_api_object_get_data(table[index]) : NULL;
   while (current) {
     prev = current;
-    uint64_t hash2 = -1;
-    bool res = value_hash_code(current->key, &hash2);
-    assert(res); /* Cannot happen unless there is bug
-                    in the value_hash_code function */
+    uint64_t hash2 = pair_get_key_hash(vm, current);
 
     // Overwrite existing if there is match
-    if (hash == hash2 && value_equals(current->key, key)) { 
-      pair_write_key(current, key); 
-      pair_write_value(current, value); 
+    if (hash == hash2 && equals(current->key)) { 
+      save(current);
       return true;
     }
     current = prev->next;
@@ -155,8 +186,7 @@ static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_objec
   if (!pair)
     return false;
   
-  pair_write_key(pair, key); 
-  pair_write_value(pair, value); 
+  save(pair);
   
   if (prev)
     pair_write_next(prev, pair);
@@ -165,6 +195,21 @@ static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_objec
  
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
   return true;
+}
+
+static bool set_entry(struct fluffyvm* vm, foxgc_object_t* tableObj, foxgc_object_t** table, int capacity, struct value key, struct value value) {
+  uint64_t hash = -1;
+  if (!value_hash_code(key, &hash)) {
+    fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
+    return false;
+  }
+
+  return set_entry2(vm, tableObj, table, capacity, hash, ^bool (struct value op1) {
+    return value_equals(op1, key);
+  }, ^void (struct hashtable_pair* pair) {
+    pair_write_key(pair, key); 
+    pair_write_value(pair, value); 
+  });
 }
 
 static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity, int desiredCapacity) {
@@ -192,9 +237,36 @@ static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity
       while (next) {
         currentPair = next;
         next = next->next;
-        if (!set_entry(vm, newTable, foxgc_api_object_get_data(newTable), desiredCapacity, currentPair->key, currentPair->value)) {
-          foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), newTableRootRef);
-          return false;
+        if (currentPair->key2) {
+          size_t len = currentPair->key2_len;
+          const char* key = currentPair->key2;
+          struct value value = currentPair->value;
+          uint64_t hash = hashing_hash_default(key, len); 
+
+          bool res = set_entry2(vm, this->gc_table, this->table, desiredCapacity, hash, ^bool (struct value op2) { 
+            if (op2.type != FLUFFYVM_TVALUE_STRING)
+              return false;
+            size_t compareLen = foxgc_api_get_array_length(op2.data.str->str);
+            if (compareLen > len)
+              compareLen = len;
+            return memcmp(key, foxgc_api_object_get_data(op2.data.str->str), compareLen) == 0;
+          }, ^void (struct hashtable_pair* pair) {
+            pair->key2 = malloc(len);
+            memcpy((void*) pair->key2, key, len);
+            
+            pair->key2_len = len;
+            pair_write_value(pair, value); 
+          });
+
+          if (!res) {
+            foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), newTableRootRef);
+            return false;
+          }
+        } else {
+          if (!set_entry(vm, newTable, foxgc_api_object_get_data(newTable), desiredCapacity, currentPair->key, currentPair->value)) {
+            foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), newTableRootRef);
+            return false;
+          }
         }
       }
     }
@@ -241,20 +313,25 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, double loadFactor, int init
   return this;
 }
 
+static bool checkSpace_nolock(struct fluffyvm* vm, struct hashtable* this) {
+  if (this->usage + 1 >= this->capacity * this->loadFactor)
+    if (resize(vm, this, this->capacity, this->capacity * 2) == false)
+      return false;
+  return true;
+}
+
 bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key, struct value value) {
   if (key.type == FLUFFYVM_TVALUE_NOT_PRESENT ||
       value.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
     return false;
   }
 
-  pthread_rwlock_wrlock(&this->lock);
-  if (this->usage + 1 >= (this->capacity * this->loadFactor) / 100) {
-    if (resize(vm, this, this->capacity, this->capacity * 2) == false) {
-      pthread_rwlock_unlock(&this->lock);
-      return false;
-    }
-  }
-  
+  pthread_rwlock_wrlock(&this->lock); 
+  if (!checkSpace_nolock(vm, this)) {
+    pthread_rwlock_unlock(&this->lock);
+    return false;
+  } 
+
   set_entry(vm, this->gc_table, this->table, this->capacity, key, value);
   this->usage++;
 
@@ -262,17 +339,46 @@ bool hashtable_set(struct fluffyvm* vm, struct hashtable* this, struct value key
   return true;
 }
 
-typedef bool (^equal_operation)(struct value key);
+bool hashtable_set2(struct fluffyvm* vm, struct hashtable* this, const char* key, size_t len, struct value value) {
+  if (value.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
+    return false;
+  }
+
+  pthread_rwlock_wrlock(&this->lock); 
+  if (!checkSpace_nolock(vm, this)) {
+    pthread_rwlock_unlock(&this->lock);
+    return false;
+  } 
+
+  uint64_t hash = hashing_hash_default(key, len); 
+
+  bool res = set_entry2(vm, this->gc_table, this->table, this->capacity, hash, ^bool (struct value op2) { 
+    if (op2.type != FLUFFYVM_TVALUE_STRING)
+      return false;
+    size_t compareLen = foxgc_api_get_array_length(op2.data.str->str);
+    if (compareLen > len)
+      compareLen = len;
+    return memcmp(key, foxgc_api_object_get_data(op2.data.str->str), compareLen) == 0;
+  }, ^void (struct hashtable_pair* pair) {
+    pair->key2 = malloc(len);
+    memcpy((void*) pair->key2, key, len);
+    
+    pair->key2_len = len;
+    pair_write_value(pair, value); 
+  });
+  this->usage++;
+
+  pthread_rwlock_unlock(&this->lock);
+  return res;
+}
+
 static struct value internal_get(struct fluffyvm* vm, struct hashtable* this, uint64_t hash, foxgc_root_reference_t** rootRef, equal_operation equals) {
   pthread_rwlock_rdlock(&this->lock);
   uint64_t index = hash & (this->capacity - 1);
  
   struct hashtable_pair* current = this->table[index] ? foxgc_api_object_get_data(this->table[index]) : NULL;
   while (current) {
-    uint64_t hash2 = -1;
-    bool res = value_hash_code(current->key, &hash2);
-    assert(res); /* Cannot happen unless there is bug
-                    in the value_hash_code function */
+    uint64_t hash2 = pair_get_key_hash(vm, current);
     
     if (hash == hash2 && equals(current->key))
       break;
@@ -312,16 +418,15 @@ void hashtable_remove(struct fluffyvm* vm, struct hashtable* this, struct value 
   struct hashtable_pair* current = this->table[index] ? foxgc_api_object_get_data(this->table[index]) : NULL;
   struct hashtable_pair* prev = NULL; 
   while (current) {
-    uint64_t hash2 = -1;
-    bool res = value_hash_code(current->key, &hash2);
-    assert(res); /* Cannot happen unless there is bug
-                    in the value_hash_code function */
-    
+    uint64_t hash2 = pair_get_key_hash(vm, current);
+     
     if (hash == hash2 && value_equals(current->key, key)) {
       if (prev)
         pair_write_next(prev, NULL);
       else
         foxgc_api_write_array(this->gc_table, index, NULL);
+      
+      pair_clean(current);
       goto quit_function;
     }
 
