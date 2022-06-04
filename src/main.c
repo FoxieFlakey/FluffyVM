@@ -151,7 +151,7 @@ static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfun
  * 1 : 2 : 8
  */
 int main2() {
-  heap = foxgc_api_new(8 * MB, 16 * MB, 64 * MB,
+  heap = foxgc_api_new(16 * MB, 32 * MB, 64 * MB,
                                  3, 3, 
 
                                  256 * KB, 2 * MB,
@@ -164,7 +164,7 @@ int main2() {
     printf("FATAL: can't create VM\n");
     goto cannotCreateVm;
   }
-
+  
   collectAndPrintMemUsage("After VM creation but before test");
     
   registerCFunction(F, "print", stdlib_print);
@@ -238,7 +238,7 @@ int main2() {
   
   test(NULL);
 
-  /*pthread_t testThread;
+  pthread_t testThread;
   fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
   
   pthread_t testThread2;
@@ -261,7 +261,7 @@ int main2() {
   pthread_join(testThread3, NULL); 
   pthread_join(testThread4, NULL); 
   pthread_join(testThread5, NULL);
-  pthread_join(testThread6, NULL); */
+  pthread_join(testThread6, NULL);
   
   fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
   fluffyvm_clear_errmsg(F);

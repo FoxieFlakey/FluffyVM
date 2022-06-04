@@ -1,4 +1,3 @@
-#include "api_layer/types.h"
 #define FLUFFYVM_INTERNAL
 
 #include <pthread.h>
@@ -63,7 +62,7 @@ bool coroutine_init(struct fluffyvm* vm) {
     offsetof(struct fluffyvm_call_state, gc_closure),
     offsetof(struct fluffyvm_call_state, gc_owner),
     offsetof(struct fluffyvm_call_state, gc_generalObjectStack),
-    offsetof(struct fluffyvm_call_state, gc_registerObjectArray)
+    offsetof(struct fluffyvm_call_state, gc_registerArray)
   });
 
   return true;
@@ -113,14 +112,14 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
     goto no_memory;
+  struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
   
   pthread_mutex_lock(&co->callStackLock);
   if (!stack_push(vm, co->callStack, obj))
     goto error;
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef2);  
   pthread_mutex_unlock(&co->callStackLock);
-  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef2); 
 
-  struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
   callState->sp = 0;
   foxgc_api_write_field(obj, 0, obj);
   foxgc_api_write_field(obj, 2, func->gc_this);
@@ -137,6 +136,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_object_t* tmp = NULL;
   
   foxgc_api_write_field(callState->gc_this, 1, NULL);
+  foxgc_api_write_field(callState->gc_this, 5, NULL);
   
   if (!callState->closure->func) {
     // Allocate register array
@@ -146,7 +146,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     foxgc_api_write_field(callState->gc_this, 5, tmp);
     callState->registers = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-
+   
     // Allocate register objects array
     // to store value which contain GC object
     tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
@@ -155,19 +155,21 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     foxgc_api_write_field(callState->gc_this, 1, tmp);
     callState->registersObjectArray = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-
+    
     memcpy(callState->registers, nilRegisters, sizeof(struct value) * FLUFFYVM_REGISTERS_NUM);
   }
 
-  // Allocate register objects stack
-  // to store value which contain GC object
-  tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
-  if (!tmp)
-    goto no_memory;
-  foxgc_api_write_field(callState->gc_this, 4, tmp);
-  callState->generalObjectStack = foxgc_api_object_get_data(tmp);
-  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-  
+  {
+    // Allocate register objects stack
+    // to store value which contain GC object
+    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
+    if (!tmp)
+      goto no_memory;
+    foxgc_api_write_field(callState->gc_this, 4, tmp);
+    callState->generalObjectStack = foxgc_api_object_get_data(tmp);
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
+  }
+
   co->currentCallState = callState;
   
   if (!interpreter_function_prolog(vm, co, func))
@@ -188,6 +190,7 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
     // I have no clue how this->fiber be null
     if (this->fiber)
       fiber_free(this->fiber);
+    pthread_mutex_destroy(&this->callStackLock);
   });
 
   if (obj == NULL) {
@@ -196,7 +199,8 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
   }
   struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
   foxgc_api_write_field(obj, 0, obj);
-  
+  pthread_mutex_init(&this->callStackLock, NULL);
+
   foxgc_root_reference_t* stackRootRef = NULL;
   this->callStack = stack_new(vm, &stackRootRef, FLUFFYVM_CALL_STACK_SIZE);
   this->owner = vm;

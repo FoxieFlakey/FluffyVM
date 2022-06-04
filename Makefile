@@ -52,12 +52,12 @@ compile_bytecode:
 run: link compile_bytecode
 	@echo Running...
 	@echo -------------
-	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ ./main
+	@ASAN_OPTIONS="fast_unwind_on_malloc=0" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ ./main
 
 gdb: link
 	@echo Running with gdb...
 	@echo -------------
-	@LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ gdb ./main
+	@ASAN_OPTIONS="fast_unwind_on_malloc=0" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ gdb ./main
 
 
 

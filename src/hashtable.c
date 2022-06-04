@@ -79,7 +79,7 @@ void hashtable_cleanup(struct fluffyvm* vm) {
 // struct key_value_pair* management
 
 static inline void pair_write_next(struct hashtable_pair* this, struct hashtable_pair* pair) {
-  foxgc_api_write_field(this->gc_this, PAIR_OFFSET_NEXT, pair->next->gc_this);
+  foxgc_api_write_field(this->gc_this, PAIR_OFFSET_NEXT, pair->gc_this);
   this->next = pair;
 }
 
@@ -342,7 +342,7 @@ struct value hashtable_get2(struct fluffyvm* vm, struct hashtable* this, const c
     size_t compareLen = foxgc_api_get_array_length(op2.data.str->str);
     if (compareLen > len)
       compareLen = len;
-    return memcmp(key, foxgc_api_object_get_data(op2.data.str->str), compareLen);
+    return memcmp(key, foxgc_api_object_get_data(op2.data.str->str), compareLen) == 0;
   });
 }
 

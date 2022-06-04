@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stddef.h>
 #include <assert.h>
 
@@ -63,10 +64,9 @@ struct string_cache* string_cache_new(struct fluffyvm* vm, foxgc_root_reference_
   }
 
   struct string_cache* cache = foxgc_api_object_get_data(obj);
-  foxgc_api_write_field(obj, 0, obj);
   
-  foxgc_root_reference_t* tmp;
-  cache->cache = hashtable_new(vm, 0.75, 16, fluffyvm_get_root(vm), &tmp); 
+  foxgc_root_reference_t* tmp = NULL;
+  cache->cache = hashtable_new(vm, 0.75, 1024, fluffyvm_get_root(vm), &tmp); 
   cache->allocator = allocator;
   cache->udata = udata;
 
@@ -74,20 +74,18 @@ struct string_cache* string_cache_new(struct fluffyvm* vm, foxgc_root_reference_
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), *rootRef);
     *rootRef = NULL;
     return NULL;
-  }
-  foxgc_api_write_field(obj, 1, cache->gc_this);
+  } 
+  foxgc_api_write_field(obj, 1, cache->cache->gc_this);
+  foxgc_api_write_field(obj, 0, obj);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmp);
 
   return cache;
 }
 
 struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache* this, const char* string, size_t len, foxgc_root_reference_t** rootRef) {
-  if (1) 
-    return this->allocator(vm, string, len, rootRef, this->udata);
-  
   // Check if string exist in cache
   struct value cachedStringEntry = hashtable_get2(vm, this->cache, string, len, rootRef);
-  if (cachedStringEntry.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
+  if (cachedStringEntry.type != FLUFFYVM_TVALUE_NOT_PRESENT) {   
     assert(cachedStringEntry.type == FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA);
     struct cache_entry* entry = foxgc_api_object_get_data(cachedStringEntry.data.userdata->userGarbageCollectableData);
     foxgc_object_t* obj = foxgc_api_reference_get(entry->softReference, fluffyvm_get_root(vm), rootRef);
@@ -120,7 +118,7 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
   entry->softReference = reference;
 
   foxgc_root_reference_t* tmp3 = NULL; 
-  struct value entryValue = value_new_garbage_collectable_userdata(vm, vm->modules.stringCache.moduleID, vm->modules.stringCache.type.softReference, foxgc_api_reference_get_reference_object(reference), &tmp3);
+  struct value entryValue = value_new_garbage_collectable_userdata(vm, vm->modules.stringCache.moduleID, vm->modules.stringCache.type.softReference, cacheEntry, &tmp3);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmp2);
   
   if (entryValue.type == FLUFFYVM_TVALUE_NOT_PRESENT)

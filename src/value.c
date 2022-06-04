@@ -198,7 +198,7 @@ struct value value_new_garbage_collectable_userdata(struct fluffyvm* vm, int mod
   userdata->userGarbageCollectableData = object;
   userdata->moduleID = moduleID;
   userdata->typeID = typeID;
-  userdata->isFull = true;
+  userdata->isFull = false;
 
   if (!userdataObj) {
     if (vm->staticStrings.outOfMemoryRootRef)
@@ -253,7 +253,7 @@ bool value_hash_code(struct value value, uint64_t* hashCode) {
       }
       
       void* data = foxgc_api_object_get_data(value.data.str->str);
-      size_t len = foxgc_api_get_array_length(value.data.str->str);
+      size_t len = value_get_len(value);
 
       hash = hashing_hash_default(data, len);
       value.data.str->hashCode = hash;

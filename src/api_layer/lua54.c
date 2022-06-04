@@ -167,7 +167,16 @@ FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s) {
 }
 
 EXPORT FLUFFYVM_DECLARE(const char*, lua_pushliteral, lua_State* L, const char* s) {
-  return fluffyvm_compat_lua54_lua_pushstring(L, s);
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  
+  struct fluffyvm_call_state* callState = L->currentCallState;
+  
+  foxgc_root_reference_t* tmpRootRef = NULL;
+  struct value string = value_new_string_constant(L->owner, s, &tmpRootRef);
+  interpreter_push(L->owner, callState, string);
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), tmpRootRef);
+  return s;
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_error, lua_State* L) {

@@ -16,7 +16,7 @@
 
 // VERY CRONGED
 // SIGSTKSZ IS UNDEFINED
-#define SIGSTKSZ (1024 * 104 * 8)
+#define SIGSTKSZ (1024 * 1024 * 8)
 
 static inline void sanitizer_start_switch_fiber(void* bottom, size_t size) {
 # ifdef FLUFFYVM_ASAN_ENABLED

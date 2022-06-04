@@ -39,6 +39,11 @@
 static bool caches_init(struct fluffyvm* this) {
   foxgc_root_reference_t* tmp = NULL;
   this->stringCache = string_cache_new(this, &tmp, value_string_allocator, NULL);
+  if (this->stringCache) {
+    foxgc_root_reference_t* tmp2;
+    foxgc_api_root_add(this->heap, this->stringCache->gc_this, this->staticDataRoot, &tmp2);
+    foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmp);
+  }
   return this->stringCache != NULL;
 }
 
@@ -50,7 +55,7 @@ static bool statics_init(struct fluffyvm* this) {
   
 # define X(name, string, ...) { \
     foxgc_root_reference_t* tmpRef = NULL;\
-    struct value tmp = value_new_string(this, (string), &tmpRef); \
+    struct value tmp = value_new_string_constant(this, (string), &tmpRef); \
     if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
       return false; \
     value_copy(&this->staticStrings.name, tmp); \
