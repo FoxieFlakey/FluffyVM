@@ -19,6 +19,14 @@ struct string_cache_additional_data {
   pthread_cond_t onEntryInvalidated;
 };
 
+struct string_cache_entry {
+  
+
+  struct value string;
+  foxgc_object_t* gc_this;
+  foxgc_object_t* gc_string;
+};
+
 struct string_cache {
   pthread_rwlock_t rwlock;
 
@@ -26,6 +34,10 @@ struct string_cache {
   void* udata;
 
   struct ref_counter* additionalData;  
+  
+  struct {
+    
+  } table;
 
   foxgc_object_t* gc_this;
 };

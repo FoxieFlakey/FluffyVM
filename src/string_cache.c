@@ -25,11 +25,6 @@
     foxgc_api_descriptor_remove(vm->stringCacheStaticData->name); \
 } while(0)
 
-struct cache_entry {
-  struct value string;
-  foxgc_object_t* gc_this;
-  foxgc_object_t* gc_string;
-};
 
 bool string_cache_init(struct fluffyvm* vm) {
   vm->stringCacheStaticData = malloc(sizeof(*vm->stringCacheStaticData));
@@ -39,9 +34,9 @@ bool string_cache_init(struct fluffyvm* vm) {
     offsetof(struct string_cache, gc_this)
   });
   
-  create_descriptor(desc_string_cache_entry, struct cache_entry, {
-    offsetof(struct cache_entry, gc_this),
-    offsetof(struct cache_entry, gc_string)
+  create_descriptor(desc_string_cache_entry, struct string_cache_entry, {
+    offsetof(struct string_cache_entry, gc_this),
+    offsetof(struct string_cache_entry, gc_string)
   });
   
   vm->modules.stringCache.moduleID = value_get_module_id();
@@ -104,7 +99,7 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
     foxgc_object_t* entryObj = foxgc_api_reference_get(ref, fluffyvm_get_root(vm), &tmpRef);
     if (!entryObj)
       goto cache_miss;
-    struct cache_entry* entry = foxgc_api_object_get_data(entryObj);
+    struct string_cache_entry* entry = foxgc_api_object_get_data(entryObj);
     foxgc_api_root_add(vm->heap, value_get_object_ptr(entry->string), fluffyvm_get_root(vm), rootRef);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRef);
     return entry->string;
@@ -124,10 +119,10 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
   }
   
   foxgc_root_reference_t* tmp = NULL;
-  foxgc_object_t* cacheEntry = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmp, vm->stringCacheStaticData->desc_string_cache_entry, NULL);
+  foxgc_object_t* cacheEntry = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmp, vm->stringCacheStaticData->desc_string_string_cache_entry, NULL);
   if (!cacheEntry)
     goto try_later;
-  struct cache_entry* entry = foxgc_api_object_get_data(cacheEntry);
+  struct string_cache_entry* entry = foxgc_api_object_get_data(cacheEntry);
   value_copy(&entry->string, newString);
   foxgc_api_write_field(cacheEntry, 0, cacheEntry);
   foxgc_api_write_field(cacheEntry, 1, value_get_object_ptr(newString));
