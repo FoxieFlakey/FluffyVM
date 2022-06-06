@@ -100,7 +100,7 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
   if (cachedStringEntry.type != FLUFFYVM_TVALUE_NOT_PRESENT) {   
     assert(cachedStringEntry.type == FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA);
     foxgc_root_reference_t* tmpRef = NULL;
-    foxgc_soft_reference_t* ref = foxgc_api_object_get_data(cachedStringEntry.data.userdata->userGarbageCollectableData);
+    foxgc_reference_t* ref = foxgc_api_object_get_data(cachedStringEntry.data.userdata->userGarbageCollectableData);
     foxgc_object_t* entryObj = foxgc_api_reference_get(ref, fluffyvm_get_root(vm), &tmpRef);
     if (!entryObj)
       goto cache_miss;
@@ -133,7 +133,7 @@ struct value string_cache_create_string(struct fluffyvm* vm, struct string_cache
   foxgc_api_write_field(cacheEntry, 1, value_get_object_ptr(newString));
 
   foxgc_root_reference_t* tmp2 = NULL;
-  foxgc_soft_reference_t* reference = foxgc_api_new_soft_reference(vm->heap, fluffyvm_get_root(vm), &tmp2, entry->gc_this);
+  foxgc_soft_reference_t* reference = foxgc_api_new_weak_reference(vm->heap, fluffyvm_get_root(vm), &tmp2, entry->gc_this);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmp);
   
   if (reference == NULL) 

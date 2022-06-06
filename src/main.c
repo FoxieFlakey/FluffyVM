@@ -148,6 +148,31 @@ static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfun
   foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
 }
 
+static void test(struct fluffyvm* F) {
+  foxgc_root_reference_t* rootRef = NULL;
+  foxgc_root_reference_t* rootRef2 = NULL;
+  foxgc_root_reference_t* rootRef3 = NULL;
+  foxgc_object_t* tmp = NULL;
+
+  foxgc_object_t* obj = foxgc_api_new_array(F->heap, fluffyvm_get_root(F), &rootRef, 0, ^void (foxgc_object_t* _) {
+    puts("Collected by weak ref");
+  });
+
+  foxgc_reference_t* ref = foxgc_api_new_weak_reference(F->heap, fluffyvm_get_root(F), &rootRef2, obj);
+  
+  tmp = foxgc_api_reference_get(ref, fluffyvm_get_root(F), &rootRef3);
+  assert(tmp != NULL);
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef3);
+
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef);  
+  foxgc_api_do_full_gc(F->heap);
+
+  tmp = foxgc_api_reference_get(ref, fluffyvm_get_root(F), &rootRef3);
+  assert(tmp == NULL);
+
+  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef2);
+}
+
 /* Generation sizes guide
  * 1 : 2 : 8
  */
@@ -183,6 +208,8 @@ int main2() {
     printf("Key: %s\n", (char*) foxgc_api_object_get_data(key.data.str->str));
   }
   */
+
+  test(F);
 
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
