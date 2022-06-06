@@ -7,6 +7,7 @@
 
 #include "foxgc.h"
 #include "api_layer/types.h"
+#include "util/functional/functional.h"
 
 struct fluffyvm;
 typedef enum value_types {
@@ -100,7 +101,7 @@ void value_copy(struct value* dest, struct value src);
 bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
 
-struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata);
+struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata, runnable_t finalizer);
 struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef);
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef);
 
@@ -137,6 +138,7 @@ bool value_hash_code(struct value value, uint64_t* hashCode);
 
 // return false if not equal
 bool value_equals(struct value op1, struct value op2);
+bool value_equals_cstring(struct value op1, const char* str, size_t len);
 
 bool value_is_callable(struct value val);
 bool value_call(struct value val);

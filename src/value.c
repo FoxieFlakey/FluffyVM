@@ -8,6 +8,7 @@
 #include <inttypes.h>
 
 #include "coroutine.h"
+#include "util/functional/functional.h"
 #include "value.h"
 #include "hashing.h"
 #include "fluffyvm.h"
@@ -45,7 +46,7 @@ static void commonStringInit(struct value_string* str, foxgc_object_t* strObj) {
   str->str = strObj;
 }
 
-struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata ) {
+struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef, void* udata, runnable_t finalizer) {
   struct value_string* strStruct = malloc(sizeof(*strStruct));
   if (!strStruct) {
     if (vm->staticStrings.outOfMemoryRootRef)
@@ -54,6 +55,10 @@ struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t
   }
 
   foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, len + 1, Block_copy(^void (foxgc_object_t* obj) {
+    if (finalizer) {
+      finalizer();
+      Block_release(finalizer);
+    }
     free(strStruct);
   }));
 
@@ -81,7 +86,7 @@ struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t
 }
 
 struct value value_new_string2(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
-  return value_string_allocator(vm, str, len, rootRef, NULL);
+  return value_string_allocator(vm, str, len, rootRef, NULL, NULL);
 }
 
 struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_reference_t** rootRef) {
@@ -90,7 +95,7 @@ struct value value_new_string(struct fluffyvm* vm, const char* cstr, foxgc_root_
 
 struct value value_new_string2_constant(struct fluffyvm* vm, const char* str, size_t len, foxgc_root_reference_t** rootRef) {
   if (!vm->stringCache)
-    return value_string_allocator(vm, str, len, rootRef, NULL);
+    return value_string_allocator(vm, str, len, rootRef, NULL, NULL);
   return string_cache_create_string(vm, vm->stringCache, str, len, rootRef);
 }
 
@@ -595,6 +600,34 @@ void* value_get_unique_ptr(struct value value) {
 
 void value_copy(struct value* dest, struct value src) {
   memcpy(dest, &src, sizeof(struct value));
+}
+
+bool value_equals_cstring(struct value op1, const char* str, size_t len) {
+  uint64_t op1Hash;
+  uint64_t op2Hash;
+  
+  // The order of checking is ordered
+  // from least expensive check to most
+  // expensive check (which memcmp)
+
+  checkPresent(&op1);
+  if (op1.type != FLUFFYVM_TVALUE_STRING)
+    return false;
+
+  if (value_get_len(op1) != len)
+    return false;
+
+  if (!value_hash_code(op1, &op1Hash))
+    return false;
+  
+  op2Hash = hashing_hash_default(str, len);
+  if (op1Hash != op2Hash)
+    return false;
+
+  if (memcmp(str, foxgc_api_object_get_data(op1.data.str->str), len) != 0)
+    return false;
+
+  return true;
 }
 
 bool value_equals(struct value op1, struct value op2) {

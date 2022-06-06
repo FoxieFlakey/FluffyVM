@@ -19,6 +19,7 @@
 #include "bootloader.h"
 #include "closure.h"
 #include "interpreter.h"
+#include "string_cache.h"
 
 #include "api_layer/lua54.h"
 
@@ -238,23 +239,24 @@ int main2() {
   
   test(NULL);
 
+  /*
   pthread_t testThread;
-  fluffyvm_start_thread(F, &testThread, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread, NULL, Block_copy(test), NULL);
   
   pthread_t testThread2;
-  fluffyvm_start_thread(F, &testThread2, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread2, NULL, Block_copy(test), NULL);
   
   pthread_t testThread3;
-  fluffyvm_start_thread(F, &testThread3, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread3, NULL, Block_copy(test), NULL);
   
   pthread_t testThread4;
-  fluffyvm_start_thread(F, &testThread4, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread4, NULL, Block_copy(test), NULL);
   
   pthread_t testThread5;
-  fluffyvm_start_thread(F, &testThread5, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread5, NULL, Block_copy(test), NULL);
   
   pthread_t testThread6;
-  fluffyvm_start_thread(F, &testThread6, NULL, test, NULL);
+  fluffyvm_start_thread(F, &testThread6, NULL, Block_copy(test), NULL);
   
   pthread_join(testThread, NULL);
   pthread_join(testThread2, NULL);
@@ -262,6 +264,7 @@ int main2() {
   pthread_join(testThread4, NULL); 
   pthread_join(testThread5, NULL);
   pthread_join(testThread6, NULL);
+  */
   
   fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
   fluffyvm_clear_errmsg(F);
@@ -272,6 +275,7 @@ int main2() {
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
+  string_cache_poll(F, F->stringCache, NULL);
   collectAndPrintMemUsage("Before VM destruction but after test");
   
   fluffyvm_free(F);

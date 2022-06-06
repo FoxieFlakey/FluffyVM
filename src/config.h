@@ -21,6 +21,10 @@
 // Default load factor
 #define FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR (0.75)
 
+// Queue size for the invalidated cache 
+// entry queue
+#define FLUFFYVM_STRING_CACHE_QUEUE_SIZE 512
+
 ////////////////////////////////////////
 // Compiler config                    //
 ////////////////////////////////////////

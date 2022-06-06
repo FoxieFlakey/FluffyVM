@@ -94,9 +94,13 @@ struct fluffyvm {
   struct fluffyvm_coroutine* mainThread;
 
   bool hasInit;
-
   struct string_cache* stringCache;
 
+  bool hasCachePollerStarted;
+  volatile atomic_bool shuttingDown;
+  pthread_t stringCachePoller;
+
+ 
   struct {
     struct {
       int moduleID;

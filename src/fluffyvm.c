@@ -4,8 +4,12 @@
 #include <stdatomic.h>
 #include <stdio.h>
 #include <stdlib.h>
+#include <Block.h>
 #include <string.h>
+#include <time.h>
 #include <assert.h>
+#include <unistd.h>
+#include <sys/prctl.h>
 
 #include "config.h"
 #include "fiber.h"
@@ -27,13 +31,57 @@
   X(value) \
   X(statics) \
   X(hashtable) \
+  X(global_table) \
   X(string_cache) \
   X(caches) \
   X(bytecode) \
   X(bytecode_loader_json) \
   X(closure) \
   X(coroutine) \
-  X(fluffyvm_compat_layer_lua54)
+  X(fluffyvm_compat_layer_lua54) \
+  X(cache_poller)
+
+static bool global_table_init(struct fluffyvm* this) {
+  // Create global table
+  foxgc_root_reference_t* globalTableRootRef = NULL;
+  struct value globalTable = value_new_table(this, FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR, 16, &globalTableRootRef);
+  
+  if (globalTable.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    return false;
+  fluffyvm_set_global(this, globalTable);
+  foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), globalTableRootRef);
+  return true; 
+}
+
+static void global_table_cleanup(struct fluffyvm* this) {}
+
+static bool cache_poller_init(struct fluffyvm* this) {
+  fluffyvm_thread_routine_t tmp = ^void* (void* args) {
+    prctl(PR_SET_NAME, "String-Cache Cleaner");
+    struct timespec timeout = {
+      .tv_nsec = 1000000 * 500,
+      .tv_sec = 0
+    };
+    while (!this->shuttingDown) {
+      string_cache_poll(this, this->stringCache, &timeout);
+      nanosleep(&timeout, NULL);
+    }
+    return NULL; 
+  };
+
+  bool res = fluffyvm_start_thread(this, &this->stringCachePoller, NULL, Block_copy(tmp), NULL);
+
+  if (!res)
+    return false;
+  
+  this->hasCachePollerStarted = true;
+  return true;
+}
+
+static void cache_poller_cleanup(struct fluffyvm* this) {
+  if (this->hasCachePollerStarted)
+    pthread_join(this->stringCachePoller, NULL);
+}
 
 // Initialize caching related stuffs
 static bool caches_init(struct fluffyvm* this) {
@@ -44,6 +92,7 @@ static bool caches_init(struct fluffyvm* this) {
     foxgc_api_root_add(this->heap, this->stringCache->gc_this, this->staticDataRoot, &tmp2);
     foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmp);
   }
+  
   return this->stringCache != NULL;
 }
 
@@ -152,6 +201,7 @@ static void commonCleanup(struct fluffyvm* this, int initCounts) {
   // for all initialized stuffs
   // and in correct order
   
+  atomic_exchange(&this->shuttingDown, true); 
   cleanup_call calls[] = {
 # define X(name, ...) name ## _cleanup,
   COMPONENTS
@@ -186,6 +236,9 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   this->currentAvailableThreadID = 0;
   this->hasInit = false;
   this->stringCache = NULL;
+  this->hasCachePollerStarted = false;
+  this->shuttingDown = false;
+  this->globalTableRootRef = NULL;
 
   pthread_key_create(&this->currentThreadRootKey, NULL);
   pthread_key_create(&this->errMsgKey, NULL);
@@ -229,17 +282,6 @@ struct fluffyvm* fluffyvm_new(struct foxgc_heap* heap) {
   COMPONENTS
 # undef X
 
-  this->globalTableRootRef = NULL;
-
-  // Create global table
-  foxgc_root_reference_t* globalTableRootRef = NULL;
-  struct value globalTable = value_new_table(this, FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR, 16, &globalTableRootRef);
-  
-  if (globalTable.type == FLUFFYVM_TVALUE_NOT_PRESENT)
-    goto error;
-  fluffyvm_set_global(this, globalTable);
-  foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), globalTableRootRef);
-  
   lateInit(this);    
 
   return this;
@@ -331,8 +373,9 @@ void fluffyvm_free(struct fluffyvm* this) {
   validateThisThread(this);
 
   // There still other thread running
-  // 1 of the threads is the caller thread
-  if (this->numberOfManagedThreads > 1)
+  // 2 threads because it accounts current
+  // thread and VM's string cache poller
+  if (this->numberOfManagedThreads > 2)
     abort();
   
   commonCleanup(this, -1);
@@ -371,7 +414,8 @@ static void* threadStub(void* _args) {
     goto terminate_thread;
 
   ret = routine(routine_args);
-  
+  Block_release(routine);
+
   // I know there is destructor for pthread key
   // and its called at thread exit but for now
   // i use this 
