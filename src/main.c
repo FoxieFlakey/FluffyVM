@@ -1,10 +1,12 @@
 #include <assert.h>
 #include <stdarg.h>
+#include <stdatomic.h>
 #include <stdint.h>
 #include <stdio.h>
 #include <inttypes.h>
 #include <string.h>
 #include <Block.h>
+#include <time.h>
 
 #include "config.h"
 #include "coroutine.h"
@@ -80,6 +82,23 @@ static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callStat
   for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(L); i++)
     printf("[Thread %d] Printer: %s\n", tid, fluffyvm_compat_lua54_lua_tostring(L, i + 1));
 
+  /*
+  static atomic_bool hasDump = false;
+  if (atomic_exchange(&hasDump, true) == false) {
+    clock_t startClock = clock();
+
+    puts("Dumping...");
+    const char* errMsg;
+    if (!foxgc_api_heap_dump(F->heap, "heapDump.sqlite3", &errMsg))
+      printf("[WARNING] Cannot dump heap: %s\n", errMsg);
+    puts("Done...");
+
+    clock_t timeSpent = clock() - startClock;
+    printf("Dumping took %lf seconds\n", ((double) timeSpent) / CLOCKS_PER_SEC);
+    free((char*) errMsg);
+  }
+  */
+
   stdlib_print_stacktrace(F, callState->owner);
   return 0;
 }
@@ -148,14 +167,18 @@ static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfun
   foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
 }
 
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(testArrayTypeKey);
+
 static void test(struct fluffyvm* F) {
   foxgc_root_reference_t* rootRef = NULL;
   foxgc_root_reference_t* rootRef2 = NULL;
   foxgc_root_reference_t* rootRef3 = NULL;
   foxgc_object_t* tmp = NULL;
 
-  foxgc_object_t* obj = foxgc_api_new_array(F->heap, fluffyvm_get_root(F), &rootRef, 0, ^void (foxgc_object_t* _) {
-    puts("Collected by weak ref");
+  foxgc_object_t* obj = foxgc_api_new_array(F->heap, fluffyvm_get_owner_key(), testArrayTypeKey, NULL, fluffyvm_get_root(F), &rootRef, 0, ^void (foxgc_object_t* _) {
+    puts("[Weak Ref Test] Collected by weak ref");
   });
 
   foxgc_reference_t* ref = foxgc_api_new_weak_reference(F->heap, fluffyvm_get_root(F), &rootRef2, obj);

@@ -14,7 +14,8 @@ bytecode.json
 default.profraw
 default.profdata
 *.gcno
-
+heapDump*.sqlite3*
+heapDump*.sqlite3*
 
 
 

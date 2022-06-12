@@ -13,9 +13,14 @@
 #include "value.h"
 #include "config.h"
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->stringCacheStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(stringCacheTypeKey);
+UNIQUE_KEY(stringCacheEntryTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->stringCacheStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->stringCacheStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -30,13 +35,13 @@ bool string_cache_init(struct fluffyvm* vm) {
   vm->stringCacheStaticData = malloc(sizeof(*vm->stringCacheStaticData));
   if (!vm->stringCacheStaticData)
     return false;
-  create_descriptor(desc_string_cache, struct string_cache, {
-    offsetof(struct string_cache, gc_this)
+  create_descriptor("net.fluffyfox.fluffyvm.string_cache.StringCache", stringCacheTypeKey, desc_string_cache, struct string_cache, {
+      {"this", offsetof(struct string_cache, gc_this)}
   });
-  
-  create_descriptor(desc_string_cache_entry, struct string_cache_entry, {
-    offsetof(struct string_cache_entry, gc_this),
-    offsetof(struct string_cache_entry, gc_string)
+ 
+  create_descriptor("net.fluffyfox.fluffyvm.string_cache.StringCacheEntry", stringCacheEntryTypeKey, desc_string_cache_entry, struct string_cache_entry, {
+    {"this", offsetof(struct string_cache_entry, gc_this)},
+    {"string", offsetof(struct string_cache_entry, gc_string)}
   });
   
   vm->modules.stringCache.moduleID = value_get_module_id();
@@ -54,7 +59,7 @@ void string_cache_cleanup(struct fluffyvm* vm) {
 }
 
 struct string_cache* string_cache_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, string_cache_string_allocator_t allocator, void* udata) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->stringCacheStaticData->desc_string_cache, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->stringCacheStaticData->desc_string_cache, Block_copy(^void (foxgc_object_t* obj) {
     struct string_cache* cache = foxgc_api_object_get_data(obj);
     pthread_rwlock_destroy(&cache->rwlock);
     ref_counter_dec(cache->additionalData);

@@ -146,6 +146,8 @@ bool fluffyvm_is_managed(struct fluffyvm* this);
 void fluffyvm_set_global(struct fluffyvm* this, struct value val);
 struct value fluffyvm_get_global(struct fluffyvm* this);
 
+uintptr_t fluffyvm_get_owner_key();
+
 //////////////////////////////////////////////////
 // Calls below this line will call abort        //
 // if the caller thread is not managed thread   //

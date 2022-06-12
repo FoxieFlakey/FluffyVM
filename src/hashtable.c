@@ -26,9 +26,15 @@ struct hashtable_pair {
   foxgc_object_t* gc_value;
 };
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->hashTableStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(hashtableTypeKey);
+UNIQUE_KEY(pairTypeKey);
+UNIQUE_KEY(tableArrayTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->hashTableStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->hashTableStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -51,16 +57,16 @@ bool hashtable_init(struct fluffyvm* vm) {
   if (!vm->hashTableStaticData)
     return false;
   
-  create_descriptor(desc_hashTable, struct hashtable, {
-    offsetof(struct hashtable, gc_this),
-    offsetof(struct hashtable, gc_table)
+  create_descriptor("net.fluffyfox.fluffyvm.hashtable.HashTable", hashtableTypeKey, desc_hashTable, struct hashtable, {
+    {"this",  offsetof(struct hashtable, gc_this)},
+    {"table", offsetof(struct hashtable, gc_table)}
   });
 
-  create_descriptor(desc_pair, struct hashtable_pair, {
-    offsetof(struct hashtable_pair, gc_this),
-    offsetof(struct hashtable_pair, gc_next),
-    offsetof(struct hashtable_pair, gc_key),
-    offsetof(struct hashtable_pair, gc_value)
+  create_descriptor("net.fluffyfox.fluffyvm.hashtable.Pair", pairTypeKey, desc_pair, struct hashtable_pair, {
+    {"this", offsetof(struct hashtable_pair, gc_this)},
+    {"next", offsetof(struct hashtable_pair, gc_next)},
+    {"key", offsetof(struct hashtable_pair, gc_key)},
+    {"value", offsetof(struct hashtable_pair, gc_value)}
   });
 
   return true;
@@ -98,7 +104,7 @@ static inline void pair_write_value(struct hashtable_pair* this, struct value va
 }
 
 static struct hashtable_pair* new_pair(struct fluffyvm* vm, foxgc_root_reference_t** rootRef) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->hashTableStaticData->desc_pair, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->hashTableStaticData->desc_pair, NULL);
   if (!obj) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL; 
@@ -176,7 +182,7 @@ static bool resize(struct fluffyvm* vm, struct hashtable* this, int prevCapacity
   foxgc_root_reference_t* newTableRootRef = NULL;
 
   foxgc_object_t* oldTable = this->gc_table;
-  foxgc_object_t* newTable = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &newTableRootRef, desiredCapacity, NULL);
+  foxgc_object_t* newTable = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), tableArrayTypeKey, NULL, fluffyvm_get_root(vm), &newTableRootRef, desiredCapacity, NULL);
   if (!newTable) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return false;
@@ -213,7 +219,7 @@ struct hashtable* hashtable_new(struct fluffyvm* vm, double loadFactor, int init
     return NULL;
   }
 
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, root, rootRef, vm->hashTableStaticData->desc_hashTable, ^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, root, rootRef, vm->hashTableStaticData->desc_hashTable, ^void (foxgc_object_t* obj) {
     struct hashtable* this = foxgc_api_object_get_data(obj);  
     pthread_rwlock_destroy(&this->lock);
   });

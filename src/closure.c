@@ -5,9 +5,13 @@
 #include "closure.h"
 #include "value.h"
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->closureStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(closureTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->closureStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->closureStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -22,10 +26,10 @@ bool closure_init(struct fluffyvm* vm) {
   if (!vm->closureStaticData)
     return false;
 
-  create_descriptor(desc_closure, struct fluffyvm_closure, {
-    offsetof(struct fluffyvm_closure, gc_this), 
-    offsetof(struct fluffyvm_closure, gc_prototype),
-    offsetof(struct fluffyvm_closure, gc_env)
+  create_descriptor("net.fluffyfox.fluffyvm.closure.Closure", closureTypeKey, desc_closure, struct fluffyvm_closure, {
+    {"this", offsetof(struct fluffyvm_closure, gc_this)}, 
+    {"prototype", offsetof(struct fluffyvm_closure, gc_prototype)},
+    {"env", offsetof(struct fluffyvm_closure, gc_env)}
   });
 
   return true;
@@ -43,7 +47,7 @@ void closure_cleanup(struct fluffyvm* vm) {
 }
 
 static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct value env) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, ^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->closureStaticData->desc_closure, ^void (foxgc_object_t* obj) {
     struct fluffyvm_closure* this = foxgc_api_object_get_data(obj);
     if (this->finalizer)
       this->finalizer(this->udata);

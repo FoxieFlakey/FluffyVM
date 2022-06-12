@@ -10,9 +10,19 @@
 #include "format/bytecode.pb-c.h"
 #include "config.h"
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->bytecodeStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(bytecodeTypeKey);
+UNIQUE_KEY(prototypeTypeKey);
+UNIQUE_KEY(prototypesArrayTypeKey);
+UNIQUE_KEY(instructionsArrayTypeKey);
+UNIQUE_KEY(lineInfoArrayTypeKey);
+UNIQUE_KEY(constantsArrayTypeKey);
+UNIQUE_KEY(constantsObjectArrayTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->bytecodeStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->bytecodeStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -27,20 +37,20 @@ bool bytecode_init(struct fluffyvm* vm) {
   if (!vm->bytecodeStaticData)
     return false;
 
-  create_descriptor(desc_bytecode, struct fluffyvm_bytecode, {
-    offsetof(struct fluffyvm_bytecode, gc_this),
-    offsetof(struct fluffyvm_bytecode, gc_constants),
-    offsetof(struct fluffyvm_bytecode, gc_mainPrototype),
-    offsetof(struct fluffyvm_bytecode, gc_constantsObject),
+  create_descriptor("net.fluffyfox.fluffyvm.bytecode.Bytecode", bytecodeTypeKey, desc_bytecode, struct fluffyvm_bytecode, {
+    {"this", offsetof(struct fluffyvm_bytecode, gc_this)},
+    {"constants", offsetof(struct fluffyvm_bytecode, gc_constants)},
+    {"mainPrototype", offsetof(struct fluffyvm_bytecode, gc_mainPrototype)},
+    {"constantsObject", offsetof(struct fluffyvm_bytecode, gc_constantsObject)},
   });
   
-  create_descriptor(desc_prototype, struct fluffyvm_prototype, {
-    offsetof(struct fluffyvm_prototype, gc_this),
-    offsetof(struct fluffyvm_prototype, gc_bytecode),
-    offsetof(struct fluffyvm_prototype, gc_instructions),
-    offsetof(struct fluffyvm_prototype, gc_prototypes),
-    offsetof(struct fluffyvm_prototype, gc_lineInfo),
-    offsetof(struct fluffyvm_prototype, sourceFileObject),
+  create_descriptor("net.fluffyfox.fluffyvm.bytecode.Prototype", prototypeTypeKey, desc_prototype, struct fluffyvm_prototype, {
+    {"this", offsetof(struct fluffyvm_prototype, gc_this)},
+    {"prototypes", offsetof(struct fluffyvm_prototype, gc_bytecode)},
+    {"instructions", offsetof(struct fluffyvm_prototype, gc_instructions)},
+    {"prototypes", offsetof(struct fluffyvm_prototype, gc_prototypes)},
+    {"lineinfo", offsetof(struct fluffyvm_prototype, gc_lineInfo)},
+    {"sourceFileObject", offsetof(struct fluffyvm_prototype, sourceFileObject)},
   });
 
   return true;
@@ -107,7 +117,7 @@ static inline void prototype_write_source_file_name(struct fluffyvm_prototype* p
 ///////////////////////
 
 static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluffyvm_bytecode* bytecode, foxgc_root_reference_t** rootRef, FluffyVmFormat__Bytecode__Prototype* proto) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_prototype, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_prototype, NULL);
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -129,14 +139,14 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
 
   foxgc_root_reference_t* prototypesRef = NULL;
-  foxgc_object_t* prototypesArray = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &prototypesRef, proto->n_prototypes, NULL);
+  foxgc_object_t* prototypesArray = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), prototypesArrayTypeKey, NULL, fluffyvm_get_root(vm), &prototypesRef, proto->n_prototypes, NULL);
   if (!prototypesArray)
     goto no_memory;
   prototype_write_prototypes_array(this, prototypesArray);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), prototypesRef);
   
   foxgc_root_reference_t* instructionsRef = NULL;
-  foxgc_object_t* instructionsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &instructionsRef, sizeof(fluffyvm_instruction_t), proto->n_instructions, NULL);
+  foxgc_object_t* instructionsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), instructionsArrayTypeKey, NULL, fluffyvm_get_root(vm), &instructionsRef, sizeof(fluffyvm_instruction_t), proto->n_instructions, NULL);
   if (!instructionsArray)
     goto no_memory;
   prototype_write_instructions_array(this, instructionsArray);
@@ -145,7 +155,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
   prototype_write_line_info_array(this, NULL);
   if (proto->n_lineinfo > 0) {
     foxgc_root_reference_t* lineInfoRef = NULL;
-    foxgc_object_t* lineInfoArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &lineInfoRef, sizeof(fluffyvm_instruction_t), proto->n_lineinfo, NULL);
+    foxgc_object_t* lineInfoArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), lineInfoArrayTypeKey, NULL, fluffyvm_get_root(vm), &lineInfoRef, sizeof(int), proto->n_lineinfo, NULL);
     if (!lineInfoArray)
       goto no_memory;
     prototype_write_line_info_array(this, lineInfoArray);
@@ -166,7 +176,7 @@ static struct fluffyvm_prototype* loadPrototype(struct fluffyvm* vm, struct fluf
     this->instructions[i] = (fluffyvm_instruction_t) proto->instructions[i];
   
   for (int i = 0; i < proto->n_lineinfo; i++)
-    this->lineInfo[i] = (fluffyvm_instruction_t) proto->lineinfo[i];
+    this->lineInfo[i] = proto->lineinfo[i];
 
   return this;
   
@@ -217,7 +227,7 @@ static void bytecode_write_constant(struct fluffyvm* vm, struct fluffyvm_bytecod
 //////////////////////
 
 struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, void* data, size_t len) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_bytecode, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->bytecodeStaticData->desc_bytecode, NULL);
   if (obj == NULL) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -240,14 +250,14 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
   
   // Allocate resources
   foxgc_root_reference_t* constantsRef = NULL;
-  foxgc_object_t* constantsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &constantsRef, sizeof(struct value), bytecode->n_constants, NULL);
+  foxgc_object_t* constantsArray = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), constantsArrayTypeKey, NULL, fluffyvm_get_root(vm), &constantsRef, sizeof(struct value), bytecode->n_constants, NULL);
   if (!constantsArray)
     goto no_memory;
   bytecode_write_constants_array(this, constantsArray);
   foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), constantsRef);
   
   foxgc_root_reference_t* constantsObjectArrayRef = NULL;
-  foxgc_object_t* constantsObjectArray = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &constantsObjectArrayRef, bytecode->n_constants, NULL);
+  foxgc_object_t* constantsObjectArray = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), constantsObjectArrayTypeKey, NULL, fluffyvm_get_root(vm), &constantsObjectArrayRef, bytecode->n_constants, NULL);
   if (!constantsObjectArray)
     goto no_memory;
   bytecode_write_constants_object_array(this, constantsObjectArray);

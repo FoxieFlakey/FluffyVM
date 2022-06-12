@@ -22,9 +22,17 @@
 #include "util/util.h"
 #include "value.h"
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->coroutineStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(coroutineTypeKey);
+UNIQUE_KEY(callStateTypeKey);
+UNIQUE_KEY(registerArrayTypeKey);
+UNIQUE_KEY(registerObjectArrayTypeKey);
+UNIQUE_KEY(generalObjectStackTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->coroutineStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->coroutineStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -50,19 +58,19 @@ bool coroutine_init(struct fluffyvm* vm) {
   if (!vm->coroutineStaticData)
     return false;
   
-  create_descriptor(desc_coroutine, struct fluffyvm_coroutine, {
-    offsetof(struct fluffyvm_coroutine, gc_this),
-    offsetof(struct fluffyvm_coroutine, gc_stack),
-    offsetof(struct fluffyvm_coroutine, thrownedErrorObject)
+  create_descriptor("net.fluffyfox.fluffyvm.coroutine.Coroutine", coroutineTypeKey, desc_coroutine, struct fluffyvm_coroutine, {
+    {"this", offsetof(struct fluffyvm_coroutine, gc_this)},
+    {"stack", offsetof(struct fluffyvm_coroutine, gc_stack)},
+    {"thrownedError", offsetof(struct fluffyvm_coroutine, thrownedErrorObject)}
   });
   
-  create_descriptor(desc_callState, struct fluffyvm_call_state, {
-    offsetof(struct fluffyvm_call_state, gc_this),
-    offsetof(struct fluffyvm_call_state, gc_registerObjectArray),
-    offsetof(struct fluffyvm_call_state, gc_closure),
-    offsetof(struct fluffyvm_call_state, gc_owner),
-    offsetof(struct fluffyvm_call_state, gc_generalObjectStack),
-    offsetof(struct fluffyvm_call_state, gc_registerArray)
+  create_descriptor("net.fluffyfox.fluffyvm.coroutine.CallState", callStateTypeKey, desc_callState, struct fluffyvm_call_state, {
+    {"this", offsetof(struct fluffyvm_call_state, gc_this)},
+    {"registersObjectArray", offsetof(struct fluffyvm_call_state, gc_registerObjectArray)},
+    {"closure", offsetof(struct fluffyvm_call_state, gc_closure)},
+    {"owner", offsetof(struct fluffyvm_call_state, gc_owner)},
+    {"generalObjectStack", offsetof(struct fluffyvm_call_state, gc_generalObjectStack)},
+    {"registerArray", offsetof(struct fluffyvm_call_state, gc_registerArray)}
   });
 
   return true;
@@ -109,7 +117,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   assert(co);
   
   foxgc_root_reference_t* tmpRootRef2 = NULL;
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
   if (!obj)
     goto no_memory;
   struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
@@ -140,7 +148,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   
   if (!callState->closure->func) {
     // Allocate register array
-    tmp = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, sizeof(struct value), FLUFFYVM_REGISTERS_NUM, NULL);
+    tmp = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), registerArrayTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, sizeof(struct value), FLUFFYVM_REGISTERS_NUM, NULL);
     if (!tmp)
       goto no_memory;
     foxgc_api_write_field(callState->gc_this, 5, tmp);
@@ -149,7 +157,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
    
     // Allocate register objects array
     // to store value which contain GC object
-    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
+    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), registerObjectArrayTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
     if (!tmp)
       goto no_memory;
     foxgc_api_write_field(callState->gc_this, 1, tmp);
@@ -162,7 +170,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   {
     // Allocate register objects stack
     // to store value which contain GC object
-    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
+    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), generalObjectStackTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
     if (!tmp)
       goto no_memory;
     foxgc_api_write_field(callState->gc_this, 4, tmp);
@@ -185,7 +193,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
 }
 
 struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, struct fluffyvm_closure* func) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, ^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->coroutineStaticData->desc_coroutine, ^void (foxgc_object_t* obj) {
     struct fluffyvm_coroutine* this = foxgc_api_object_get_data(obj);
     // I have no clue how this->fiber be null
     if (this->fiber)

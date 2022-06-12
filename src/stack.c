@@ -6,9 +6,14 @@
 #include <stdint.h>
 #include <assert.h>
 
-#define create_descriptor(name, structure, ...) do { \
-  size_t offsets[] = __VA_ARGS__; \
-  vm->stackStaticData->name = foxgc_api_descriptor_new(vm->heap, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(stackTypeKey);
+UNIQUE_KEY(stackArrayTypeKey);
+
+#define create_descriptor(name2, key, name, structure, ...) do { \
+  foxgc_descriptor_pointer_t offsets[] = __VA_ARGS__; \
+  vm->stackStaticData->name = foxgc_api_descriptor_new(vm->heap, fluffyvm_get_owner_key(), key, name2, sizeof(offsets) / sizeof(offsets[0]), offsets, sizeof(structure)); \
   if (vm->stackStaticData->name == NULL) \
     return false; \
 } while (0)
@@ -29,9 +34,9 @@ bool stack_init(struct fluffyvm* vm) {
   if (!vm->stackStaticData)
     return false;
   
-  create_descriptor(desc_stack, struct fluffyvm_stack, {
-    offsetof(struct fluffyvm_stack, gc_this),
-    offsetof(struct fluffyvm_stack, gc_stack)
+  create_descriptor("net.fluffyfox.fluffyvm.stack.Stack", stackTypeKey, desc_stack, struct fluffyvm_stack, {
+    {"this", offsetof(struct fluffyvm_stack, gc_this)},
+    {"stack", offsetof(struct fluffyvm_stack, gc_stack)}
   });
 
   return true;
@@ -45,7 +50,7 @@ void stack_cleanup(struct fluffyvm* vm) {
 }
 
 struct fluffyvm_stack* stack_new(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, int stackSize) {
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, fluffyvm_get_root(vm), rootRef, vm->stackStaticData->desc_stack, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), rootRef, vm->stackStaticData->desc_stack, NULL);
   if (!obj) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     return NULL;
@@ -57,7 +62,7 @@ struct fluffyvm_stack* stack_new(struct fluffyvm* vm, foxgc_root_reference_t** r
   this->sp = 0;
 
   foxgc_root_reference_t* tmp = NULL;
-  foxgc_object_t* stackObj = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), &tmp, stackSize, NULL);
+  foxgc_object_t* stackObj = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), stackArrayTypeKey, NULL, fluffyvm_get_root(vm), &tmp, stackSize, NULL);
   if (!stackObj)
     goto no_memory;
   this->stack = foxgc_api_object_get_data(stackObj);

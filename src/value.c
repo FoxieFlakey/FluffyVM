@@ -19,6 +19,12 @@
 #include "closure.h"
 #include "string_cache.h"
 
+#define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
+
+UNIQUE_KEY(stringDataArrayKey);
+UNIQUE_KEY(userdataTypeKey);
+UNIQUE_KEY(garbageCollectableUserdataTypeKey);
+
 static struct value valueNotPresent = {
   .type = FLUFFYVM_TVALUE_NOT_PRESENT,
   .data = {0}
@@ -54,7 +60,7 @@ struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t
     return valueNotPresent;
   }
 
-  foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, len + 1, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), stringDataArrayKey, NULL, fluffyvm_get_root(vm), rootRef, 1, len + 1, Block_copy(^void (foxgc_object_t* obj) {
     if (finalizer) {
       finalizer();
       Block_release(finalizer);
@@ -155,7 +161,7 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
     return valueNotPresent;
   }
   
-  foxgc_object_t* userdataObj = foxgc_api_new_object_opaque(vm->heap, fluffyvm_get_root(vm), rootRef, size, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* userdataObj = foxgc_api_new_object_opaque(vm->heap, fluffyvm_get_owner_key(), userdataTypeKey, NULL, fluffyvm_get_root(vm), rootRef, size, Block_copy(^void (foxgc_object_t* obj) {
     if (finalizer) {
       finalizer();
       Block_release(finalizer);
@@ -195,7 +201,7 @@ struct value value_new_light_userdata(struct fluffyvm* vm, int moduleID, int typ
 
 struct value value_new_garbage_collectable_userdata(struct fluffyvm* vm, int moduleID, int typeID, foxgc_object_t* object, foxgc_root_reference_t** rootRef) {
   struct value_userdata* userdata = malloc(sizeof(*userdata)); 
-  foxgc_object_t* userdataObj = foxgc_api_new_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* userdataObj = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), garbageCollectableUserdataTypeKey, NULL, fluffyvm_get_root(vm), rootRef, 1, Block_copy(^void (foxgc_object_t* obj) {
     free(userdata);
   }));
   foxgc_api_write_array(userdataObj, 0, object);
@@ -414,7 +420,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
   if (strStruct == NULL)
     goto no_memory;
 
-  foxgc_object_t* obj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_root(vm), rootRef, 1, bufLen, Block_copy(^void (foxgc_object_t* obj) {
+  foxgc_object_t* obj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), stringDataArrayKey, NULL, fluffyvm_get_root(vm), rootRef, 1, bufLen, Block_copy(^void (foxgc_object_t* obj) {
     free(strStruct); 
   }));
 

@@ -1,3 +1,4 @@
+#include <stdint.h>
 #define FLUFFYVM_INTERNAL
 
 #include <pthread.h>
@@ -174,6 +175,11 @@ static void validateThisThread(struct fluffyvm* this) {
   // If thread root not set, abort
   if (!pthread_getspecific(this->currentThreadRootKey))
     abort();
+}
+
+uintptr_t fluffyvm_get_owner_key() {
+  static char key;
+  return (uintptr_t) &key;
 }
 
 int fluffyvm_get_thread_id(struct fluffyvm* this) {
