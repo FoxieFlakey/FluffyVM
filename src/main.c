@@ -75,9 +75,8 @@ static void stdlib_print_stacktrace(struct fluffyvm* F, struct fluffyvm_coroutin
   });
 }
 
-static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  const int tid = fluffyvm_get_thread_id(F);
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
+static int stdlib_print(lua_State* L) {
+  const int tid = fluffyvm_get_thread_id(L->owner);
 
   for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(L); i++)
     printf("[Thread %d] Printer: %s\n", tid, fluffyvm_compat_lua54_lua_tostring(L, i + 1));
@@ -99,13 +98,11 @@ static int stdlib_print(struct fluffyvm* F, struct fluffyvm_call_state* callStat
   }
   */
 
-  stdlib_print_stacktrace(F, callState->owner);
+  stdlib_print_stacktrace(L->owner, L->currentCallState->owner);
   return 0;
 }
 
-static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
-
+static int stdlib_return_string(lua_State* L) {
   fluffyvm_compat_lua54_lua_pushstring(L, "Returned from C function (Printed twice) (arg #1)");
   fluffyvm_compat_lua54_lua_pushstring(L, "Does not exist #1");
   fluffyvm_compat_lua54_lua_pushstring(L, "Does not exist #2");
@@ -122,16 +119,12 @@ static int stdlib_return_string(struct fluffyvm* F, struct fluffyvm_call_state* 
   return fluffyvm_compat_lua54_lua_gettop(L);
 }
 
-static int stdlib_call_func(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
-
+static int stdlib_call_func(lua_State* L) {
   fluffyvm_compat_lua54_lua_call(L, 0, 0);
   return 0;
 }
 
-static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
-
+static int stdlib_call_func2(lua_State* L) {
   fluffyvm_compat_lua54_lua_pushvalue(L, -1);
   
   fluffyvm_compat_lua54_lua_pushliteral(L, "Passing an argument to function (args #1)");
@@ -142,29 +135,9 @@ static int stdlib_call_func2(struct fluffyvm* F, struct fluffyvm_call_state* cal
   return 0;
 }
 
-static int stdlib_error(struct fluffyvm* F, struct fluffyvm_call_state* callState, void* udata) {
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
-
+static int stdlib_error(lua_State* L) {
   fluffyvm_compat_lua54_lua_error(L);
   return 0;
-}
-
-static void registerCFunction(struct fluffyvm* F, const char* name, closure_cfunction_t cfunc) {
-  struct value globalTable = fluffyvm_get_global(F);
-
-  foxgc_root_reference_t* printRootRef = NULL;
-  foxgc_root_reference_t* printStringRootRef = NULL;
-  struct fluffyvm_closure* printFunc = closure_from_cfunction(F, &printRootRef, cfunc, NULL, NULL, globalTable);
-  assert(printFunc);
-  
-  struct value printVal = value_new_closure(F, printFunc);
-  struct value printString = value_new_string_constant(F, name, &printStringRootRef);
-  assert(printString.type != FLUFFYVM_TVALUE_NOT_PRESENT);
-  
-  value_table_set(F, globalTable, printString, printVal);
-
-  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printRootRef);
-  foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), printStringRootRef);
 }
 
 #define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
@@ -216,11 +189,12 @@ int main2() {
   
   collectAndPrintMemUsage("After VM creation but before test");
     
-  registerCFunction(F, "print", stdlib_print);
-  registerCFunction(F, "return_string", stdlib_return_string);
-  registerCFunction(F, "call_func", stdlib_call_func);
-  registerCFunction(F, "error", stdlib_error);
-  registerCFunction(F, "call_func2", stdlib_call_func2);
+  lua_State* L = fluffyvm_get_executing_coroutine(F);
+  fluffyvm_compat_lua54_lua_register(L, "print", stdlib_print);
+  fluffyvm_compat_lua54_lua_register(L, "return_string", stdlib_return_string);
+  fluffyvm_compat_lua54_lua_register(L, "call_func", stdlib_call_func);
+  fluffyvm_compat_lua54_lua_register(L, "error", stdlib_error);
+  fluffyvm_compat_lua54_lua_register(L, "call_func2", stdlib_call_func2);
   
   /*
   struct value globalTable = F->globalTable;
@@ -284,8 +258,6 @@ int main2() {
     fluffyvm_clear_errmsg(F);
     return NULL;
   };
-  
-  lua_State* L = fluffyvm_get_executing_coroutine(F);
   
   test(NULL);
 

@@ -73,7 +73,7 @@ Done           | lua_pushlightuserdata
 Done           | lua_pushliteral
 Done           | lua_pushlstring
 Done           | lua_pushnil
-Not done       | lua_pushnumber
+Done           | lua_pushnumber
 Done           | lua_pushstring
 Done           | lua_pushthread
 Done           | lua_pushvalue
@@ -91,10 +91,10 @@ Done           | lua_remove
 Done           | lua_replace
 Not done       | lua_resetthread
 Done           | lua_resume
-Not done       | lua_rotate
+Done           | lua_rotate
 Not done       | lua_setallocf
-Not done       | lua_setfield
-Not done       | lua_setglobal
+Done           | lua_setfield
+Done           | lua_setglobal
 Not done       | lua_sethook
 Not done       | lua_seti
 Not done       | lua_setiuservalue

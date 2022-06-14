@@ -44,6 +44,11 @@ static struct value getValueAtStackIndex(lua_State* L, int idx) {
   return tmp;
 }
 
+static void ensureStackFits(lua_State* L, int n) {
+  if (!fluffyvm_compat_lua54_lua_checkstack(L, n))
+    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+}
+
 EXPORT FLUFFYVM_DECLARE(void, lua_call, lua_State* L, int nargs, int nresults) { 
   if ((nresults < 0 && nresults != LUA_MULTRET) || nargs < 0)
     interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
@@ -147,16 +152,12 @@ EXPORT FLUFFYVM_DECLARE(void, lua_remove, lua_State* L, int idx) {
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushnil, lua_State* L) {
   struct fluffyvm_call_state* callState = L->currentCallState;
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   interpreter_push(L->owner, callState, value_nil()); 
 }
 
 FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s) { 
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   struct fluffyvm_call_state* callState = L->currentCallState;
   
   foxgc_root_reference_t* tmpRootRef = NULL;
@@ -167,9 +168,7 @@ FLUFFYVM_DECLARE(const char*, lua_pushstring, lua_State* L, const char* s) {
 }
 
 EXPORT FLUFFYVM_DECLARE(const char*, lua_pushliteral, lua_State* L, const char* s) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   struct fluffyvm_call_state* callState = L->currentCallState;
   
   foxgc_root_reference_t* tmpRootRef = NULL;
@@ -191,9 +190,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_error, lua_State* L) {
 }
 
 FLUFFYVM_DECLARE(void, lua_pushvalue, lua_State* L, int idx) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   struct fluffyvm_call_state* callState = L->currentCallState;
   struct value sourceValue = getValueAtStackIndex(L, idx);
   
@@ -429,9 +426,7 @@ EXPORT FLUFFYVM_DECLARE(int, lua_isyieldable, lua_State* L) {
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-
+  ensureStackFits(L, 1);
   struct value val = getValueAtStackIndex(L, idx);
   if (val.type == FLUFFYVM_TVALUE_STRING) {
     struct value len = value_new_long(L->owner, value_get_len(val));
@@ -451,9 +446,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_len, lua_State* L, int idx) {
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_createtable, lua_State* L, int narr, int nrec) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   foxgc_root_reference_t* rootRef;
   struct value table = value_new_table(L->owner, FLUFFYVM_HASHTABLE_DEFAULT_LOAD_FACTOR, nrec, &rootRef);
   if (table.type == FLUFFYVM_TVALUE_NOT_PRESENT)
@@ -486,9 +479,7 @@ static int trampoline(struct fluffyvm* F, struct fluffyvm_call_state* callState,
 }
 
 EXPORT FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   foxgc_root_reference_t* coroutineRootRef = NULL;
   
   struct value thread = value_new_coroutine(L->owner, L->owner->compatLayerLua54StaticData->coroutineTrampoline, &coroutineRootRef);
@@ -512,9 +503,7 @@ EXPORT FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int na
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   foxgc_root_reference_t* rootRef;
   struct value data = value_new_light_userdata(L->owner, L->owner->modules.compatLayer_Lua54.moduleID, L->owner->modules.compatLayer_Lua54.type.userdata, ptr, &rootRef, NULL);
   interpreter_push(L->owner, L->currentCallState, data);
@@ -522,16 +511,12 @@ EXPORT FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushinteger, lua_State* L, lua_Integer integer) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   interpreter_push(L->owner, L->currentCallState, value_new_long(L->owner, integer));
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushnumber, lua_State* L, lua_Number number) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   interpreter_push(L->owner, L->currentCallState, value_new_double(L->owner, number));
 }
 
@@ -540,9 +525,7 @@ static int cFunctionTrampoline(struct fluffyvm* F, struct fluffyvm_call_state* c
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushcfunction, lua_State* L, lua_CFunction f) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   foxgc_root_reference_t* closureRootRef = NULL;
   struct fluffyvm_closure* closure = closure_from_cfunction(L->owner, &closureRootRef, cFunctionTrampoline, f, NULL, L->currentCallState->closure->env);
   if (!closure)
@@ -603,9 +586,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_rotate, lua_State* L, int idx, int n) {
 }
 
 EXPORT FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* s, size_t len) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   struct fluffyvm_call_state* callState = L->currentCallState;
   
   foxgc_root_reference_t* tmpRootRef = NULL;
@@ -617,17 +598,13 @@ EXPORT FLUFFYVM_DECLARE(const char*, lua_pushlstring, lua_State* L, const char* 
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushglobaltable, lua_State* L) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-
+  ensureStackFits(L, 1);
   struct fluffyvm_call_state* callState = L->currentCallState;  
   interpreter_push(L->owner, callState, callState->closure->env);
 }
   
 EXPORT FLUFFYVM_DECLARE(int, lua_pushthread, lua_State* L) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   struct fluffyvm_call_state* callState = L->currentCallState;
   struct value string = value_new_coroutine2(L->owner, L);
   interpreter_push(L->owner, callState, string); 
@@ -691,15 +668,46 @@ EXPORT FLUFFYVM_DECLARE(lua_CFunction, lua_tocfunction, lua_State* L, int idx) {
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushboolean, lua_State* L, int b) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(L, 1))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
-  
+  ensureStackFits(L, 1);  
   interpreter_push(L->owner, L->currentCallState, value_new_bool(L->owner, (bool) b));
 }
 
+FLUFFYVM_DECLARE(void, lua_setglobal, lua_State* L, const char* name) {
+  struct value val = getValueAtStackIndex(L, -1);
+  struct value global = fluffyvm_get_global(L->owner);
+  
+  foxgc_root_reference_t* ref;
+  struct value key = value_new_string(L->owner, name, &ref);
+  if (key.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
 
+  if (!value_table_set(L->owner, global, key, val))
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
 
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), ref);  
+  fluffyvm_compat_lua54_lua_pop(L, 1);
+}
 
+FLUFFYVM_DECLARE(void, lua_setfield, lua_State* L, int tableIndex, const char* name) {
+  struct value table = getValueAtStackIndex(L, tableIndex);
+  struct value val = getValueAtStackIndex(L, -1);
+  
+  foxgc_root_reference_t* ref;
+  struct value key = value_new_string(L->owner, name, &ref);
+  if (key.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+
+  if (!value_table_set(L->owner, table, key, val))
+    interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
+
+  foxgc_api_remove_from_root2(L->owner->heap, fluffyvm_get_root(L->owner), ref);  
+  fluffyvm_compat_lua54_lua_pop(L, 1);
+}
+
+FLUFFYVM_DECLARE(void, lua_register, lua_State* L, const char* name, lua_CFunction cfunc) {
+  fluffyvm_compat_lua54_lua_pushcfunction(L, cfunc);
+  fluffyvm_compat_lua54_lua_setglobal(L, name);
+}
 
 
 

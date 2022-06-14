@@ -118,6 +118,9 @@ FLUFFYVM_DECLARE(lua_State*, lua_tothread, lua_State* L, int idx);
 FLUFFYVM_DECLARE(int, lua_toboolean, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(lua_CFunction, lua_tocfunction, lua_State* L, int idx); 
 FLUFFYVM_DECLARE(void, lua_pushboolean, lua_State* L, int b);
+FLUFFYVM_DECLARE(void, lua_setglobal, lua_State* L, const char* name);
+FLUFFYVM_DECLARE(void, lua_setfield, lua_State* L, int tableIndex, const char* name);
+FLUFFYVM_DECLARE(void, lua_register, lua_State* L, const char* name, lua_CFunction cfunc);
 
 //FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults); 
 
