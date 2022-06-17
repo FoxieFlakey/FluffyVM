@@ -415,6 +415,9 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
     case FLUFFYVM_TVALUE_NOT_PRESENT:
       abort(); /* Can't happen */
   }
+
+  // snprintf return excluding NULL terminator
+  bufLen++;
   
   struct value_string* strStruct = malloc(sizeof(*strStruct));
   if (strStruct == NULL)
@@ -701,7 +704,7 @@ bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, 
   checkPresent(&key);
   checkPresent(&value);
   if (table.type != FLUFFYVM_TVALUE_TABLE) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToIndexNonIndexableValue);
+    fluffyvm_set_errmsg_printf(vm, "attempt to index '%s'", value_get_string(value_typename(vm, table)));
     return false;
   }
   
@@ -709,23 +712,25 @@ bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, 
   return true;
 }
 
+/*
 bool value_table_remove(struct fluffyvm* vm, struct value table, struct value key) {
   checkPresent(&table);
   checkPresent(&key);
   if (table.type != FLUFFYVM_TVALUE_TABLE) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToIndexNonIndexableValue);
+    fluffyvm_set_errmsg_printf(vm, "attempt to remove a key/value pair from '%s'", value_get_string(value_typename(vm, table)));
     return false;
   }
   
   hashtable_remove(vm, foxgc_api_object_get_data(table.data.table), key);
   return true;
 }
+*/
 
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef) {
   checkPresent(&table);
   checkPresent(&key);
   if (table.type != FLUFFYVM_TVALUE_TABLE) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToIndexNonIndexableValue);
+    fluffyvm_set_errmsg_printf(vm, "attempt to index '%s'", value_get_string(value_typename(vm, table)));
     return value_not_present();
   }
   
@@ -786,4 +791,13 @@ bool value_is_callable(struct value val) {
   }
   abort();
 }
+
+/*
+VALUE_DECLARE_MATH_OP(value_math_add);
+VALUE_DECLARE_MATH_OP(value_math_sub);
+VALUE_DECLARE_MATH_OP(value_math_mul);
+VALUE_DECLARE_MATH_OP(value_math_div);
+VALUE_DECLARE_MATH_OP(value_math_mod);
+VALUE_DECLARE_MATH_OP(value_math_pow);
+*/
 

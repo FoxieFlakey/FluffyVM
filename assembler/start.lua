@@ -14,6 +14,9 @@ local strFromAPrototypeSettedInTheEnv = const("This message is from a prototype 
 local strFromFunctionCalledByC = const("This message is from a prototype called from C function")
 local strErrorMessage = const("An error thrown through C function")
 local strThisReturnedToC = const("This string was returned to C")
+local strNextThereIsNumber = const("There will be a number after this message")
+
+local anInteger = const(5)
 
 local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
@@ -143,12 +146,22 @@ start_prototype()
     
     stack_pop(COND_NONE, NIL)
     
-    get_constant(COND_NONE, 0x0001, strErrorMessage)
+    --get_constant(COND_NONE, 0x0001, strErrorMessage)
+    --stack_push(COND_NONE, 0x0001)
+    
+    get_constant(COND_NONE, 0x0001, strNextThereIsNumber)
     stack_push(COND_NONE, 0x0001)
     
-    get_constant(COND_NONE, 0x0001, strError)
+    --get_constant(COND_NONE, 0x0001, strError)
+    --table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+    --call(COND_NONE, 0x0001, 0, 0, 2)
+     
+    get_constant(COND_NONE, 0x0001, anInteger)
+    stack_push(COND_NONE, 0x0001)
+    
+    get_constant(COND_NONE, 0x0001, strPrint)
     table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
-    call(COND_NONE, 0x0001, 0, 0, 2)
+    call(COND_NONE, 0x0001, 0, 0, 1)
 
     ret(COND_NONE, 0, 0)
     

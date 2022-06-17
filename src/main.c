@@ -79,7 +79,7 @@ static int stdlib_print(lua_State* L) {
   const int tid = fluffyvm_get_thread_id(L->owner);
 
   for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(L); i++)
-    printf("[Thread %d] Printer: %s\n", tid, fluffyvm_compat_lua54_lua_tostring(L, i + 1));
+    printf("[Thread %d] Printer: %s  (%zu)\n", tid, fluffyvm_compat_lua54_lua_tostring(L, i + 1), strlen(fluffyvm_compat_lua54_lua_tostring(L, i + 1)));
 
   /*
   static atomic_bool hasDump = false;

@@ -12,8 +12,10 @@
 #include "coroutine.h"
 #include "fluffyvm.h"
 #include "util/functional/functional.h"
+#include "util/util.h"
 #include "value.h"
 #include "opcodes.h"
+#include "api_layer/types.h"
 
 static int instructionFieldUsed[FLUFFYVM_OPCODE_LAST] = {
 # define X(name, op, nameInString, fieldsUsed, ...) \
@@ -354,7 +356,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           }
 
           if (!value_is_callable(val)) {
-            fluffyvm_set_errmsg(vm, vm->staticStrings.attemptToCallNonCallableValue);
+            fluffyvm_set_errmsg_printf(vm, "attempt to call non callable value of type '%s'", value_get_string(value_typename(vm, val)));
             goto error;
           }
           
@@ -468,15 +470,15 @@ struct value interpreter_get_env(struct fluffyvm* vm, struct fluffyvm_call_state
   return callState->closure->env;
 }
 
-void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
+static void errorCommon(struct fluffyvm* vm, struct value errmsg) {
   fluffyvm_set_errmsg(vm, errmsg);
 
   struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
   assert(co);
 
   if (co->errorHandler == NULL) {
+    foxgc_root_reference_t* tmpRootRef = NULL;
     if (fluffyvm_is_errmsg_present(vm)) {
-      foxgc_root_reference_t* tmpRootRef;
       struct value errMsg = value_tostring(vm, errmsg, &tmpRootRef);
       if (errMsg.type == FLUFFYVM_TVALUE_NOT_PRESENT)
         fprintf(stderr, "[FATAL] Error thrown without any handler (conversion error!)");
@@ -485,9 +487,57 @@ void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
     } else {
       fprintf(stderr, "[FATAL] Error thrown without any handler (error message not present)");
     }
+    if (tmpRootRef)
+      foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
     abort(); // Error thrown without any handler
   }
+}
 
+static void commonErrorPrintf(struct fluffyvm* vm, const char* fmt, va_list list) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
+  char* msg;
+  util_vasprintf(&msg, fmt, list);
+  foxgc_root_reference_t* rootRef = NULL;
+  struct value val = value_new_string(vm, msg, &rootRef);
+ 
+  if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    value_copy(&val, vm->staticStrings.outOfMemoryWhileAnErrorOccured);
+
+  if (rootRef)
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
+
+  free(msg);
+
+  errorCommon(vm, val);
+}
+
+void interpreter_error(struct fluffyvm* vm, struct value errmsg) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
+  errorCommon(vm, errmsg);
+  longjmp(*co->errorHandler, 1);
+}
+
+void interpreter_error_printf(struct fluffyvm* vm, const char* fmt, ...) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
+  va_list list;
+  va_start(list, fmt);
+  commonErrorPrintf(vm, fmt, list);
+  va_end(list);
+  
+  longjmp(*co->errorHandler, 1);
+}
+
+void interpreter_error_vprintf(struct fluffyvm* vm, const char* fmt, va_list list) {
+  struct fluffyvm_coroutine* co = fluffyvm_get_executing_coroutine(vm);
+  assert(co);
+  
+  commonErrorPrintf(vm, fmt, list);
   longjmp(*co->errorHandler, 1);
 }
 

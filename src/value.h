@@ -2,6 +2,7 @@
 #define header_1650698040_value_h
 
 #include <stdint.h>
+#include <stdarg.h> 
 #include <string.h>
 #include <stdbool.h>
 
@@ -150,11 +151,22 @@ struct value value_todouble(struct fluffyvm* vm, struct value value);
 
 // Action to do if this table
 bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, struct value value);
-bool value_table_remove(struct fluffyvm* vm, struct value table, struct value key);
+//bool value_table_remove(struct fluffyvm* vm, struct value table, struct value key);
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef);
 bool value_table_is_indexable(struct value val);
 
 int value_get_module_id();
+
+// Math operations
+typedef struct value (*value_math_operation_t)(struct fluffyvm* vm, struct value op1, struct value op2);
+#define VALUE_DECLARE_MATH_OP(name) struct value name(struct fluffyvm* vm, struct value op1, struct value op2)
+
+VALUE_DECLARE_MATH_OP(value_math_add);
+VALUE_DECLARE_MATH_OP(value_math_sub);
+VALUE_DECLARE_MATH_OP(value_math_mul);
+VALUE_DECLARE_MATH_OP(value_math_div);
+VALUE_DECLARE_MATH_OP(value_math_mod);
+VALUE_DECLARE_MATH_OP(value_math_pow);
 
 #endif
 

@@ -5,6 +5,7 @@
 #include <stdbool.h>
 #include <pthread.h>
 
+#include "config.h"
 #include "value.h"
 #include "foxgc.h"
 #include "collections/list.h"
@@ -12,7 +13,6 @@
 // X macro idea is awsome
 #define FLUFFYVM_STATIC_STRINGS \
   X(outOfMemory, "out of memory") \
-  X(outOfMemoryWhileHandlingError, "out of memory while handling another error") \
   X(outOfMemoryWhileAnErrorOccured, "out of memory while another error occured") \
   X(strtodDidNotProcessAllTheData, "strtod did not process all the data") \
   X(typenames_nil, "nil") \
@@ -33,27 +33,30 @@
   X(pthreadCreateError, "pthread_create call unsuccessful") \
   X(invalidBytecode, "invalid bytecode") \
   X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
-  X(invalidArrayBound, "invalid array bound") \
   X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
   X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine") \
   X(illegalInstruction, "illegal instruction") \
   X(stackOverflow, "stack overflow") \
   X(stackUnderflow, "stack underflow") \
-  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
-  X(attemptToCallNonCallableValue, "attempt to call not callable value") \
   X(notInCoroutine, "not in coroutine") \
   X(coroutineNestTooDeep, "coroutine nest too deep") \
   X(attemptToLoadNonExistentPrototype, "attempt to load not existent prototype") \
   X(attemptToCallNilValue, "attempt to call nil value") \
-  X(expectNonZeroGotNegative, "expect non zero got negative") \
   X(invalidRemoveCall, "invalid argument for interpreter_remove") \
   X(invalidStackIndex, "invalid stack index for C function (lua C API compatibility layer)") \
-  X(expectLongOrDoubleOrString, "expect long or double or string") \
   X(bool_true, "true") \
   X(bool_false, "false") \
   X(nativeFunctionExplicitlyDisabledYieldingForThisCoroutine, "A native function explicitly disabled yielding for this coroutine") \
   X(attemptToXmoveOnRunningCoroutine, "attempt to xmove on running coroutine") \
   X(attemptToXmoveOnDeadCoroutine, "attempt to xmove on dead coroutine")
+  
+/*
+  X(invalidArrayBound, "invalid array bound") \
+  X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
+  X(attemptToCallNonCallableValue, "attempt to call not callable value") \
+  X(expectNonZeroGotNegative, "expect non zero got negative") \
+  X(expectLongOrDoubleOrString, "expect long or double or string") \
+*/
 
 struct fluffyvm {
   foxgc_heap_t* heap;
@@ -147,6 +150,10 @@ void fluffyvm_set_global(struct fluffyvm* this, struct value val);
 struct value fluffyvm_get_global(struct fluffyvm* this);
 
 uintptr_t fluffyvm_get_owner_key();
+
+ATTRIBUTE((format(printf, 2, 3)))
+void fluffyvm_set_errmsg_printf(struct fluffyvm* vm, const char* fmt, ...);
+void fluffyvm_set_errmsg_vprintf(struct fluffyvm* vm, const char* fmt, va_list list);
 
 //////////////////////////////////////////////////
 // Calls below this line will call abort        //

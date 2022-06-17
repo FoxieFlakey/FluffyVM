@@ -50,9 +50,11 @@ static void ensureStackFits(lua_State* L, int n) {
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_call, lua_State* L, int nargs, int nresults) { 
-  if ((nresults < 0 && nresults != LUA_MULTRET) || nargs < 0)
-    interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
-  
+  if (nresults < 0 && nresults != LUA_MULTRET)
+    interpreter_error_printf(L->owner, "%s: nresults (%d) is invalid and not LUA_MULTRET", __func__, nresults);
+  if (nargs < 0)
+    interpreter_error_printf(L->owner, "%s: nargs (%d) is negative", __func__, nargs);
+
   struct fluffyvm_call_state* currentCallState = L->currentCallState;
   int funcPosition = currentCallState->sp - nargs - 1;
   struct value func;
@@ -89,7 +91,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_callk, lua_State* L, int nargs, int nresults) 
 
 EXPORT FLUFFYVM_DECLARE(int, lua_checkstack, lua_State* L, int n) {
   if (n < 0)
-    interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
+    interpreter_error_printf(L->owner, "%s: expect positive n got %d", __func__, n);
 
   // the `sp` is pointing to `top + 1`
   // no need to account off by one
@@ -138,7 +140,7 @@ EXPORT FLUFFYVM_DECLARE(void, lua_pop, lua_State* L, int count) {
     return;
   
   if (count < 0)
-    interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
+    interpreter_error_printf(L->owner, "%s: expected positive count got %d", __func__, count);
  
   for (int i = 0; i < count; i++)
     if (!interpreter_pop(L->owner, L->currentCallState, NULL, NULL))
@@ -212,7 +214,7 @@ FLUFFYVM_DECLARE(const char*, lua_tolstring, lua_State* L, int idx, size_t* len)
         struct value tmp = value_tostring(L->owner, val, &tmpRootRef);
         if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
           interpreter_error(L->owner, fluffyvm_get_errmsg(L->owner));
-  
+         
         value_copy(&callState->generalStack[location], tmp);
         value_copy(&val, tmp);
         foxgc_api_write_array(callState->gc_generalObjectStack, location, value_get_object_ptr(tmp));
@@ -221,7 +223,7 @@ FLUFFYVM_DECLARE(const char*, lua_tolstring, lua_State* L, int idx, size_t* len)
         break;
       }
     default:
-      interpreter_error(L->owner, L->owner->staticStrings.expectLongOrDoubleOrString);
+      interpreter_error_printf(L->owner, "%s: expect long or number got %s", __func__, value_get_string(value_typename(L->owner, val)));
   }
 
   if (len)
@@ -493,13 +495,12 @@ EXPORT FLUFFYVM_DECLARE(lua_State*, lua_newthread, lua_State* L) {
 }
 
 EXPORT FLUFFYVM_DECLARE(int, lua_resume, lua_State* L, lua_State* target, int nargs, int* nresults) {
-  if (!fluffyvm_compat_lua54_lua_checkstack(target, 8 + nargs))
-    interpreter_error(L->owner, L->owner->staticStrings.stackOverflow);
+  ensureStackFits(L, 8 + nargs);
  
   fluffyvm_compat_lua54_lua_pushlightuserdata(target, nresults);
   fluffyvm_compat_lua54_lua_pushinteger(target, nargs);
   coroutine_resume(target->owner, target);
-  return !LUA_OK;
+  return target->hasError ? LUA_ERRRUN : LUA_OK;
 }
 
 EXPORT FLUFFYVM_DECLARE(void, lua_pushlightuserdata, lua_State* L, void* ptr) {
@@ -614,7 +615,7 @@ EXPORT FLUFFYVM_DECLARE(int, lua_pushthread, lua_State* L) {
 EXPORT FLUFFYVM_DECLARE(void, lua_xmove, lua_State* L, lua_State* to, int n) {
   assert(L->owner == to->owner);
   if (n < 0)
-    interpreter_error(L->owner, L->owner->staticStrings.expectNonZeroGotNegative);
+    interpreter_error_printf(L->owner, "%s: expected positive n got %d", __func__, n);
 
   if (to->fiber->state == FIBER_RUNNING)
     interpreter_error(L->owner, L->owner->staticStrings.attemptToXmoveOnRunningCoroutine);

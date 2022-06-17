@@ -1,6 +1,7 @@
 #ifndef header_1652092729_interpreter_h
 #define header_1652092729_interpreter_h
 
+#include <stdarg.h>
 #include <stddef.h>
 
 #include "coroutine.h"
@@ -28,6 +29,10 @@ bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState
 //bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count);
 
 void interpreter_error(struct fluffyvm* vm, struct value errmsg);
+
+ATTRIBUTE((format(printf, 2, 3)))
+void interpreter_error_printf(struct fluffyvm* vm, const char* fmt, ...);
+void interpreter_error_vprintf(struct fluffyvm* vm, const char* fmt, va_list list);
 
 // Return index to last accessible stack entry
 // so when do bound check use <= not <

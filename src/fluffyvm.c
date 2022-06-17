@@ -1,6 +1,6 @@
-#include <stdint.h>
 #define FLUFFYVM_INTERNAL
 
+#include <stdint.h>
 #include <pthread.h>
 #include <stdatomic.h>
 #include <stdio.h>
@@ -17,6 +17,7 @@
 #include "fluffyvm.h"
 #include "foxgc.h"
 #include "hashtable.h"
+#include "util/util.h"
 #include "loader/bytecode/json.h"
 #include "value.h"
 #include "fluffyvm_types.h"
@@ -530,5 +531,31 @@ bool fluffyvm_push_current_coroutine(struct fluffyvm* this, struct fluffyvm_coro
   validateThisThread(this);
   return stack_push(this, pthread_getspecific(this->coroutinesStack), co->gc_this);
 }
+
+void fluffyvm_set_errmsg_printf(struct fluffyvm* vm, const char* fmt, ...) {
+  va_list list;
+  va_start(list, fmt);
+  fluffyvm_set_errmsg_vprintf(vm, fmt, list);
+  va_end(list);
+}
+
+void fluffyvm_set_errmsg_vprintf(struct fluffyvm* vm, const char* fmt, va_list list) {
+  char* msg;
+  util_vasprintf(&msg, fmt, list);
+  foxgc_root_reference_t* rootRef = NULL;
+  struct value val = value_new_string(vm, msg, &rootRef);
+
+  if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemoryWhileAnErrorOccured);
+  else
+    fluffyvm_set_errmsg(vm, val);
+  
+  if (rootRef)
+    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
+  free(msg);
+}
+
+
+
 
 

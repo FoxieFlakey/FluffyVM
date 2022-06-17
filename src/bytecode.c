@@ -332,7 +332,7 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
 // Getters
 struct value bytecode_get_constant(struct fluffyvm* vm, struct fluffyvm_bytecode* this, foxgc_root_reference_t** rootRef, int index) {
   if (index < 0 || index >= this->constants_len) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidArrayBound);
+    fluffyvm_set_errmsg_printf(vm, "invalid constant index %d out of 0 - %zu range" ,index, this->constants_len - 1);
     return value_not_present();
   }
   
@@ -345,7 +345,7 @@ struct value bytecode_get_constant(struct fluffyvm* vm, struct fluffyvm_bytecode
 
 struct fluffyvm_prototype* bytecode_prototype_get_prototype(struct fluffyvm* vm, struct fluffyvm_prototype* this, foxgc_root_reference_t** rootRef, int index) {
   if (index < 0 || index >= this->prototypes_len) { 
-    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidArrayBound);
+    fluffyvm_set_errmsg_printf(vm, "invalid prototype index %d out of 0 - %zu range" ,index, this->prototypes_len - 1);
     return NULL;
   }
 
