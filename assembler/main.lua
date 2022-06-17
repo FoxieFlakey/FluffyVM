@@ -63,7 +63,13 @@ local opcode = {
   ret = 0x08,
   extra = 0x09,
   stack_get_top = 0x0A,
-  load_prototype = 0x0B
+  load_prototype = 0x0B,
+  add = 0x0C,
+  sub = 0x0D,
+  mul = 0x0E,
+  div = 0x0F,
+  mod = 0x10,
+  pow = 0x11,
 }
 ---------------------------------------------------
 function isValidReg(reg)
@@ -246,6 +252,54 @@ function global.mov(cond, src, dest)
   checkReg(src)
   checkReg(dest)
   emitInstruction(opcode.mov, cond, src, dest)
+end
+---------------------------------------------------
+function global.add(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.add, cond, a, b, c)
+end
+---------------------------------------------------
+function global.sub(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.sub, cond, a, b, c)
+end
+---------------------------------------------------
+function global.mul(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.mul, cond, a, b, c)
+end
+---------------------------------------------------
+function global.div(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.div, cond, a, b, c)
+end
+---------------------------------------------------
+function global.mod(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.mod, cond, a, b, c)
+end
+---------------------------------------------------
+function global.pow(cond, a, b, c)
+  checkCond(cond)
+  checkReg(a)
+  checkReg(b)
+  checkReg(c)
+  emitInstruction(opcode.pow, cond, a, b, c)
 end
 ---------------------------------------------------
 function global.table_set(cond, table, key, data)

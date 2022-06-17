@@ -287,6 +287,24 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         //printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
         setRegister(vm, callState, ins.A, getRegister(vm, callState, ins.B));
         break;
+      case FLUFFYVM_OPCODE_ADD:
+        setRegister(vm, callState, ins.A, value_math_add(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_SUB:
+        setRegister(vm, callState, ins.A, value_math_sub(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_MUL:
+        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_DIV:
+        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_MOD:
+        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_POW:
+        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
       case FLUFFYVM_OPCODE_LOAD_PROTOTYPE:
       {
         //printf("0x%08X: R(%d) = Proto[%d]\n", pc, ins.A, ins.B);

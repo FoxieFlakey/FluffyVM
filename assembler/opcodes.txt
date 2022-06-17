@@ -72,12 +72,12 @@ Opcode	Mnemonic		Description
 0x0B	load_prototype(A, B)	R(A) = Proto[B]
 
 // Maths
-0x0E	add(A, B, C)		R(A) = R(B) + R(C)
-0x0F	sub(A, B, C)		R(A) = R(B) - R(C)
-0x1F  mul(A, B, C)    R(A) = R(B) * R(C)
-0x10  div(A, B, C)    R(A) = R(B) / R(C) 
-0x11  mod(A, B, C)    R(A) = R(B) % R(C)
-0x12  pow(A, B, C)    R(A) = R(B) ^ R(C)
+0x0C	add(A, B, C)		R(A) = R(B) + R(C)
+0x0D	sub(A, B, C)		R(A) = R(B) - R(C)
+0x0E  mul(A, B, C)    R(A) = R(B) * R(C)
+0x0F  div(A, B, C)    R(A) = R(B) / R(C) 
+0x10  mod(A, B, C)    R(A) = R(B) % R(C)
+0x11  pow(A, B, C)    R(A) = R(B) ^ R(C)
 
 Note:
  * All operands is 16 bit unsigned integers unless noted

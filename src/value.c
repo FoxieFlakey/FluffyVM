@@ -5,8 +5,10 @@
 #include <string.h>
 #include <errno.h>
 #include <Block.h>
+#include <math.h>
 #include <inttypes.h>
 
+#include "api_layer/types.h"
 #include "coroutine.h"
 #include "util/functional/functional.h"
 #include "value.h"
@@ -481,7 +483,11 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
 }
 
 struct value value_typename(struct fluffyvm* vm, struct value value) {
-  switch (value.type) {
+  return value_typename2(vm, value.type);
+}
+
+struct value value_typename2(struct fluffyvm* vm, value_types_t valueType) {
+  switch (valueType) { 
     case FLUFFYVM_TVALUE_STRING:
       return vm->staticStrings.typenames_string;
     case FLUFFYVM_TVALUE_LONG:
@@ -792,12 +798,66 @@ bool value_is_callable(struct value val) {
   abort();
 }
 
-/*
-VALUE_DECLARE_MATH_OP(value_math_add);
-VALUE_DECLARE_MATH_OP(value_math_sub);
-VALUE_DECLARE_MATH_OP(value_math_mul);
-VALUE_DECLARE_MATH_OP(value_math_div);
-VALUE_DECLARE_MATH_OP(value_math_mod);
-VALUE_DECLARE_MATH_OP(value_math_pow);
-*/
+static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2) {
+  if (op1->type != FLUFFYVM_TVALUE_LONG && op1->type != FLUFFYVM_TVALUE_DOUBLE)
+    return false;
+  if (op2->type != FLUFFYVM_TVALUE_LONG && op2->type != FLUFFYVM_TVALUE_DOUBLE)
+    return false;
+
+  if (op1->type == op2->type)
+    return true;
+
+  if (op1->type == FLUFFYVM_TVALUE_DOUBLE)
+    value_copy(op2, value_todouble(vm, *op2));
+  else
+    value_copy(op1, value_todouble(vm, *op1));
+
+  return true;
+}
+
+#define X(name, op, ...) \
+VALUE_DECLARE_MATH_OP(value_math_ ## name) { \
+  if (!mathCommon(vm, &op1, &op2)) \
+    return value_not_present(); \
+  switch (op1.type) { \
+    case FLUFFYVM_TVALUE_LONG: \
+      return value_new_long(vm, op1.data.longNum op op2.data.longNum); \
+    case FLUFFYVM_TVALUE_DOUBLE: \
+      return value_new_double(vm, op1.data.doubleData op op2.data.doubleData); \
+    default: \
+        abort(); \
+  } \
+}
+
+VALUE_MATH_OPS
+#undef X
+
+VALUE_DECLARE_MATH_OP(value_math_mod) {
+  if (!mathCommon(vm, &op1, &op2))
+    return value_not_present();
+
+  switch (op1.type) {
+    case FLUFFYVM_TVALUE_LONG:
+      return value_new_long(vm, op1.data.longNum % op2.data.longNum);
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return value_new_double(vm, fmod(op1.data.doubleData, op2.data.doubleData));
+    default:
+        abort();
+  }
+}
+
+VALUE_DECLARE_MATH_OP(value_math_pow) {
+  if (!mathCommon(vm, &op1, &op2))
+    return value_not_present();
+
+  switch (op1.type) {
+    case FLUFFYVM_TVALUE_LONG:
+      return value_new_long(vm, (fluffyvm_integer) pow(op1.data.longNum, op2.data.longNum));
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return value_new_double(vm, pow(op1.data.doubleData, op2.data.doubleData));
+    default:
+        abort();
+  }
+}
+
 

@@ -16,7 +16,13 @@
   X(OPCODE_RETURN, 0x08, "ret", 2) \
   X(OPCODE_EXTRA, 0x09, "extra", 3) \
   X(OPCODE_STACK_GETTOP, 0x0A, "stack_gettop", 1) \
-  X(OPCODE_LOAD_PROTOTYPE, 0x0B, "load_prototype", 3)
+  X(OPCODE_LOAD_PROTOTYPE, 0x0B, "load_prototype", 3) \
+  X(OPCODE_ADD, 0x0C, "add", 3) \
+  X(OPCODE_SUB, 0x0D, "sub", 3) \
+  X(OPCODE_MUL, 0x0E, "mul", 3) \
+  X(OPCODE_DIV, 0x0F, "div", 3) \
+  X(OPCODE_MOD, 0x10, "mod", 3) \
+  X(OPCODE_POW, 0x11, "mod", 3) \
 
 typedef enum {
 # define X(name, op, ...) FLUFFYVM_ ## name = op,

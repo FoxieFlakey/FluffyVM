@@ -17,6 +17,7 @@ local strThisReturnedToC = const("This string was returned to C")
 local strNextThereIsNumber = const("There will be a number after this message")
 
 local anInteger = const(5)
+local anInteger2 = const(-9)
 
 local ENV_TABLE = 0xFFFE
 local NIL = 0xFFFF
@@ -157,6 +158,8 @@ start_prototype()
     --call(COND_NONE, 0x0001, 0, 0, 2)
      
     get_constant(COND_NONE, 0x0001, anInteger)
+    get_constant(COND_NONE, 0x0002, anInteger2)
+    add(COND_NONE, 0x0001, 0x0001, 0x0002)
     stack_push(COND_NONE, 0x0001)
     
     get_constant(COND_NONE, 0x0001, strPrint)

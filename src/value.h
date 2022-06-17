@@ -127,6 +127,7 @@ struct value value_nil();
 
 // Get typename guarantee to be string
 struct value value_typename(struct fluffyvm* vm, struct value value);
+struct value value_typename2(struct fluffyvm* vm, value_types_t value);
 
 // Don't access the pointer
 // Return NULL if its not by reference
@@ -161,12 +162,18 @@ int value_get_module_id();
 typedef struct value (*value_math_operation_t)(struct fluffyvm* vm, struct value op1, struct value op2);
 #define VALUE_DECLARE_MATH_OP(name) struct value name(struct fluffyvm* vm, struct value op1, struct value op2)
 
-VALUE_DECLARE_MATH_OP(value_math_add);
-VALUE_DECLARE_MATH_OP(value_math_sub);
-VALUE_DECLARE_MATH_OP(value_math_mul);
-VALUE_DECLARE_MATH_OP(value_math_div);
-VALUE_DECLARE_MATH_OP(value_math_mod);
+#define VALUE_MATH_OPS \
+  X(add, +) \
+  X(sub, -) \
+  X(mul, *) \
+  X(div, /)
+
+#define X(name, ...) VALUE_DECLARE_MATH_OP(value_math_ ## name);
+VALUE_MATH_OPS
+#undef X
+
 VALUE_DECLARE_MATH_OP(value_math_pow);
+VALUE_DECLARE_MATH_OP(value_math_mod);
 
 #endif
 
