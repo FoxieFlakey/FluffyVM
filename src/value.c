@@ -852,7 +852,7 @@ VALUE_DECLARE_MATH_OP(value_math_pow) {
 
   switch (op1.type) {
     case FLUFFYVM_TVALUE_LONG:
-      return value_new_long(vm, (fluffyvm_integer) pow(op1.data.longNum, op2.data.longNum));
+      return value_new_double(vm, pow(op1.data.longNum, op2.data.longNum));
     case FLUFFYVM_TVALUE_DOUBLE:
       return value_new_double(vm, pow(op1.data.doubleData, op2.data.doubleData));
     default:

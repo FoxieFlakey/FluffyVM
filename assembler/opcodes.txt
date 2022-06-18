@@ -79,6 +79,13 @@ Opcode	Mnemonic		Description
 0x10  mod(A, B, C)    R(A) = R(B) % R(C)
 0x11  pow(A, B, C)    R(A) = R(B) ^ R(C)
 
+// Branches
+// Use cond flags to do
+// a conditional jump
+0x12  jmp_forward(A)  PC += A
+0x13  jmp_backward(A) PC -= A
+
+
 Note:
  * All operands is 16 bit unsigned integers unless noted
  * All ranges is inclusive unless noted
