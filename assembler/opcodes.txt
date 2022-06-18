@@ -94,6 +94,7 @@ Note:
  * Constant pool is indexed from 0
  * S.top represent pointer to a valid entry in stack
  * ^ is 'to the power' operator
+ * PC is pointing instruction after current
 
 When calling:
   The stack of the callee function is filled 

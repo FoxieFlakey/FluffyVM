@@ -5,6 +5,7 @@ local strCallFunc = const("call_func")
 local strCallFunc2 = const("call_func2")
 local strAProtoString = const("a_proto")
 local strError = const("error")
+local strNeverPrint = const("this string will never prints")
 
 local strHello = const("Hello World!")
 local strPogString = const("Pogger fox this working")
@@ -150,12 +151,12 @@ start_prototype()
     --get_constant(COND_NONE, 0x0001, strErrorMessage)
     --stack_push(COND_NONE, 0x0001)
     
-    get_constant(COND_NONE, 0x0001, strNextThereIsNumber)
-    stack_push(COND_NONE, 0x0001)
-    
     --get_constant(COND_NONE, 0x0001, strError)
     --table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
     --call(COND_NONE, 0x0001, 0, 0, 2)
+    
+    get_constant(COND_NONE, 0x0001, strNextThereIsNumber)
+    stack_push(COND_NONE, 0x0001)
      
     get_constant(COND_NONE, 0x0001, anInteger)
     get_constant(COND_NONE, 0x0002, anInteger2)
@@ -164,7 +165,14 @@ start_prototype()
     
     get_constant(COND_NONE, 0x0001, strPrint)
     table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
-    call(COND_NONE, 0x0001, 0, 0, 1)
+    call(COND_NONE, 0x0001, 0, 0, 3)
+
+    jmp_forward(COND_NONE, 6)
+      get_constant(COND_NONE, 0x0001, strNeverPrint)
+      stack_push(COND_NONE, 0x0001)
+      get_constant(COND_NONE, 0x0001, strPrint)
+      table_get(COND_NONE, 0x0001, ENV_TABLE, 0x0001)
+      call(COND_NONE, 0x0001, 0, 0, 2);
 
     ret(COND_NONE, 0, 0)
     

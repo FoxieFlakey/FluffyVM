@@ -4,6 +4,7 @@
 #include <stdint.h>
 #include <stdio.h>
 #include <assert.h>
+#include <inttypes.h>
 
 #include "bytecode.h"
 #include "interpreter.h"
@@ -24,14 +25,12 @@ static int instructionFieldUsed[FLUFFYVM_OPCODE_LAST] = {
 # undef X
 };
 
-/*
 static const char* instructionName[FLUFFYVM_OPCODE_LAST] = {
 # define X(name, op, nameInString, ...) \
   [op] = nameInString,
   FLUFFYVM_OPCODES
 # undef X
 };
-*/
 
 static bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value value) {
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
@@ -238,8 +237,9 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   int retCount = 0;
 
   const fluffyvm_instruction_t* instructionsArray = co->currentCallState->closure->prototype->instructions;
+  struct instruction ins;
   while (pc < instructionsLen) {
-    struct instruction ins = decode(instructionsArray[pc]);
+    ins = decode(instructionsArray[pc]);
     int incrementCount = 0;
     
     if (ins.opcode >= FLUFFYVM_OPCODE_LAST || ins.opcode == FLUFFYVM_OPCODE_EXTRA)
@@ -304,6 +304,20 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         break;
       case FLUFFYVM_OPCODE_POW:
         setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+        break;
+      case FLUFFYVM_OPCODE_JMP_FORWARD:
+        if (pc + ins.A >= instructionsLen) {
+          fluffyvm_set_errmsg_printf(vm, "Attempting to forward jump to %d out of %d instructions", pc, instructionsLen);
+          goto error;
+        }
+        pc += ins.A;
+        break;
+      case FLUFFYVM_OPCODE_JMP_BACKWARD:
+        if (pc - ins.A < 0) {
+          fluffyvm_set_errmsg_printf(vm, "Attempting to backward jump to %d", pc);
+          goto error;
+        }
+        pc -= ins.A;
         break;
       case FLUFFYVM_OPCODE_LOAD_PROTOTYPE:
       {
@@ -458,7 +472,10 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   return retCount;
 
   illegal_instruction:
-  fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
+  if (ins.opcode < FLUFFYVM_OPCODE_LAST) 
+    fluffyvm_set_errmsg_printf(vm, "illegal instruction 0x%016" PRIX64 " (Op: '%s'  Cond: 0x%02X  A: 0x%04X  B: 0x%04X  C: 0x%04X)", instructionsArray[pc], instructionName[ins.opcode], ins.condFlags, ins.A, ins.B, ins.C);
+  else 
+    fluffyvm_set_errmsg_printf(vm, "illegal instruction 0x%016" PRIX64 " (Op: 0x%02X  Cond: 0x%02X  A: 0x%04X  B: 0x%04X  C: 0x%04X)", instructionsArray[pc], ins.opcode, ins.condFlags, ins.A, ins.B, ins.C);
   error:
   callState->pc = pc;
   interpreter_error(vm, fluffyvm_get_errmsg(vm));
