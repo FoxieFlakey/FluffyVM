@@ -250,9 +250,9 @@ struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_r
         errorMessage = "invalid constant.data expect string";
         goto error;
       }
-    } else if (strcmp("number", cJSON_GetStringValue(type)) == 0) {
+    } else if (strcmp("integer", cJSON_GetStringValue(type)) == 0 || strcmp("float", cJSON_GetStringValue(type)) == 0) {
       if (!cJSON_IsNumber(data)) {
-        errorMessage = "invalid constant.data expect string";
+        errorMessage = "invalid constant.data expect number";
         goto error;
       }
     } else {
@@ -317,10 +317,14 @@ struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_r
       constant->type = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__STRING;
       constant->data_str.data = (uint8_t*) cJSON_GetStringValue(data);
       constant->data_str.len = strlen((char*) constant->data_str.data);
-    } else if (strcmp("number", cJSON_GetStringValue(type)) == 0) {
+    } else if (strcmp("integer", cJSON_GetStringValue(type)) == 0) {
       constant->data_case = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_LONG_NUM;
       constant->type = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__LONG;
       constant->data_longnum = (fluffyvm_integer) cJSON_GetNumberValue(data);
+    } else if (strcmp("float", cJSON_GetStringValue(type)) == 0) {
+      constant->data_case = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_DOUBLE_NUM;
+      constant->type = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__DOUBLE;
+      constant->data_longnum = (fluffyvm_number) cJSON_GetNumberValue(data);
     }
 
     assert(constant->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA__NOT_SET);

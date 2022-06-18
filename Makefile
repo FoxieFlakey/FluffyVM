@@ -46,7 +46,7 @@ clean:
 
 compile_bytecode:
 	@echo Compiling bytecode...
-	@cd ./assembler && lua main.lua
+	@sh ./assembler/assemble.sh
 	@cp ./assembler/bytecode.json ./bytecode.json
 
 run: link compile_bytecode

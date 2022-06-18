@@ -16,3 +16,6 @@
 [submodule "libs/FoxGC"]
 	path = libs/FoxGC
 	url = https://github.com/NickWilde263/FoxGC
+[submodule "assembler/assembler"]
+	path = assembler/assembler
+	url = https://github.com/NickWilde263/FluffyVM_Assembler
