@@ -156,6 +156,8 @@ bool value_table_set(struct fluffyvm* vm, struct value table, struct value key, 
 struct value value_table_get(struct fluffyvm* vm, struct value table, struct value key, foxgc_root_reference_t** rootRef);
 bool value_table_is_indexable(struct value val);
 
+bool value_is_numeric(struct value val);
+
 int value_get_module_id();
 
 // Math operations
@@ -175,8 +177,19 @@ VALUE_MATH_OPS
 VALUE_DECLARE_MATH_OP(value_math_pow);
 VALUE_DECLARE_MATH_OP(value_math_mod);
 
-#endif
+typedef enum {
+  VALUE_CMP_INAPPLICABLE,
+  VALUE_CMP_FALSE,
+  VALUE_CMP_TRUE
+} value_comparison_result_t;
 
+value_comparison_result_t value_is_equal(struct fluffyvm* vm, struct value op1, struct value op2);
+
+// Only implicity convert long to double
+// when needed
+value_comparison_result_t value_is_less(struct fluffyvm* vm, struct value op1, struct value op2);
+
+#endif
 
 
 

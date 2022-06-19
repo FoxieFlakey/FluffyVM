@@ -135,6 +135,7 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   callState->closure = func;
   callState->owner = co;
 
+  callState->flagRegister = 0;
   callState->nativeDebugInfo.funcName = NULL;
   callState->nativeDebugInfo.source = NULL;
   callState->nativeDebugInfo.line = -1;

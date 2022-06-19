@@ -13,6 +13,9 @@
 #define FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL (0xFFFF)
 #define FLUFFYVM_INTERPRETER_REGISTER_ENV (0xFFFE)
 
+#define FLUFFYVM_INTERPRETER_FLAG_EQUAL     (1 << 0)
+#define FLUFFYVM_INTERPRETER_FLAG_LESS      (1 << 1)
+
 // Number of values returned
 int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 

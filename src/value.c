@@ -799,9 +799,7 @@ bool value_is_callable(struct value val) {
 }
 
 static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2) {
-  if (op1->type != FLUFFYVM_TVALUE_LONG && op1->type != FLUFFYVM_TVALUE_DOUBLE)
-    return false;
-  if (op2->type != FLUFFYVM_TVALUE_LONG && op2->type != FLUFFYVM_TVALUE_DOUBLE)
+  if (!value_is_numeric(*op1) || !value_is_numeric(*op2)) 
     return false;
 
   if (op1->type == op2->type)
@@ -860,4 +858,48 @@ VALUE_DECLARE_MATH_OP(value_math_pow) {
   }
 }
 
+value_comparison_result_t value_is_equal(struct fluffyvm* vm, struct value op1, struct value op2) {
+  if (value_equals(op1, op2))
+    return VALUE_CMP_TRUE;
+  
+  return VALUE_CMP_FALSE;
+}
+
+bool value_is_numeric(struct value val) {
+  switch (val.type) {
+    case FLUFFYVM_TVALUE_DOUBLE:
+    case FLUFFYVM_TVALUE_LONG:
+      return true;
+    case FLUFFYVM_TVALUE_STRING:
+    case FLUFFYVM_TVALUE_TABLE:
+    case FLUFFYVM_TVALUE_NIL:
+    case FLUFFYVM_TVALUE_FULL_USERDATA:
+    case FLUFFYVM_TVALUE_LIGHT_USERDATA:
+    case FLUFFYVM_TVALUE_BOOL:
+    case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
+    case FLUFFYVM_TVALUE_COROUTINE:
+    case FLUFFYVM_TVALUE_CLOSURE:
+      return false;
+
+    case FLUFFYVM_TVALUE_LAST:
+    case FLUFFYVM_TVALUE_NOT_PRESENT:
+      abort();
+  }
+  abort();
+}
+
+value_comparison_result_t value_is_less(struct fluffyvm* vm, struct value op1, struct value op2) {
+  if (!mathCommon(vm, &op1, &op2))
+    return VALUE_CMP_INAPPLICABLE;
+  
+  switch (op1.type) {
+    case FLUFFYVM_TVALUE_LONG:
+      return op1.data.longNum < op2.data.longNum ? VALUE_CMP_TRUE : VALUE_CMP_FALSE;
+    case FLUFFYVM_TVALUE_DOUBLE:
+      return op1.data.longNum < op2.data.longNum ? VALUE_CMP_TRUE : VALUE_CMP_FALSE;
+    
+    default:
+      abort();
+  }
+}
 

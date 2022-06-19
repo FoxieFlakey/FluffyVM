@@ -85,6 +85,8 @@ Opcode	Mnemonic		Description
 0x12  jmp_forward(A)  PC += A
 0x13  jmp_backward(A) PC -= A
 
+// Comparisons
+0x14  cmp(A, B)       (compare and updates the condition flag register)
 
 Note:
  * All operands is 16 bit unsigned integers unless noted
@@ -102,6 +104,25 @@ When calling:
   argument, and so on
 
 
+Cond flag format:
+Bit	Purpose
+0
+...	Serve as mask of which bits
+3	to check
 
+4	Reserved
+5	Reserved
+6	Less than flag
+7	Equal flag
+
+Less than flag is at undefined state
+if its not applicable when doing
+`cmp` instruction
+
+Instruction is executed if any
+of the condition is true
+
+Note:
+ * Bit is MSB
 
 

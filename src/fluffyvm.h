@@ -35,7 +35,6 @@
   X(cannotResumeDeadCoroutine, "cannot resume dead corotine") \
   X(cannotResumeRunningCoroutine, "cannot resume running coroutine") \
   X(cannotSuspendTopLevelCoroutine, "cannot suspend top level coroutine") \
-  X(illegalInstruction, "illegal instruction") \
   X(stackOverflow, "stack overflow") \
   X(stackUnderflow, "stack underflow") \
   X(notInCoroutine, "not in coroutine") \
@@ -51,6 +50,7 @@
   X(attemptToXmoveOnDeadCoroutine, "attempt to xmove on dead coroutine")
   
 /*
+  X(illegalInstruction, "illegal instruction") \
   X(invalidArrayBound, "invalid array bound") \
   X(attemptToIndexNonIndexableValue, "attempt to index not indexable value") \
   X(attemptToCallNonCallableValue, "attempt to call not callable value") \

@@ -25,6 +25,7 @@ struct fluffyvm_call_state {
 
   struct value* registers;
 
+  int flagRegister;
   int pc;
   int sp;
 

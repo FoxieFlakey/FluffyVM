@@ -24,7 +24,8 @@
   X(OPCODE_MOD, 0x10, "mod", 3) \
   X(OPCODE_POW, 0x11, "pow", 3) \
   X(OPCODE_JMP_FORWARD, 0x12, "jmp_forward", 1) \
-  X(OPCODE_JMP_BACKWARD, 0x13, "jmp_backward", 1)
+  X(OPCODE_JMP_BACKWARD, 0x13, "jmp_backward", 1) \
+  X(OPCODE_CMP, 0x14, "cmp", 2)
 
 typedef enum {
 # define X(name, op, ...) FLUFFYVM_ ## name = op,

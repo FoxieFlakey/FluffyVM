@@ -240,13 +240,35 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   struct instruction ins;
   while (pc < instructionsLen) {
     ins = decode(instructionsArray[pc]);
-    int incrementCount = 0;
     
+    int condFlagsMask = ins.condFlags & 0xF0 >> 4;
+    int condFlags = ins.condFlags & condFlagsMask;
+    int flagRegister = callState->flagRegister & condFlagsMask;
+    
+    // Skip instruction
+    if (((~(flagRegister ^ condFlags)) & condFlagsMask) == 0 && condFlagsMask)
+      goto skip_instruction;
+
+    /*
+    Value   Mask    Pattern Result
+    0b000   0b000   0b000  true
+    0b001   0b001   0b000  false
+    0b001   0b001   0b001  true
+    0b001   0b011   0b000  true
+    0b010   0b011   0b011  true
+    0b000   0b011   0b011  false
+    0b100   0b011   0b011  false
+    0b100   0b010   0b001  true
+    0b100   0b100   0b101  true
+    0b101   0b110   0b101  true
+    */
+
     if (ins.opcode >= FLUFFYVM_OPCODE_LAST || ins.opcode == FLUFFYVM_OPCODE_EXTRA)
       goto illegal_instruction;
  
     // Calculate amount of instructions to increment
     // due some instruction take more than one instruction
+    int incrementCount = 0;
     incrementCount += instructionFieldUsed[ins.opcode] / 3;
     incrementCount += instructionFieldUsed[ins.opcode] % 3 > 0 ? 1 : 0;
     
@@ -258,10 +280,8 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
       struct instruction extraInstructions[incrementCount - 1];
       for (int i = 0; i < incrementCount - 1; i++) {
         extraInstructions[i] = decode(instructionsArray[pc + i + 1]);
-        if (extraInstructions[i].opcode != FLUFFYVM_OPCODE_EXTRA) {
-          fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
-          goto error;
-        }
+        if (extraInstructions[i].opcode != FLUFFYVM_OPCODE_EXTRA)
+          goto illegal_instruction;
       }
 
       switch (incrementCount - 1) {
@@ -276,8 +296,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           break;
         
         default:
-          fluffyvm_set_errmsg(vm, vm->staticStrings.illegalInstruction);
-          goto error;
+          goto illegal_instruction;
       }
     }
 
@@ -312,6 +331,22 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         }
         pc += ins.A;
         break;
+      case FLUFFYVM_OPCODE_CMP: 
+      {
+        struct value op1 = getRegister(vm, callState, ins.A);
+        struct value op2 = getRegister(vm, callState, ins.B);
+        if (value_is_equal(vm, op1, op2) == VALUE_CMP_TRUE)
+          callState->flagRegister |= FLUFFYVM_INTERPRETER_FLAG_EQUAL;
+        else
+          callState->flagRegister &= ~FLUFFYVM_INTERPRETER_FLAG_EQUAL;
+        
+        if (value_is_less(vm, op1, op2) == VALUE_CMP_TRUE)
+          callState->flagRegister |= FLUFFYVM_INTERPRETER_FLAG_LESS;
+        else
+          callState->flagRegister &= ~FLUFFYVM_INTERPRETER_FLAG_LESS;
+
+        break;
+      }
       case FLUFFYVM_OPCODE_JMP_BACKWARD:
         if (pc - ins.A < 0) {
           fluffyvm_set_errmsg_printf(vm, "Attempting to backward jump to %d", pc);
@@ -461,6 +496,8 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
       case FLUFFYVM_OPCODE_LAST:
         abort(); /* Unreachable */
     }
+
+    skip_instruction:
     setRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
 
     pc += incrementCount;

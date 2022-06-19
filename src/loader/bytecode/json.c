@@ -324,7 +324,7 @@ struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_r
     } else if (strcmp("float", cJSON_GetStringValue(type)) == 0) {
       constant->data_case = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_DOUBLE_NUM;
       constant->type = FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__DOUBLE;
-      constant->data_longnum = (fluffyvm_number) cJSON_GetNumberValue(data);
+      constant->data_doublenum = (fluffyvm_number) cJSON_GetNumberValue(data);
     }
 
     assert(constant->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA__NOT_SET);

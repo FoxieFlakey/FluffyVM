@@ -102,39 +102,6 @@ static int stdlib_print(lua_State* L) {
   return 0;
 }
 
-static int stdlib_return_string(lua_State* L) {
-  fluffyvm_compat_lua54_lua_pushstring(L, "Returned from C function (Printed twice) (arg #1)");
-  fluffyvm_compat_lua54_lua_pushstring(L, "Does not exist #1");
-  fluffyvm_compat_lua54_lua_pushstring(L, "Does not exist #2");
-  fluffyvm_compat_lua54_lua_pushstring(L, "Does not exist #3");
-  fluffyvm_compat_lua54_lua_pop(L, 1);  
-  fluffyvm_compat_lua54_lua_pushstring(L, "Be replaced");
-
-  fluffyvm_compat_lua54_lua_remove(L, -3);
-  fluffyvm_compat_lua54_lua_remove(L, -2);
-  
-  fluffyvm_compat_lua54_lua_pushstring(L, "Returned from C function (Only printed once) (arg #2)");
-  fluffyvm_compat_lua54_lua_replace(L, -2);
-  
-  return fluffyvm_compat_lua54_lua_gettop(L);
-}
-
-static int stdlib_call_func(lua_State* L) {
-  fluffyvm_compat_lua54_lua_call(L, 0, 0);
-  return 0;
-}
-
-static int stdlib_call_func2(lua_State* L) {
-  fluffyvm_compat_lua54_lua_pushvalue(L, -1);
-  
-  fluffyvm_compat_lua54_lua_pushliteral(L, "Passing an argument to function (args #1)");
-  fluffyvm_compat_lua54_lua_pushliteral(L, "Passing an argument to function (args #2)");
-  
-  fluffyvm_compat_lua54_lua_call(L, 2, 2);
-  fluffyvm_compat_lua54_lua_call(L, 2, 0);
-  return 0;
-}
-
 static int stdlib_error(lua_State* L) {
   fluffyvm_compat_lua54_lua_error(L);
   return 0;
@@ -191,10 +158,7 @@ int main2() {
     
   lua_State* L = fluffyvm_get_executing_coroutine(F);
   fluffyvm_compat_lua54_lua_register(L, "print", stdlib_print);
-  fluffyvm_compat_lua54_lua_register(L, "return_string", stdlib_return_string);
-  fluffyvm_compat_lua54_lua_register(L, "call_func", stdlib_call_func);
   fluffyvm_compat_lua54_lua_register(L, "error", stdlib_error);
-  fluffyvm_compat_lua54_lua_register(L, "call_func2", stdlib_call_func2);
   
   /*
   struct value globalTable = F->globalTable;
