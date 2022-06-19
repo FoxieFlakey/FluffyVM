@@ -5,12 +5,20 @@ OUTPUT=main
 ##################################
 
 LIBS_INCLUDE=-I libs/hashmap/include
-# Coverage report flags
-# -fcoverage-mapping
 
-SANITIZER_FLAG=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
-CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O0 -std=c2x -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
-LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc -lxxhash -lprotobuf-c
+#SANITIZER_FLAG=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
+CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O2 -std=c2x -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
+LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc -lxxhash -lprotobuf-c -lm
+
+ifndef DISABLE_ASAN
+	CFLAGS+=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
+	LFLAGS+=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
+endif
+
+ifdef ENABLE_PROFILING
+	CFLAGS+=-fprofile-instr-generate -fcoverage-mapping
+	LFLAGS+=-fprofile-instr-generate -fcoverage-mapping
+endif
 
 C_COMPILER=clang
 LINKER=clang
@@ -58,6 +66,10 @@ gdb: link
 	@echo Running with gdb...
 	@echo -------------
 	@ASAN_OPTIONS="fast_unwind_on_malloc=0" LD_LIBRARY_PATH=$LD_LIBRARY_PATH:$(shell pwd)/libs/ gdb ./main
+
+process_profile_data:
+	llvm-profdata-11 merge -sparse default.profraw -o default.profdata
+
 
 
 
