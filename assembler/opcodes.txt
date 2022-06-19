@@ -1,8 +1,8 @@
 VM documentation for FluffyVM
 
 Registers: 65,280 general purpose
-           2 special purpose
-           254 reserved
+           3 special purpose
+           253 reserved
 	   ----------------------
 	   65,536 registers total
 
@@ -14,7 +14,8 @@ Register	Mode	Usage
 0xFFFE		rw	Nillable environment table here (behave like _ENV variable from Lua)
 			Note:
 			 * Written once at start of the function 
-0xFFFD		none	0xFF00 - 0xFFFD is reserved
+0xFFFD    r Current function (silently fail any write)
+0xFFFC		none	0xFF00 - 0xFFFD is reserved
 			Note:
 			 * Attempt to access will cause
 			   illegal access error
@@ -50,12 +51,12 @@ Opcode	Mnemonic		Description
 0x03	table_set(A, B, C)	R(A)[R(B)] = R(C)
 				Note:
 				 * R(B) must be non nil
-0x04	call(A, B, C, D)	S(S.top+1)..S(S.top + B + 1) = R(A)(S(C)..S(C+D-2))
+0x04	call(A, B, C)	S(S.top+1)..S(S.top + B + 1) = R(A)(S(S.Top - C + 1)..S(S.Top))
 				Note: 
 				 * If B == 0 then no result is returned'
 				 * If B == 1 then all argument returned
-				 * If D == 0 then no parameter is passed 
-				 * If D == 1 then pass all argument up to S.top
+				 * If C == 0 then no parameter is passed 
+				 * If C == 1 then pass all argument up to S.top
 				 * A easier way to interpret B field is B is number of return values
 0x05	stack_push(A)		S(S.top) = R(A); S.top++
 0x06	stack_pop(A)		S.top--; R(A) = S(S.top)

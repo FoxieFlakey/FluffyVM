@@ -9,7 +9,7 @@
   X(OPCODE_MOV, 0x01, "mov", 2) \
   X(OPCODE_TABLE_GET, 0x02, "table_get", 3) \
   X(OPCODE_TABLE_SET, 0x03, "table_set", 3) \
-  X(OPCODE_CALL, 0x04, "call", 4) \
+  X(OPCODE_CALL, 0x04, "call", 3) \
   X(OPCODE_STACK_PUSH, 0x05, "stack_push", 1) \
   X(OPCODE_STACK_POP, 0x06, "stack_pop", 1) \
   X(OPCODE_GET_CONSTANT, 0x07, "get_constant", 2) \

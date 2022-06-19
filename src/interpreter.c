@@ -97,10 +97,15 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
   return true;
 }
 
+static void updateRegisters(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
+  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_CURRENT, value_new_closure(vm, co->currentCallState->closure));
+}
+
 bool interpreter_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
   if (!co->currentCallState->closure->func) {
     setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env);
-    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+    updateRegisters(vm, co);
   }
 
   return true;
@@ -228,7 +233,6 @@ bool interpreter_xpcall(struct fluffyvm* vm, runnable_t thingToExecute, runnable
 int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
   if (co->currentCallState->closure->prototype == NULL)
     return co->currentCallState->closure->func(vm, co->currentCallState, co->currentCallState->closure->udata);
-  
   int pc = 0;
   struct fluffyvm_call_state* callState = co->currentCallState;
 
@@ -300,7 +304,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
       }
     }
 
-    setRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+    updateRegisters(vm, co);
     switch (ins.opcode) {
       case FLUFFYVM_OPCODE_MOV:
         //printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
@@ -406,13 +410,25 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         break;
       case FLUFFYVM_OPCODE_CALL: 
         {
-          int argsStart = ins.C;
-          int argsEnd = ins.C + ins.D - 2;
-          int returnCount = ins.B - 1;
+          int B = ins.B;
+          
+          int C = 0;
+          int D = ins.C;
+          if (D > 1)
+            C = callState->sp - (D - 1);
+
+          int argsStart = C;
+          int argsEnd = C + D - 2;
+          int returnCount = B - 1;
           struct fluffyvm_closure* closure;
           
           if (returnCount < 0)
             returnCount = 0;
+
+          if (argsStart < 0) {
+            fluffyvm_set_errmsg(vm, vm->staticStrings.stackUnderflow);
+            goto error;
+          }
 
           //printf("0x%08X: S(%d)..S(%d) = R(%d)(S(%d)..S(%d))\n", pc, callState->sp, callState->sp + returnCount - 1, ins.A, argsStart, argsEnd);
           struct value val = getRegister(vm, callState, ins.A);
@@ -434,7 +450,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           fluffyvm_clear_errmsg(vm);
           
           // Copying the arguments
-          if (ins.D == 1)
+          if (D == 1)
             argsEnd = callState->sp - 1;
 
           for (int i = argsStart; i <= argsEnd; i++)
@@ -445,8 +461,12 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
           callState->pc = pc;
           int actualRetCount = interpreter_exec(vm, co);
           
+          for (int i = argsStart; i <= argsEnd; i++)
+            if (!interpreter_pop(vm, callState, NULL, NULL))
+              abort();
+          
           // Copying the return values
-          if (ins.B == 1)
+          if (B == 1)
             returnCount = co->currentCallState->sp;
           
           int startPos = co->currentCallState->sp - actualRetCount;
@@ -498,7 +518,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     }
 
     skip_instruction:
-    setRegister(vm, callState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+    updateRegisters(vm, co);
 
     pc += incrementCount;
     callState->pc = pc;

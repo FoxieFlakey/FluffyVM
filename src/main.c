@@ -79,7 +79,7 @@ static int stdlib_print(lua_State* L) {
   const int tid = fluffyvm_get_thread_id(L->owner);
 
   for (int i = 0; i < fluffyvm_compat_lua54_lua_gettop(L); i++)
-    printf("[Thread %d] Printer: %s  (%zu)\n", tid, fluffyvm_compat_lua54_lua_tostring(L, i + 1), strlen(fluffyvm_compat_lua54_lua_tostring(L, i + 1)));
+    printf("\t%s", fluffyvm_compat_lua54_lua_tostring(L, i + 1));
 
   /*
   static atomic_bool hasDump = false;
@@ -105,6 +105,11 @@ static int stdlib_print(lua_State* L) {
 static int stdlib_error(lua_State* L) {
   fluffyvm_compat_lua54_lua_error(L);
   return 0;
+}
+
+static int stdlib_getCPUTime(lua_State* L) {
+  fluffyvm_compat_lua54_lua_pushnumber(L, ((lua_Number) clock()) / CLOCKS_PER_SEC * 1000);
+  return 1;
 }
 
 #define UNIQUE_KEY(name) static uintptr_t name = (uintptr_t) &name
@@ -140,7 +145,7 @@ static void test(struct fluffyvm* F) {
  * 1 : 2 : 8
  */
 int main2() {
-  heap = foxgc_api_new(16 * MB, 32 * MB, 64 * MB,
+  heap = foxgc_api_new(32 * MB, 64 * MB, 128 * MB,
                                  3, 3, 
 
                                  256 * KB, 2 * MB,
@@ -159,7 +164,8 @@ int main2() {
   lua_State* L = fluffyvm_get_executing_coroutine(F);
   fluffyvm_compat_lua54_lua_register(L, "print", stdlib_print);
   fluffyvm_compat_lua54_lua_register(L, "error", stdlib_error);
-  
+  fluffyvm_compat_lua54_lua_register(L, "getCPUTime", stdlib_getCPUTime);
+
   /*
   struct value globalTable = F->globalTable;
   struct hashtable* table = foxgc_api_object_get_data(globalTable.data.table); 
