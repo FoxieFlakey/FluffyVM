@@ -16,7 +16,7 @@ default.profdata
 *.gcno
 heapDump*.sqlite3*
 heapDump*.sqlite3*
-
+trace.json
 
 
 

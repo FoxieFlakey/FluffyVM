@@ -32,15 +32,21 @@ static const char* instructionName[FLUFFYVM_OPCODE_LAST] = {
 # undef X
 };
 
-static bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value value) {
+static inline bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value value) {
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
   assert(value.type != FLUFFYVM_TVALUE_NOT_PRESENT);
+  if (index != FLUFFYVM_INTERPRETER_REGISTER_ENV &&
+    index >= FLUFFYVM_INTERPRETER_RESERVED_START &&
+    index <= FLUFFYVM_INTERPRETER_RESERVED_START) {
+    return true;
+  }
+
   value_copy(&callState->registers[index], value);
   foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
   return true;
 }
 
-static struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index) {
+static inline struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index) {
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
   assert(callState->registers[index].type != FLUFFYVM_TVALUE_NOT_PRESENT);
   return callState->registers[index];
@@ -97,15 +103,11 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
   return true;
 }
 
-static void updateRegisters(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
-  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
-  setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_CURRENT, value_new_closure(vm, co->currentCallState->closure));
-}
-
 bool interpreter_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
   if (!co->currentCallState->closure->func) {
-    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env);
-    updateRegisters(vm, co);
+    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env); 
+    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
+    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_CURRENT, value_new_closure(vm, co->currentCallState->closure));
   }
 
   return true;
@@ -304,7 +306,6 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
       }
     }
 
-    updateRegisters(vm, co);
     switch (ins.opcode) {
       case FLUFFYVM_OPCODE_MOV:
         //printf("0x%08X: R(%d) = R(%d)\n", pc, ins.A, ins.B);
@@ -518,7 +519,6 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
     }
 
     skip_instruction:
-    updateRegisters(vm, co);
 
     pc += incrementCount;
     callState->pc = pc;
