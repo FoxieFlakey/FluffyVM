@@ -27,16 +27,6 @@ UNIQUE_KEY(stringDataArrayKey);
 UNIQUE_KEY(userdataTypeKey);
 UNIQUE_KEY(garbageCollectableUserdataTypeKey);
 
-static struct value valueNotPresent = {
-  .type = FLUFFYVM_TVALUE_NOT_PRESENT,
-  .data = {0}
-};
-
-static struct value valueNil = {
-  .type = FLUFFYVM_TVALUE_NIL,
-  .data = {0}
-}; 
-
 bool value_init(struct fluffyvm* vm) {
   return true;
 }
@@ -59,7 +49,7 @@ struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t
   if (!strStruct) {
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
-    return valueNotPresent;
+    return value_not_present;
   }
 
   foxgc_object_t* strObj = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), stringDataArrayKey, NULL, fluffyvm_get_root(vm), rootRef, 1, len + 1, Block_copy(^void (foxgc_object_t* obj) {
@@ -74,7 +64,7 @@ struct value value_string_allocator(struct fluffyvm* vm, const char* str, size_t
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     free(strStruct);
-    return valueNotPresent;
+    return value_not_present;
   }
 
   struct value value = {
@@ -144,7 +134,7 @@ struct value value_new_table(struct fluffyvm* vm, double loadFactor, int initial
   if (!hashtable) {
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
-    return valueNotPresent;
+    return value_not_present;
   }
 
   struct value value = {
@@ -160,7 +150,7 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
   if (!userdata) {
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
-    return valueNotPresent;
+    return value_not_present;
   }
   
   foxgc_object_t* userdataObj = foxgc_api_new_object_opaque(vm->heap, fluffyvm_get_owner_key(), userdataTypeKey, NULL, fluffyvm_get_root(vm), rootRef, size, Block_copy(^void (foxgc_object_t* obj) {
@@ -180,7 +170,7 @@ struct value value_new_full_userdata(struct fluffyvm* vm, int moduleID, int type
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     free(userdata);
-    return valueNotPresent;
+    return value_not_present;
   }
 
   struct value value = {
@@ -217,7 +207,7 @@ struct value value_new_garbage_collectable_userdata(struct fluffyvm* vm, int mod
     if (vm->staticStrings.outOfMemoryRootRef)
       fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
     free(userdata);
-    return valueNotPresent;
+    return value_not_present;
   }
 
   struct value value = {
@@ -479,7 +469,7 @@ struct value value_tostring(struct fluffyvm* vm, struct value value, foxgc_root_
   free(strStruct);
   if (vm->staticStrings.outOfMemoryRootRef)
     fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemory);
-  return valueNotPresent;
+  return value_not_present;
 }
 
 struct value value_typename(struct fluffyvm* vm, struct value value) {
@@ -527,7 +517,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
       number = strtod(foxgc_api_object_get_data(value.data.str->str), &lastChar);
       if (*lastChar != '\0') {
         fluffyvm_set_errmsg(vm, vm->staticStrings.strtodDidNotProcessAllTheData);
-        return valueNotPresent;
+        return value_not_present;
       }
 
       if (errno != 0) {
@@ -541,7 +531,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
         char* errMsg = malloc(len = snprintf(NULL, 0, format, currentErrno, err == 0 ? errorMessage : "error converting errno to string"));
         if (!errMsg) {
           fluffyvm_set_errmsg(vm, vm->staticStrings.outOfMemoryWhileAnErrorOccured);
-          return valueNotPresent;
+          return value_not_present;
         }
         snprintf(errMsg, len, format, currentErrno, err == 0 ? errorMessage : "error converting errno to string");
         
@@ -553,7 +543,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
         }
 
         free(errMsg);
-        return valueNotPresent;
+        return value_not_present;
       } 
       break;
 
@@ -572,7 +562,7 @@ struct value value_todouble(struct fluffyvm* vm, struct value value) {
     case FLUFFYVM_TVALUE_COROUTINE:
     case FLUFFYVM_TVALUE_GARBAGE_COLLECTABLE_USERDATA:
     case FLUFFYVM_TVALUE_BOOL:
-      return valueNotPresent;
+      return value_not_present;
     
     case FLUFFYVM_TVALUE_LAST:    
     case FLUFFYVM_TVALUE_NOT_PRESENT:
@@ -613,7 +603,7 @@ void* value_get_unique_ptr(struct value value) {
   }
 }
 
-void value_copy(struct value* dest, struct value src) {
+void value_copsy(struct value* dest, struct value src) {
   memcpy(dest, &src, sizeof(struct value));
 }
 
@@ -737,17 +727,10 @@ struct value value_table_get(struct fluffyvm* vm, struct value table, struct val
   checkPresent(&key);
   if (table.type != FLUFFYVM_TVALUE_TABLE) {
     fluffyvm_set_errmsg_printf(vm, "attempt to index '%s'", value_get_string(value_typename(vm, table)));
-    return value_not_present();
+    return value_not_present;
   }
   
   return hashtable_get(vm, foxgc_api_object_get_data(table.data.table), key, rootRef);
-}
-
-struct value value_not_present() {
-  return valueNotPresent;
-}
-struct value value_nil() {
-  return valueNil;
 }
 
 bool value_table_is_indexable(struct value val) {
@@ -806,9 +789,9 @@ static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2
     return true;
 
   if (op1->type == FLUFFYVM_TVALUE_DOUBLE)
-    value_copy(op2, value_todouble(vm, *op2));
+    *op2 = value_todouble(vm, *op2);
   else
-    value_copy(op1, value_todouble(vm, *op1));
+    *op1 = value_todouble(vm, *op1);
 
   return true;
 }
@@ -816,7 +799,7 @@ static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2
 #define X(name, op, ...) \
 VALUE_DECLARE_MATH_OP(value_math_ ## name) { \
   if (!mathCommon(vm, &op1, &op2)) \
-    return value_not_present(); \
+    return value_not_present; \
   switch (op1.type) { \
     case FLUFFYVM_TVALUE_LONG: \
       return value_new_long(vm, op1.data.longNum op op2.data.longNum); \
@@ -832,7 +815,7 @@ VALUE_MATH_OPS
 
 VALUE_DECLARE_MATH_OP(value_math_mod) {
   if (!mathCommon(vm, &op1, &op2))
-    return value_not_present();
+    return value_not_present;
 
   switch (op1.type) {
     case FLUFFYVM_TVALUE_LONG:
@@ -846,7 +829,7 @@ VALUE_DECLARE_MATH_OP(value_math_mod) {
 
 VALUE_DECLARE_MATH_OP(value_math_pow) {
   if (!mathCommon(vm, &op1, &op2))
-    return value_not_present();
+    return value_not_present;
 
   switch (op1.type) {
     case FLUFFYVM_TVALUE_LONG:

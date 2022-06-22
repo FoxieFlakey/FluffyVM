@@ -169,9 +169,9 @@ int main2() {
   /*
   struct value globalTable = F->globalTable;
   struct hashtable* table = foxgc_api_object_get_data(globalTable.data.table); 
-  struct value key = hashtable_next(F, table, value_not_present());
+  struct value key = hashtable_next(F, table, value_not_present);
   for (;key.type != FLUFFYVM_TVALUE_NOT_PRESENT;
-        value_copy(&key, hashtable_next(F, table, key))) {
+        key = hashtable_next(F, table, key)) {
     printf("Key: %s\n", (char*) foxgc_api_object_get_data(key.data.str->str));
   }
   */
@@ -260,7 +260,7 @@ int main2() {
   
   fluffyvm_compat_lua54_lua_pop(L, fluffyvm_compat_lua54_lua_gettop(L));
   fluffyvm_clear_errmsg(F);
-  fluffyvm_set_global(F, value_nil());
+  fluffyvm_set_global(F, value_nil);
 
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);

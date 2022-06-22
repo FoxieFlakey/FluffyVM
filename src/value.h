@@ -75,7 +75,7 @@ struct value_string {
 };
 
 typedef struct value {
-  const value_types_t type;
+  value_types_t type;
   
   union {
     struct value_string* str;
@@ -96,8 +96,6 @@ typedef struct value {
 
 const char* value_get_string(struct value value);
 size_t value_get_len(struct value value);
-
-void value_copy(struct value* dest, struct value src);
 
 bool value_init(struct fluffyvm* vm);
 void value_cleanup(struct fluffyvm* vm);
@@ -122,8 +120,15 @@ struct value value_new_bool(struct fluffyvm* vm, bool boolean);
 struct value value_new_coroutine(struct fluffyvm* vm, struct fluffyvm_closure* closure, foxgc_root_reference_t** rootRef);
 struct value value_new_coroutine2(struct fluffyvm* vm, struct fluffyvm_coroutine* co);
 
-struct value value_not_present();
-struct value value_nil();
+static const struct value value_nil = {
+  .type = FLUFFYVM_TVALUE_NIL,
+  .data = {0}
+};
+
+static const struct value value_not_present = {
+  .type = FLUFFYVM_TVALUE_NOT_PRESENT,
+  .data = {0}
+};
 
 // Get typename guarantee to be string
 struct value value_typename(struct fluffyvm* vm, struct value value);

@@ -42,18 +42,7 @@ UNIQUE_KEY(generalObjectStackTypeKey);
     foxgc_api_descriptor_remove(vm->coroutineStaticData->name); \
 } while(0)
 
-//static struct value nilRegisters[FLUFFYVM_REGISTERS_NUM] = {};
-static pthread_once_t nilRegistersOnce = PTHREAD_ONCE_INIT;
-
-static void nilRegistersInit() {
-  //struct value nilValue = value_nil();
-  //for (int i = 0; i < FLUFFYVM_REGISTERS_NUM; i++)
-  //  value_copy(&nilRegisters[i], nilValue);
-}
-
 bool coroutine_init(struct fluffyvm* vm) {
-  pthread_once(&nilRegistersOnce, nilRegistersInit);
-
   vm->coroutineStaticData = malloc(sizeof(*vm->coroutineStaticData));
   if (!vm->coroutineStaticData)
     return false;
@@ -226,7 +215,7 @@ struct fluffyvm_coroutine* coroutine_new(struct fluffyvm* vm, foxgc_root_referen
     jmp_buf buf;
     if (setjmp(buf)) {
       struct value errMsg = fluffyvm_get_errmsg(vm);
-      value_copy(&this->thrownedError, errMsg);
+      this->thrownedError = errMsg;
       foxgc_api_write_field(this->gc_this, 1, value_get_object_ptr(errMsg));
       this->hasError = true;
   

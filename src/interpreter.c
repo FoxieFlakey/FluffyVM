@@ -42,7 +42,7 @@ static inline bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* 
   
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
 
-  value_copy(&callState->registers[index], value);
+  callState->registers[index] = value;
   if (callState->registersObjectArray[index] != NULL) 
     foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
   return true;
@@ -55,13 +55,13 @@ static inline struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call
     case FLUFFYVM_INTERPRETER_REGISTER_CURRENT:
       return callState->closure->asValue;
     case FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL:
-      return value_nil();
+      return value_nil;
   }
   
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
   
   if (callState->registers[index].type == FLUFFYVM_TVALUE_NOT_PRESENT)
-    return value_nil();
+    return value_nil;
 
   return callState->registers[index];
 }
@@ -81,13 +81,13 @@ bool interpreter_pop(struct fluffyvm* vm, struct fluffyvm_call_state* callState,
   struct value val = callState->generalStack[index];
   
   if (result)
-    value_copy(result, val);
+    *result = val;
 
   foxgc_object_t* ptr;
   if (rootRef && (ptr = value_get_object_ptr(val)))
     foxgc_api_root_add(vm->heap, ptr, fluffyvm_get_root(vm), rootRef);
 
-  value_copy(&callState->generalStack[index], value_not_present());
+  callState->generalStack[index] = value_not_present;
   foxgc_api_write_array(callState->gc_generalObjectStack, index, NULL);
   return true;
 }
@@ -111,7 +111,7 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
   }
   
   assert(value.type != FLUFFYVM_TVALUE_NOT_PRESENT);
-  value_copy(&callState->generalStack[callState->sp], value);
+  callState->generalStack[callState->sp] = value;
   foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, value_get_object_ptr(value));
   callState->sp++;
   return true;
@@ -189,11 +189,11 @@ void interpreter_call(struct fluffyvm* F, struct value func, int nargs, int nret
     startPos = 0;
   
   for (int i = 0; i < returnCount; i++) {
-    struct value val = value_nil();
+    struct value val = value_nil;
 
     // Copy only if current pos is valid
     if (startPos + i <= co->currentCallState->sp - 1)
-      value_copy(&val, co->currentCallState->generalStack[startPos + i]);
+      val = co->currentCallState->generalStack[startPos + i];
     
     // Error here
     if (!interpreter_push(F, callerState, val))
@@ -401,7 +401,7 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
             goto error;
           
           if (result.type == FLUFFYVM_TVALUE_NOT_PRESENT)
-            value_copy(&result, value_nil());
+            result = value_nil;
 
           setRegister(vm, callState, ins.A, result);
           if (tmpRootRef)
@@ -452,7 +452,6 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
 
           if (!coroutine_function_prolog(vm, closure))
             goto error;
-          fluffyvm_clear_errmsg(vm);
           
           // Copying the arguments
           if (D == 1)
@@ -479,11 +478,11 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
             startPos = 0;
           
           for (int i = 0; i < returnCount; i++) {
-            struct value val = value_nil();
+            struct value val = value_nil;
 
             // Copy only if current pos is valid
             if (startPos + i <= co->currentCallState->sp - 1)
-              value_copy(&val, co->currentCallState->generalStack[startPos + i]);
+              val = co->currentCallState->generalStack[startPos + i];
 
             if (!interpreter_push(vm, callState, val))
               goto call_error;
@@ -554,7 +553,7 @@ bool interpreter_peek(struct fluffyvm* vm, struct fluffyvm_call_state* callState
     return false;
   }
 
-  value_copy(result, callState->generalStack[index]);
+  *result = callState->generalStack[index];
   return true;
 }
 
@@ -599,7 +598,7 @@ static void commonErrorPrintf(struct fluffyvm* vm, const char* fmt, va_list list
   struct value val = value_new_string(vm, msg, &rootRef);
  
   if (val.type == FLUFFYVM_TVALUE_NOT_PRESENT)
-    value_copy(&val, vm->staticStrings.outOfMemoryWhileAnErrorOccured);
+    val = vm->staticStrings.outOfMemoryWhileAnErrorOccured;
 
   if (rootRef)
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), rootRef);
@@ -637,58 +636,6 @@ void interpreter_error_vprintf(struct fluffyvm* vm, const char* fmt, va_list lis
   longjmp(*co->errorHandler, 1);
 }
 
-/* BROKEN DONT USE
-bool interpreter_remove(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, int count) {
-  if (index >= callState->sp ||
-      index - (count - 1) < 0 ||
-      count < 0) {
-    fluffyvm_set_errmsg(vm, vm->staticStrings.invalidRemoveCall);
-    return false;
-  }
-
-  if (count == 0)
-    return true;
-  
-  / *
-   1
-   2
-   3
-   4 <-|
-   5   |-- remove
-   6 <-|
-   7
-   8
-   9 < Top
-
-   1
-   2
-   3
-   7
-   8
-   9 < Top
-   * /
-  int top = callState->sp - 1;
-  int copySrc = index + 1;
-  int copyDest = index - count + 1;
-  struct value notPresent = value_not_present();
-  while (copySrc <= top) {
-    struct value value = callState->generalStack[copySrc];
-    value_copy(&callState->generalStack[copyDest], &value);
-    if (value.type != FLUFFYVM_TVALUE_NOT_PRESENT)
-      foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, value_get_object_ptr(value));
-    else
-      foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, NULL);
-    
-    value_copy(&callState->generalStack[copySrc], &notPresent);
-    foxgc_api_write_array(callState->gc_generalObjectStack, copySrc, NULL);
-    
-    copySrc++;
-  }
-  callState->sp -= count;
-
-  return true;
-}
-*/
 
 
 

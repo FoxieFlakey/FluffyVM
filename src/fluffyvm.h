@@ -134,9 +134,7 @@ struct fluffyvm {
 void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val);
 struct value fluffyvm_get_errmsg(struct fluffyvm* vm);
 bool fluffyvm_is_errmsg_present(struct fluffyvm* vm);
-static inline void fluffyvm_clear_errmsg(struct fluffyvm* vm) {
-  fluffyvm_set_errmsg(vm, value_not_present());
-}
+#define fluffyvm_clear_errmsg(vm) fluffyvm_set_errmsg(vm, value_not_present)
 
 typedef void* (^fluffyvm_thread_routine_t)(void*);
 

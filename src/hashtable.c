@@ -93,14 +93,14 @@ static inline void pair_write_key(struct hashtable_pair* this, struct value valu
   foxgc_object_t* ptr;
   if ((ptr = value_get_object_ptr(value)))
     foxgc_api_write_field(this->gc_this, PAIR_OFFSET_KEY, ptr);
-  value_copy(&this->key, value);
+  this->key = value;
 }
 
 static inline void pair_write_value(struct hashtable_pair* this, struct value value) {
   foxgc_object_t* ptr;
   if ((ptr = value_get_object_ptr(value)))
     foxgc_api_write_field(this->gc_this, PAIR_OFFSET_VALUE, ptr);
-  value_copy(&this->value, value);
+  this->value = value;
 }
 
 static struct hashtable_pair* new_pair(struct fluffyvm* vm, foxgc_root_reference_t** rootRef) {
@@ -116,8 +116,8 @@ static struct hashtable_pair* new_pair(struct fluffyvm* vm, foxgc_root_reference
   foxgc_api_write_field(obj, PAIR_OFFSET_KEY, NULL);
   foxgc_api_write_field(obj, PAIR_OFFSET_VALUE, NULL);
   pair->next = NULL;
-  value_copy(&pair->key, value_not_present());
-  value_copy(&pair->value, value_not_present());
+  pair->key = value_not_present;
+  pair->value = value_not_present;
   
   return pair;
 }
@@ -289,7 +289,7 @@ static struct value internal_get(struct fluffyvm* vm, struct hashtable* this, ui
   if (current && value_get_object_ptr(current->value))
     foxgc_api_root_add(vm->heap, value_get_object_ptr(current->value), fluffyvm_get_root(vm), rootRef);
   
-  struct value result = current ? current->value : value_not_present();
+  struct value result = current ? current->value : value_not_present;
   pthread_rwlock_unlock(&this->lock);
 
   return result;
@@ -299,7 +299,7 @@ struct value hashtable_get(struct fluffyvm* vm, struct hashtable* this, struct v
   uint64_t hash = -1;
   if (!value_hash_code(key, &hash)) {
     fluffyvm_set_errmsg(vm, vm->staticStrings.badKey);
-    return value_not_present();
+    return value_not_present;
   }
   
   return internal_get(vm, this, hash, rootRef, ^bool (struct value op2) {
@@ -354,14 +354,14 @@ struct value hashtable_get2(struct fluffyvm* vm, struct hashtable* this, const c
 
 struct value hashtable_next(struct fluffyvm* vm, struct hashtable* this, struct value key) {  
   pthread_rwlock_rdlock(&this->lock);
-  struct value newKey = value_not_present();
+  struct value newKey = value_not_present;
   bool hasFound = false;
   int bucketStart = 0; 
   uint64_t hash = -1;
   
   if (key.type != FLUFFYVM_TVALUE_NOT_PRESENT) {
     if (!value_hash_code(key, &hash))
-      return value_not_present();
+      return value_not_present;
     bucketStart = hash & (this->capacity - 1);
   }
 
@@ -371,7 +371,7 @@ struct value hashtable_next(struct fluffyvm* vm, struct hashtable* this, struct 
 
     struct hashtable_pair* pair = this->table[bucket] ? foxgc_api_object_get_data(this->table[bucket]) : NULL;
     if (pair && key.type == FLUFFYVM_TVALUE_NOT_PRESENT) {
-      value_copy(&newKey, pair->key);
+      newKey = pair->key;
       break;
     }
 
@@ -382,7 +382,7 @@ struct value hashtable_next(struct fluffyvm* vm, struct hashtable* this, struct 
     }
  
     if (pair) {
-      value_copy(&newKey, pair->key);
+      newKey = pair->key;
       break;
     } 
   } 

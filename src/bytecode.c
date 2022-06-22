@@ -110,7 +110,7 @@ static inline void prototype_write_bytecode(struct fluffyvm_prototype* proto, st
 }
 
 static inline void prototype_write_source_file_name(struct fluffyvm_prototype* proto, struct value sourceFilename) {
-  value_copy(&proto->sourceFile, sourceFilename);
+  proto->sourceFile = sourceFilename;
   foxgc_api_write_field(proto->gc_this, 5, value_get_object_ptr(sourceFilename));
 }
 
@@ -221,7 +221,7 @@ static void bytecode_write_constant(struct fluffyvm* vm, struct fluffyvm_bytecod
     foxgc_api_write_array(this->gc_constantsObject, index, ptr);
   else
     foxgc_api_write_array(this->gc_constantsObject, index, NULL);
-  value_copy(&this->constants[index], constant);
+  this->constants[index] = constant;
 }
 
 //////////////////////
@@ -266,7 +266,7 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
   // Filling data
   for (int i = 0; i < bytecode->n_constants; i++) {
     FluffyVmFormat__Bytecode__Constant* current = bytecode->constants[i];
-    struct value val = value_not_present();
+    struct value val = value_not_present;
     foxgc_root_reference_t* tmpRootRef = NULL;
 
     switch (current->type) {
@@ -275,21 +275,21 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         }
-        value_copy(&val, value_new_string2_constant(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef));
+        val = value_new_string2_constant(vm, (char*) current->data_str.data, current->data_str.len, &tmpRootRef);
         break;
       case FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__LONG:
         if (current->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_LONG_NUM) {
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         } 
-        value_copy(&val, value_new_long(vm, current->data_longnum));
+        val = value_new_long(vm, current->data_longnum);
         break;
       case FLUFFY_VM_FORMAT__BYTECODE__CONSTANT_TYPE__DOUBLE:
         if (current->data_case != FLUFFY_VM_FORMAT__BYTECODE__CONSTANT__DATA_DATA_DOUBLE_NUM) {
           fluffyvm_set_errmsg(vm, vm->staticStrings.invalidBytecode);
           goto error;
         }
-        value_copy(&val, value_new_double(vm, current->data_doublenum));
+        val = value_new_double(vm, current->data_doublenum);
         break;
       // Loader does not recognize other type
       default:
@@ -333,7 +333,7 @@ struct fluffyvm_bytecode* bytecode_load(struct fluffyvm* vm, foxgc_root_referenc
 struct value bytecode_get_constant(struct fluffyvm* vm, struct fluffyvm_bytecode* this, foxgc_root_reference_t** rootRef, int index) {
   if (index < 0 || index >= this->constants_len) {
     fluffyvm_set_errmsg_printf(vm, "invalid constant index %d out of 0 - %zu range" ,index, this->constants_len - 1);
-    return value_not_present();
+    return value_not_present;
   }
   
   foxgc_object_t* ptr = value_get_object_ptr(this->constants[index]);

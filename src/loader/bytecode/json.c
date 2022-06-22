@@ -156,7 +156,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   prototype->prototypes = calloc(prototype->n_prototypes, sizeof(FluffyVmFormat__Bytecode__Prototype*));
   if (prototype->prototypes == NULL) {
     freePrototypeProtoBuf(prototype);
-    value_copy(errorMessage2, vm->staticStrings.outOfMemory);
+    *errorMessage2 = vm->staticStrings.outOfMemory;
     return NULL;
   }
   
@@ -170,7 +170,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   prototype->instructions = calloc(prototype->n_instructions, sizeof(uint64_t));
   if (prototype->instructions == NULL) {
     freePrototypeProtoBuf(prototype);
-    value_copy(errorMessage2, vm->staticStrings.outOfMemory);
+    *errorMessage2 = vm->staticStrings.outOfMemory;
     return NULL;
   }
 
@@ -191,7 +191,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
   prototype->lineinfo = calloc(prototype->n_lineinfo, sizeof(int32_t));
   if (prototype->lineinfo == NULL) {
     freePrototypeProtoBuf(prototype);
-    value_copy(errorMessage2, vm->staticStrings.outOfMemory);
+    *errorMessage2 = vm->staticStrings.outOfMemory;
     return NULL;
   }
   
@@ -205,7 +205,7 @@ static FluffyVmFormat__Bytecode__Prototype* loadPrototype(struct fluffyvm* vm, c
 
 struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_root_reference_t** rootRef, const char* buffer, size_t len) {
   const char* errorMessage = NULL;
-  struct value errorMessage2 = value_not_present();
+  struct value errorMessage2 = value_not_present;
   pthread_mutex_lock(&cjson_lock);
   *rootRef = NULL;
 
@@ -289,7 +289,7 @@ struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_r
   bytecode.constants = calloc(bytecode.n_constants, sizeof(FluffyVmFormat__Bytecode__Constant*));
   if (bytecode.constants == NULL) {
     freeBytecodeProtoBuf(&bytecode);
-    value_copy(&errorMessage2, vm->staticStrings.outOfMemory);
+    errorMessage2 = vm->staticStrings.outOfMemory;
     goto error;
   }
  
@@ -344,7 +344,7 @@ struct fluffyvm_bytecode* bytecode_loader_json_load(struct fluffyvm* vm, foxgc_r
   void* data = malloc(packedLen);
   if (data == NULL) {
     freeBytecodeProtoBuf(&bytecode);
-    value_copy(&errorMessage2, vm->staticStrings.outOfMemory);
+    errorMessage2 = vm->staticStrings.outOfMemory;
     goto error;
   }
   // printf("Serializing %zu bytes\n", packedLen);

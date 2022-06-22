@@ -109,7 +109,7 @@ static bool statics_init(struct fluffyvm* this) {
     struct value tmp = value_new_string_constant(this, (string), &tmpRef); \
     if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT) \
       return false; \
-    value_copy(&this->staticStrings.name, tmp); \
+    this->staticStrings.name = tmp; \
     foxgc_api_root_add(this->heap, value_get_object_ptr(tmp), this->staticDataRoot, &this->staticStrings.name ## RootRef); \
     foxgc_api_remove_from_root2(this->heap, fluffyvm_get_root(this), tmpRef); \
   }
@@ -306,7 +306,7 @@ void fluffyvm_set_global(struct fluffyvm* this, struct value val) {
 
   if (this->globalTableRootRef)
     foxgc_api_remove_from_root2(this->heap, this->staticDataRoot, this->globalTableRootRef);
-  value_copy(&this->globalTable, val);
+  this->globalTable = val;
   
   foxgc_object_t* obj = value_get_object_ptr(val);
   if (obj)
@@ -353,7 +353,7 @@ void fluffyvm_set_errmsg(struct fluffyvm* vm, struct value val) {
   }
 
   msg = malloc(sizeof(val));
-  value_copy(msg, val);
+  *msg = val;
   pthread_setspecific(vm->errMsgKey, msg);
 }
 
@@ -367,11 +367,11 @@ bool fluffyvm_is_errmsg_present(struct fluffyvm* vm) {
 
 struct value fluffyvm_get_errmsg(struct fluffyvm* vm) {
   if (!vm->hasInit)
-    return value_not_present();
+    return value_not_present;
   
   validateThisThread(vm);
   if (!fluffyvm_is_errmsg_present(vm))
-    return value_not_present();
+    return value_not_present;
   
   return *((struct value*) pthread_getspecific(vm->errMsgKey));
 }
@@ -414,7 +414,7 @@ static void* threadStub(void* _args) {
   
   args->status = lateInit(args->vm);
   struct value errMsg = fluffyvm_get_errmsg(args->vm);
-  value_copy((struct value*) &args->errorMessage, errMsg);
+  *(struct value*) &args->errorMessage = errMsg;
   pthread_cond_signal(args->initCompletionSignal);
   
   if (!args->status)
