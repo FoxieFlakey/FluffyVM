@@ -7,8 +7,8 @@ OUTPUT=main
 LIBS_INCLUDE=-I libs/hashmap/include
 
 #SANITIZER_FLAG=-static-libsan -fsanitize-address-use-after-scope -fsanitize=undefined -fsanitize=address
-SANITIZER_FLAG=-fxray-instrument -fxray-instruction-threshold=1
-CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O0 -fno-omit-frame-pointer -std=c2x -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
+#SANITIZER_FLAG=-fxray-instrument -fxray-instruction-threshold=1
+CFLAGS=-g -fPIE -fPIC $(LIBS_INCLUDE) -I./include -O2 -fno-omit-frame-pointer -std=c2x -Wall -xc -fblocks $(SANITIZER_FLAG) -I$(SRC_DIR) -D_POSIX_C_SOURCE=200809L
 LFLAGS=-g -fPIE -fPIC -rdynamic -lBlocksRuntime -lpthread $(SANITIZER_FLAG) -L./libs/ -lfoxgc -lxxhash -lprotobuf-c -lm
 
 ifndef DISABLE_ASAN

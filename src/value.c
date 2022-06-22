@@ -781,9 +781,11 @@ bool value_is_callable(struct value val) {
   abort();
 }
 
-static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2) {
-  if (!value_is_numeric(*op1) || !value_is_numeric(*op2)) 
+static bool mathCommon(struct fluffyvm* vm, const char* op, struct value* op1, struct value* op2) {
+  if (!value_is_numeric(*op1) || !value_is_numeric(*op2)) { 
+    fluffyvm_set_errmsg_printf(vm, "attempt to do '%s' operation with '%s' type and '%s' type", op, value_get_string(value_typename(vm, *op1)), value_get_string(value_typename(vm, *op2)));
     return false;
+  }
 
   if (op1->type == op2->type)
     return true;
@@ -798,7 +800,7 @@ static bool mathCommon(struct fluffyvm* vm, struct value* op1, struct value* op2
 
 #define X(name, op, ...) \
 VALUE_DECLARE_MATH_OP(value_math_ ## name) { \
-  if (!mathCommon(vm, &op1, &op2)) \
+  if (!mathCommon(vm, #op, &op1, &op2)) \
     return value_not_present; \
   switch (op1.type) { \
     case FLUFFYVM_TVALUE_LONG: \
@@ -814,7 +816,7 @@ VALUE_MATH_OPS
 #undef X
 
 VALUE_DECLARE_MATH_OP(value_math_mod) {
-  if (!mathCommon(vm, &op1, &op2))
+  if (!mathCommon(vm, "%", &op1, &op2))
     return value_not_present;
 
   switch (op1.type) {
@@ -828,7 +830,7 @@ VALUE_DECLARE_MATH_OP(value_math_mod) {
 }
 
 VALUE_DECLARE_MATH_OP(value_math_pow) {
-  if (!mathCommon(vm, &op1, &op2))
+  if (!mathCommon(vm, "^", &op1, &op2))
     return value_not_present;
 
   switch (op1.type) {
@@ -872,7 +874,7 @@ bool value_is_numeric(struct value val) {
 }
 
 value_comparison_result_t value_is_less(struct fluffyvm* vm, struct value op1, struct value op2) {
-  if (!mathCommon(vm, &op1, &op2))
+  if (!mathCommon(vm, "is less", &op1, &op2))
     return VALUE_CMP_INAPPLICABLE;
   
   switch (op1.type) {

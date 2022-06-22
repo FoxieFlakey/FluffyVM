@@ -43,8 +43,7 @@ static inline bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* 
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
 
   callState->registers[index] = value;
-  if (callState->registersObjectArray[index] != NULL) 
-    foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
+  foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
   return true;
 }
 
@@ -316,23 +315,59 @@ int interpreter_exec(struct fluffyvm* vm, struct fluffyvm_coroutine* co) {
         setRegister(vm, callState, ins.A, getRegister(vm, callState, ins.B));
         break;
       case FLUFFYVM_OPCODE_ADD:
-        setRegister(vm, callState, ins.A, value_math_add(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_add(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_SUB:
-        setRegister(vm, callState, ins.A, value_math_sub(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_sub(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_MUL:
-        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_DIV:
-        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_div(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_MOD:
-        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_mod(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_POW:
-        setRegister(vm, callState, ins.A, value_math_mul(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C)));
+      {
+        struct value tmp = value_math_pow(vm, getRegister(vm, callState, ins.B), getRegister(vm, callState, ins.C));
+        if (tmp.type == FLUFFYVM_TVALUE_NOT_PRESENT)
+          goto error;
+
+        setRegister(vm, callState, ins.A, tmp);
         break;
+      }
       case FLUFFYVM_OPCODE_JMP_FORWARD:
         if (pc + ins.A >= instructionsLen) {
           fluffyvm_set_errmsg_printf(vm, "Attempting to forward jump to %d out of %d instructions", pc, instructionsLen);
