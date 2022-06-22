@@ -106,7 +106,11 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   assert(co);
   
   foxgc_root_reference_t* tmpRootRef2 = NULL;
-  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, NULL);
+  foxgc_object_t* obj = foxgc_api_new_object(vm->heap, NULL, fluffyvm_get_root(vm), &tmpRootRef2, vm->coroutineStaticData->desc_callState, Block_copy(^void (foxgc_object_t* obj) {
+    struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
+    free(callState->registers);
+    free(callState->generalStack);
+  }));
   if (!obj)
     goto no_memory;
   struct fluffyvm_call_state* callState = foxgc_api_object_get_data(obj);
@@ -137,14 +141,16 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
   foxgc_api_write_field(callState->gc_this, 5, NULL);
   
   if (!callState->closure->func) {
-    // Allocate register array
+    /*/ Allocate register array
     tmp = foxgc_api_new_data_array(vm->heap, fluffyvm_get_owner_key(), registerArrayTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, sizeof(struct value), FLUFFYVM_REGISTERS_NUM, NULL);
     if (!tmp)
       goto no_memory;
     foxgc_api_write_field(callState->gc_this, 5, tmp);
     callState->registers = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-   
+    */
+    callState->registers = calloc(FLUFFYVM_REGISTERS_NUM, sizeof(struct value));
+
     // Allocate register objects array
     // to store value which contain GC object
     tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), registerObjectArrayTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_REGISTERS_NUM, NULL);
@@ -154,6 +160,8 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     callState->registersObjectArray = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
   }
+
+  callState->generalStack = calloc(FLUFFYVM_GENERAL_STACK_SIZE, sizeof(struct value));
 
   // Allocate objects stack
   // to store value which contain GC object

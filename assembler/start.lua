@@ -81,12 +81,12 @@ start_prototype()
   ]]
 
   local intI = const(0)
-  local intMax = const(1)
+  local intMax = const(10000)
   local int1 = const(1)
   local int16 = const(16)
 
   load_prototype(COND_AL, 0x0001, 0)
-  
+
   get_constant(COND_AL, 0x0002, intI)
   get_constant(COND_AL, 0x0003, intMax)
   get_constant(COND_AL, 0x0004, int1)
@@ -94,15 +94,15 @@ start_prototype()
 
   -- Loop begin
     stack_push(COND_AL, 0x0005)
-    call(COND_AL, 0x0001, 1, 1)
+    call(COND_AL, 0x0001, 0, 1)
 
+    stack_push(COND_AL, 0x0002)
     get_constant(COND_AL, 0x0000, strPrint)
     table_get(COND_AL, 0x0000, ENV_TABLE, 0x0000)
     call(COND_AL, 0x0000, 0, 1)
-
   add(COND_AL, 0x0002, 0x0002, 0x0004)
   cmp(COND_AL, 0x0002, 0x0003)
-  jmp_backward(COND_LT, 9)
+  jmp_backward(COND_LE, 9)
 
   ret(COND_AL, 0, 0)
 

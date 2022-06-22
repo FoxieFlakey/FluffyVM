@@ -1,4 +1,5 @@
 #include <assert.h>
+#include <pthread.h>
 #include <stdarg.h>
 #include <stdatomic.h>
 #include <stdint.h>
@@ -7,6 +8,7 @@
 #include <string.h>
 #include <Block.h>
 #include <time.h>
+#include <errno.h>
 
 #include "config.h"
 #include "coroutine.h"
@@ -40,6 +42,9 @@ static void printMemUsage(const char* msg) {
   //puts("------------------------------------");
   printf("Heap Usage: %lf / %lf KiB\n", toKB(foxgc_api_get_heap_usage(heap)), toKB(foxgc_api_get_heap_size(heap)));
   printf("Metaspace: %lf / %lf KiB\n", toKB(foxgc_api_get_metaspace_usage(heap)), toKB(foxgc_api_get_metaspace_size(heap))); 
+  printf("  Gen0: %lf / %lf KiB\n", toKB(foxgc_api_get_gen_usage(heap, 0)), toKB(foxgc_api_get_gen_size(heap, 0))); 
+  printf("  Gen1: %lf / %lf KiB\n", toKB(foxgc_api_get_gen_usage(heap, 1)), toKB(foxgc_api_get_gen_size(heap, 1))); 
+  printf("  Gen2: %lf / %lf KiB\n", toKB(foxgc_api_get_gen_usage(heap, 2)), toKB(foxgc_api_get_gen_size(heap, 2))); 
   puts("------------------------------------");
 }
   
@@ -98,7 +103,7 @@ static int stdlib_print(lua_State* L) {
   }
   */
 
-  stdlib_print_stacktrace(L->owner, L->currentCallState->owner);
+  //stdlib_print_stacktrace(L->owner, L->currentCallState->owner);
   return 0;
 }
 
@@ -108,7 +113,15 @@ static int stdlib_error(lua_State* L) {
 }
 
 static int stdlib_getCPUTime(lua_State* L) {
-  fluffyvm_compat_lua54_lua_pushnumber(L, ((lua_Number) clock()) / CLOCKS_PER_SEC * 1000);
+  struct timespec spec = {
+    .tv_nsec = 0,
+    .tv_sec = 0
+  };
+
+  clock_gettime(CLOCK_THREAD_CPUTIME_ID, &spec);
+  lua_Number currentTime = spec.tv_sec;
+  currentTime += ((lua_Number) spec.tv_nsec) / 1000000000;
+  fluffyvm_compat_lua54_lua_pushnumber(L, currentTime);
   return 1;
 }
 
@@ -141,17 +154,72 @@ static void test(struct fluffyvm* F) {
   foxgc_api_remove_from_root2(F->heap, fluffyvm_get_root(F), rootRef2);
 }
 
+static int msleep(long msec) {
+  struct timespec ts;
+  int res;
+
+  if (msec < 0) {
+    errno = EINVAL;
+    return -1;
+  }
+
+  ts.tv_sec = msec / 1000;
+  ts.tv_nsec = (msec % 1000) * 1000000;
+
+  do {
+    res = nanosleep(&ts, &ts);
+  } while (res && errno == EINTR);
+
+  return res;
+}
+
 /* Generation sizes guide
  * 1 : 2 : 8
+ *
+ * 256 MB young
+ *   9.379 sec
+ * 8 MB young
+ *  10.098 sec
+ *
  */
 int main2() {
-  heap = foxgc_api_new(32 * MB, 64 * MB, 128 * MB,
-                                 3, 3, 
+  heap = foxgc_api_new(8 * MB, 16 * MB, 64 * MB,
+                                 2, 4, 
 
                                  256 * KB, 2 * MB,
 
                                  32 * KB);
   collectAndPrintMemUsage("Before VM creation");
+  
+  pthread_t statisticsThread;
+  __block volatile bool wantToShutdown = false;
+  bool res = util_run_thread(Block_copy(^void () {
+    /*
+    FILE* output = fopen("pipe", "w");
+    fflush(output);
+    fprintf(output, "%zu ", foxgc_api_get_heap_size(heap));
+    */
+
+    while (!wantToShutdown) {
+      printMemUsage("From statistic thread");
+     
+      /*
+      pthread_setcanceltype(PTHREAD_CANCEL_ASYNCHRONOUS, NULL);
+      pthread_testcancel();
+     
+      for (int i = 0; i < 1; i++) { 
+        fprintf(output, "%zu ", foxgc_api_get_heap_usage(heap));
+        fprintf(output, "%zu ", foxgc_api_get_gen_usage(heap, 0));
+        fprintf(output, "%zu ", foxgc_api_get_gen_usage(heap, 1));
+        fprintf(output, "%zu ", foxgc_api_get_gen_usage(heap, 2));
+      }
+
+      fflush(output);
+      */
+      msleep(500);
+    }
+  }), &statisticsThread);
+  assert(res == true);
 
   struct fluffyvm* F = fluffyvm_new(heap);
   if (!F) {
@@ -160,7 +228,7 @@ int main2() {
   }
   
   collectAndPrintMemUsage("After VM creation but before test");
-    
+ 
   lua_State* L = fluffyvm_get_executing_coroutine(F);
   fluffyvm_compat_lua54_lua_register(L, "print", stdlib_print);
   fluffyvm_compat_lua54_lua_register(L, "error", stdlib_error);
@@ -279,6 +347,10 @@ int main2() {
   foxgc_api_do_full_gc(heap);
   foxgc_api_do_full_gc(heap);
   collectAndPrintMemUsage("After VM destruction");
+
+  wantToShutdown = true;
+  pthread_join(statisticsThread, NULL);
+
   foxgc_api_free(heap);
 
   return 0;

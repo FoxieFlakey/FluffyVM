@@ -7,10 +7,10 @@
 
 // Call stack stack
 #define FLUFFYVM_CALL_STACK_SIZE (512)
-#define FLUFFYVM_GENERAL_STACK_SIZE (1024)
+#define FLUFFYVM_GENERAL_STACK_SIZE (256)
 
 // Register count
-#define FLUFFYVM_REGISTERS_NUM (1 << 16)
+#define FLUFFYVM_REGISTERS_NUM (1 << 8)
 
 // Maximum coroutine nesting depth
 #define FLUFFYVM_MAX_COROUTINE_NEST (64)
