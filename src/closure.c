@@ -63,6 +63,7 @@ static struct fluffyvm_closure* closure_new_common(struct fluffyvm* vm, foxgc_ro
   this->func = NULL;
   this->finalizer = NULL;
   this->luaCFunction = NULL;
+  value_copy(&this->asValue, value_new_closure(vm, this));
 
   value_copy(&this->env, env);
   foxgc_api_write_field(obj, CLOSURE_OFFSET_ENV, value_get_object_ptr(env));

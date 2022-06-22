@@ -29,6 +29,7 @@ struct fluffyvm_closure {
 
   // _ENV table
   struct value env;
+  struct value asValue;
 
   void* luaCFunction;
 

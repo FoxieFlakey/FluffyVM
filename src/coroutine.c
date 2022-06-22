@@ -42,13 +42,13 @@ UNIQUE_KEY(generalObjectStackTypeKey);
     foxgc_api_descriptor_remove(vm->coroutineStaticData->name); \
 } while(0)
 
-static struct value nilRegisters[FLUFFYVM_REGISTERS_NUM] = {};
+//static struct value nilRegisters[FLUFFYVM_REGISTERS_NUM] = {};
 static pthread_once_t nilRegistersOnce = PTHREAD_ONCE_INIT;
 
 static void nilRegistersInit() {
-  struct value nilValue = value_nil();
-  for (int i = 0; i < FLUFFYVM_REGISTERS_NUM; i++)
-    value_copy(&nilRegisters[i], nilValue);
+  //struct value nilValue = value_nil();
+  //for (int i = 0; i < FLUFFYVM_REGISTERS_NUM; i++)
+  //  value_copy(&nilRegisters[i], nilValue);
 }
 
 bool coroutine_init(struct fluffyvm* vm) {
@@ -164,25 +164,18 @@ struct fluffyvm_call_state* coroutine_function_prolog(struct fluffyvm* vm, struc
     foxgc_api_write_field(callState->gc_this, 1, tmp);
     callState->registersObjectArray = foxgc_api_object_get_data(tmp);
     foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-    
-    memcpy(callState->registers, nilRegisters, sizeof(struct value) * FLUFFYVM_REGISTERS_NUM);
   }
 
-  {
-    // Allocate register objects stack
-    // to store value which contain GC object
-    tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), generalObjectStackTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
-    if (!tmp)
-      goto no_memory;
-    foxgc_api_write_field(callState->gc_this, 4, tmp);
-    callState->generalObjectStack = foxgc_api_object_get_data(tmp);
-    foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
-  }
+  // Allocate objects stack
+  // to store value which contain GC object
+  tmp = foxgc_api_new_array(vm->heap, fluffyvm_get_owner_key(), generalObjectStackTypeKey, NULL, fluffyvm_get_root(vm), &tmpRootRef, FLUFFYVM_GENERAL_STACK_SIZE, NULL);
+  if (!tmp)
+    goto no_memory;
+  foxgc_api_write_field(callState->gc_this, 4, tmp);
+  callState->generalObjectStack = foxgc_api_object_get_data(tmp);
+  foxgc_api_remove_from_root2(vm->heap, fluffyvm_get_root(vm), tmpRootRef);
 
-  co->currentCallState = callState;
-  
-  if (!interpreter_function_prolog(vm, co, func))
-    goto error;
+  co->currentCallState = callState; 
   return callState;
  
   no_memory:

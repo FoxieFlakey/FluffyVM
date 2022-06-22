@@ -33,22 +33,36 @@ static const char* instructionName[FLUFFYVM_OPCODE_LAST] = {
 };
 
 static inline bool setRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index, struct value value) {
-  assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
   assert(value.type != FLUFFYVM_TVALUE_NOT_PRESENT);
   if (index != FLUFFYVM_INTERPRETER_REGISTER_ENV &&
     index >= FLUFFYVM_INTERPRETER_RESERVED_START &&
     index <= FLUFFYVM_INTERPRETER_RESERVED_START) {
     return true;
   }
+  
+  assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
 
   value_copy(&callState->registers[index], value);
-  foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
+  if (callState->registersObjectArray[index] != NULL) 
+    foxgc_api_write_array(callState->gc_registerObjectArray, index, value_get_object_ptr(value));
   return true;
 }
 
-static inline struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index) {
+static inline struct value getRegister(struct fluffyvm* vm, struct fluffyvm_call_state* callState, int index) { 
+  switch (index) {
+    case FLUFFYVM_INTERPRETER_REGISTER_ENV:
+      return callState->closure->env;
+    case FLUFFYVM_INTERPRETER_REGISTER_CURRENT:
+      return callState->closure->asValue;
+    case FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL:
+      return value_nil();
+  }
+  
   assert(index >= 0 && index < FLUFFYVM_REGISTERS_NUM);
-  assert(callState->registers[index].type != FLUFFYVM_TVALUE_NOT_PRESENT);
+  
+  if (callState->registers[index].type == FLUFFYVM_TVALUE_NOT_PRESENT)
+    return value_nil();
+
   return callState->registers[index];
 }
 
@@ -100,16 +114,6 @@ bool interpreter_push(struct fluffyvm* vm, struct fluffyvm_call_state* callState
   value_copy(&callState->generalStack[callState->sp], value);
   foxgc_api_write_array(callState->gc_generalObjectStack, callState->sp, value_get_object_ptr(value));
   callState->sp++;
-  return true;
-}
-
-bool interpreter_function_prolog(struct fluffyvm* vm, struct fluffyvm_coroutine* co, struct fluffyvm_closure* func) {
-  if (!co->currentCallState->closure->func) {
-    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ENV, func->env); 
-    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_ALWAYS_NIL, value_nil());
-    setRegister(vm, co->currentCallState, FLUFFYVM_INTERPRETER_REGISTER_CURRENT, value_new_closure(vm, co->currentCallState->closure));
-  }
-
   return true;
 }
 

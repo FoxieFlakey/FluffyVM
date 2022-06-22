@@ -17,6 +17,6 @@ default.profdata
 heapDump*.sqlite3*
 heapDump*.sqlite3*
 trace.json
-
-
+*.a
+xray-log.main.*
 
