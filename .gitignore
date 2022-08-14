@@ -28,4 +28,5 @@ build
 saved.vim
 .config
 .config.*
+.cache
 

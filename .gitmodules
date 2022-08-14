@@ -1,0 +1,3 @@
+[submodule "libs/FluffyGC"]
+	path = libs/FluffyGC
+	url = https://github.com/FluffyFoxUwU/FluffyGC

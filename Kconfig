@@ -1,0 +1,105 @@
+mainmenu "FluffyVM Configuration"
+
+menu Debugging
+  config DEBUG
+    bool "Enable debug mode"
+    default n
+    help
+      Enable debugging checks and show debug
+      options
+ 
+  choice
+    prompt "Additional sanitizer"
+    depends on DEBUG
+    optional
+
+    config ASAN
+      bool "Enable Address Sanitizer"
+    config TSAN
+      bool "Enable Thread Sanitizer" 
+    config MSAN
+      bool "Enable Memory Sanitizer"
+  endchoice
+  
+  config UBSAN
+    bool "Enable Undefined behavior Sanitizer"
+    default n
+
+  config LLVM_XRAY
+    bool "Enable LLVM's XRay instrumentation"
+    default n
+endmenu
+
+menu General
+  config VERSION_MAJOR
+    int
+    default 0
+
+  config VERSION_MINOR
+    int
+    default 1
+
+  config VERSION_PATCH
+    int
+    default 0
+
+  config VERSION_LOCAL_VERSION
+    string "Local version"
+    default ""
+    help
+      Appended to the end of version string
+  
+  config STRICTLY_POSIX
+    bool "Strict POSIX compliant"
+    default y
+    help
+      Disable any non POSIX 2008 libc or
+      platform specific API usage
+
+  choice PLATFORM
+    prompt "Select platform to target"
+    depends on !STRICTLY_POSIX
+    default PLATFORM_LINUX_5_10
+    help
+      Select platform you are targetting
+      or none to not assume any platform
+      specific features (depends on
+      platform, additional options are
+      shown)
+    
+#     config PLATFORM_LINUX_4_19
+#      bool "Linux version >= 4.19"
+#    config PLATFORM_LINUX_5_10
+#      bool "Linux version >= 5.10"
+    config PLATFORM_NONE
+      bool "None"
+  endchoice
+
+  choice TARGET_LIBC
+    prompt "Select libc to target"
+    depends on !STRICTLY_POSIX
+    default LIBC_GLIBC
+    help
+      Select libc to target and show
+      additional options or none
+      to not use non POSIX 2008 features
+      (Please note that libc REQUIRED to 
+      be POSIX 2008 compliant no matter 
+      what you selects)
+
+#    config LIBC_GLIBC
+#      bool "GLibc"
+#    config LIBC_MUSL
+#      bool "Musl"
+#    config LIBC_BIONIC
+#      bool "Bionic"
+    config LIBC_NONE
+      bool "None"
+  endchoice
+endmenu
+
+
+
+
+
+
