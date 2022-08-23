@@ -1,6 +1,6 @@
 #include <stdlib.h>
+#include <FluffyGC/v1.h>
 
-#include "FluffyGC/v1.h"
 #include "vm.h"
 
 #define KiB * 1024
@@ -16,7 +16,9 @@ int main2() {
       100, 
       0.45f,
       65536);
-  struct fluffyvm* vm = vm_new(heap);
+  struct vm* vm = vm_new(heap);
+
+
 
   vm_free(vm);
   fluffygc_v1_free(heap);

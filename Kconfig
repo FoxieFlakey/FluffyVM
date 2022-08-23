@@ -96,6 +96,11 @@ menu General
     config LIBC_NONE
       bool "None"
   endchoice
+
+  config THREAD_LIST_INCREMENT_SIZE
+    int "Thread list increment size"
+    range 1 50
+    default 10
 endmenu
 
 

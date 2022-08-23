@@ -21,6 +21,7 @@ set(CMAKE_EXPORT_COMPILE_COMMANDS ON)
 set(PROJECT_SOURCES
   src/format/bytecode.pb-c.c
   src/vm.c
+  src/value.c
 )
 
 set(PROJECT_PUBLIC_HEADERS
@@ -83,7 +84,7 @@ install(TARGETS ${PROJECT_NAME} DESTINATION lib/${PROJECT_NAME})
 # Install library headers
 install(
   FILES ${PROJECT_PUBLIC_HEADERS}
-  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/ExampleProject
+  DESTINATION ${CMAKE_INSTALL_INCLUDEDIR}/${PROJECT_NAME}
 )
 
 # Install library
@@ -100,9 +101,9 @@ install(
 # Install pkgconfig file
 set(target ${PROJECT_NAME})
 configure_file(package.pc.in
-  ${CMAKE_BINARY_DIR}/ExampleProject.pc @ONLY)
+  ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc @ONLY)
 install(
-  FILES ${CMAKE_BINARY_DIR}/ExampleProject.pc
+  FILES ${CMAKE_BINARY_DIR}/${PROJECT_NAME}.pc
   DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig/
 )
 
