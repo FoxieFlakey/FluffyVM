@@ -1,3 +1,6 @@
 [submodule "libs/FluffyGC"]
 	path = libs/FluffyGC
 	url = https://github.com/FluffyFoxUwU/FluffyGC
+[submodule "buildsystem"]
+	path = buildsystem
+	url = https://github.com/FluffyFoxUwU/common-cmake

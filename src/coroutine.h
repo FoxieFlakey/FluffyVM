@@ -4,10 +4,9 @@
 #include <stdbool.h>
 
 struct coroutine;
-typedef void (^coroutine_exec_block)(struct coroutine* thread, void* udata);
+typedef void (^coroutine_exec_block)(struct coroutine* co, void* arg);
 
 struct coroutine_exec_state {
-  void* udata;
   bool canRelease;
   coroutine_exec_block block;
 };
@@ -27,16 +26,18 @@ enum coroutine_exec_type {
 };
 
 struct coroutine {
-  struct vm* owner;
+  struct vm* F;
   struct coroutine_exec_state exec;
 
   enum coroutine_state state;
   enum coroutine_exec_type execType;
 };
 
-struct coroutine* coroutine_new(struct vm* owner, struct coroutine_exec_state state);
-void coroutine_resume(struct coroutine* self);
+struct coroutine* coroutine_new(struct vm* F, struct coroutine_exec_state exec);
+enum coroutine_state coroutine_resume(struct coroutine* self, void* arg);
 void coroutine_free(struct coroutine* self);
+
+void coroutine_yield(struct coroutine* self);
 
 #endif
 
