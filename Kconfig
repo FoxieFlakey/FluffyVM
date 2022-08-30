@@ -56,6 +56,23 @@ menu General
       Disable any non POSIX 2008 libc or
       platform specific API usage
 
+  config USE_SETCONTEXT
+    bool "Use ucontext functions for coroutine"
+    depends on !STRICTLY_POSIX
+    default n
+    help
+      As `*context` functions are removed in POSIX 2008
+      there two approach which is use `*context`
+      functions (ignoring portability) or use POSIX
+      threads (inefficient)
+      
+      Rationale for why this option exist:
+      This exists due its worth it to add as option.
+
+      Rationale for why this off by default:
+      I considered `*context` functions non portable
+      for POSIX 2008 standard
+
   choice PLATFORM
     prompt "Select platform to target"
     depends on !STRICTLY_POSIX

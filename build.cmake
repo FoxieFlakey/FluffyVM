@@ -16,6 +16,8 @@ set(BUILD_SOURCES
   src/vm.c
   src/coroutine.c
   src/value.c
+  src/fiber_impl/posix_thread.c
+  src/fiber_impl/ucontext.c
 )
 
 # Note that exe does not represent Windows' 

@@ -4,26 +4,49 @@
 #include <stdbool.h>
 #include <stdatomic.h>
 #include <ucontext.h>
+#include <errno.h>
 
-typedef enum {
+struct fiber_posix;
+struct fiber_ucontext;
+
+enum fiber_state {
   FIBER_RUNNING,
   FIBER_SUSPENDED,
   FIBER_DEAD
-} fiber_state_t;
+};
+
+enum fiber_command {
+  FIBER_COMMAND_RESUME,
+  FIBER_COMMAND_TERMINATE
+};
 
 struct fiber {
   volatile atomic_int state;
   void (^task)();
+  void* udata;
+  bool hasResumedForFirst;
 
-  ucontext_t resumeContext;
-  ucontext_t suspendContext;
+  union {
+    struct fiber_posix* posix;
+    struct fiber_ucontext* ucontext;
+  } impl;
 };
 
-bool fiber_yield(struct fiber* self);
-bool fiber_resume(struct fiber* self, fiber_state_t* prevState);
+// Errors:
+// -EINVAL: Yielding outside of fiber
+int fiber_yield();
+
+// Errors:
+// -EINVAL: Resuming dead fiber
+// -EBUSY: Resuming already running fiber
+int fiber_resume(struct fiber* self, enum fiber_state* prevState);
 
 struct fiber* fiber_new(void (^task)());
 void fiber_free(struct fiber* self);
+
+// Get current fiber which current thread
+// is in
+struct fiber* fiber_get_current();
 
 #endif
 
