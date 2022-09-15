@@ -1,26 +1,79 @@
+#include <stdlib.h>
+#include <stdbool.h>
+#include <errno.h>
+#include <math.h>
+
 #include "value.h"
 #include "vm.h"
+#include "vm_types.h"
 
-struct value value_new_none(struct vm* vm) {
-  struct value tmp = {
-    .type = VALUE_NONE
-  };
-  return tmp;
+static int valueFixTypeToSameType(struct vm* vm, struct value* a, struct value* b) {
+  if ((a->type != VALUE_INTEGER && a->type != VALUE_NUMBER) ||
+      (a->type != VALUE_INTEGER && a->type != VALUE_NUMBER))
+    return -EINVAL;
+
+  if (a->type == b->type)
+    return a->type;
+
+  if (a->type == VALUE_INTEGER)
+    *a = value_new_number(vm, a->data.integer);
+  else  
+    *b = value_new_number(vm, b->data.integer);
+
+  return a->type;
 }
 
-struct value value_new_nil(struct vm* vm) {
-  struct value tmp = {
-    .type = VALUE_NIL
-  };
-  return tmp;
+#define mathOp(name) \
+  int name(struct vm* vm, struct value* res, struct value a, struct value b) { \
+    int finalType = valueFixTypeToSameType(vm, &a, &b); \
+    if (finalType < 0) { \
+      /* TODO: Planned for metaevent trigger */ \
+      return -EFAULT; \
+    } \
+     \
+    switch (finalType) { \
+      case VALUE_INTEGER: \
+        *res = value_new_int(vm, name ## _operation_integer(a.data.integer, b.data.integer)); \
+        break; \
+      case VALUE_NUMBER: \
+        *res = value_new_number(vm, name ## _operation_number(a.data.number, b.data.number)); \
+        break; \
+      default: \
+        abort(); \
+    } \
+    return 0; \
+  }
+
+#define value_add_operation_integer(a, b) a + b
+#define value_add_operation_number(a, b) a + b
+mathOp(value_add);
+
+#define value_sub_operation_integer(a, b) a - b
+#define value_sub_operation_number(a, b) a - b
+mathOp(value_sub);
+
+#define value_mul_operation_integer(a, b) a * b
+#define value_mul_operation_number(a, b) a * b
+mathOp(value_mul);
+
+#define value_div_operation_integer(a, b) a / b
+#define value_div_operation_number(a, b) a / b
+mathOp(value_div);
+
+#define value_mod_operation_integer(a, b) a % b
+#define value_mod_operation_number(a, b) ((vm_number) fmodl(a, b))
+mathOp(value_mod);
+
+#define value_pow_operation_integer(a, b) ((vm_int) powl(a, b))
+#define value_pow_operation_number(a, b) ((vm_number) powl(a, b))
+mathOp(value_pow);
+
+bool value_is_less(struct vm* vm, struct value a, struct value b) {
+  return a.data.integer < b.data.integer;
 }
 
-struct value value_new_int(struct vm* vm, vm_int integer) {
-  struct value tmp = {
-    .type = VALUE_INTEGER,
-    .data.integer = integer
-  };
-  return tmp;
+bool value_is_equal(struct vm* vm, struct value a, struct value b) {
+  return a.data.integer == b.data.integer;
 }
 
 

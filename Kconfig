@@ -120,7 +120,24 @@ menu General
     default 10
 endmenu
 
+menu Performance
+  config ADDITIONAL_INLINING
+    bool 
+#"Additional inlining"
+    default n
+    help
+      If you don't understand what this is, answer `n`
+      In most cases you don't need touch this option
 
+      This option forces some function to be inlined if
+      compiler supports force inlining for improving 
+      performance if compiler missed inlining oppurtunity 
+      on hot functions
+
+      As always with inlining guides. Compare result with 
+      before and after enabling this option to see is which
+      is better
+endmenu
 
 
 

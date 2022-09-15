@@ -18,6 +18,11 @@ set(BUILD_SOURCES
   src/value.c
   src/fiber_impl/posix_thread.c
   src/fiber_impl/ucontext.c
+  src/call_state.c
+  src/opcodes.c
+  src/bytecode/bytecode.c
+  src/bytecode/prototype.c
+  src/interpreter.c
 )
 
 # Note that exe does not represent Windows' 
@@ -40,11 +45,16 @@ set(BUILD_PUBLIC_HEADERS
   include/FluffyVM/dummy.h
 )
 
+set(BUILD_CFLAGS "-fprofile-instr-generate -fcoverage-mapping -O3")
+set(BUILD_LDFLAGS "-fprofile-instr-generate -O3")
+
 # AddPkgConfigLib is in ./buildsystem/CMakeLists.txt
 macro(AddDependencies)
   # Example
   # AddPkgConfigLib(FluffyGC FluffyGC>=1.0.0)
   AddPkgConfigLib(FluffyGC FluffyGC>=1.0.0)
+
+  link_libraries(-lm)
 endmacro()
 
 

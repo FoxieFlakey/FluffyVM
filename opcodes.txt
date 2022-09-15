@@ -1,0 +1,75 @@
+FluffyVM's instruction set
+
+Registers: 16 general purpose (minimum)
+
+Minimum stack sizes: 64 stack size
+
+Register  Mode  Usage
+0xFFFF    r Always nil (silently fail any write)
+0xFFFE    rw  Nillable environment table here (behave like _ENV variable from Lua)
+      Note:
+       * Written once at start of the function 
+0xFFFD    none  0xFF00 - 0xFFFD is reserved
+      Note:
+       * Attempt to access will cause
+         illegal access error
+...
+0xFEFF    rw  0x0000 - 0xFEFF is general purpose
+...
+0x0000    rw
+
+Instruction format
+
+Single instruction is 64-bit or 8 bytes long
+Instruction is little endian
+
+Byte offset  Field
+0   Opcode
+1   Conditional flag
+2-3   Operand A
+4-5   Operand B
+6-7   Operand C
+
+Note:
+ * Byte offset counted from MSB to LSB
+ * Currently the reference assembler
+   does not make use of the the conditional
+   flag field
+
+Opcode  Mnemonic    Description
+0x00  nop()     No operation
+0x01  mov(A, B)   R(A) = R(B)
+0x02  table_get(A, B, C)  R(A) = R(B)[R(C)]
+0x03  table_set(A, B, C)  R(A)[R(B)] = R(C)
+
+// Maths
+0x04  add(A, B, C)    R(A) = R(B) + R(C)
+0x05  sub(A, B, C)    R(A) = R(B) - R(C)
+0x06  mul(A, B, C)    R(A) = R(B) * R(C)
+0x06  div(A, B, C)    R(A) = R(B) / R(C) 
+0x08  mod(A, B, C)    R(A) = R(B) % R(C)
+0x09  pow(A, B, C)    R(A) = R(B) ^ R(C)
+
+// Branches
+// Use cond flags to do
+// a conditional jump
+0x0A  jmp_forward(A)  PC += A  // PC not incremented after jump
+0x0B  jmp_backward(A) PC -= A  // PC not incremented after jump
+
+// Comparison
+0x0C  cmp(A, B) /* Compare A and B and properly set flag register */
+0x0D  load_integer(A, B, C) R(A) = (B << 16) | C
+
+Note:
+ * All operands is 16 bit unsigned integers unless noted
+ * All ranges is inclusive unless noted
+ * R(n) represent register access at 'n'
+ * Constant pool is indexed from 0
+ * ^ is 'to the power' operator (2^3 = 8, 3^2 = 9, 3^3 = 27, etc)
+ * When PC referred its value contained current
+   instruction address (before incremented)
+
+
+
+
+
