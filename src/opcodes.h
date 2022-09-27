@@ -20,8 +20,8 @@ struct vm;
 #define FLUFFYVM_OPCODES \
   X(OPCODE_NOP, 0x00, "nop", 0, OP_LAYOUT_u16x3) \
   X(OPCODE_MOV, 0x01, "mov", 2, OP_LAYOUT_u16x3) \
-  X(OPCODE_TABLE_GET, 0x02, "table_get", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_TABLE_SET, 0x03, "table_set", 3, OP_LAYOUT_u16x3) \
+  /*X(OPCODE_TABLE_GET, 0x02, "table_get", 3, OP_LAYOUT_u16x3)*/ \
+  /*X(OPCODE_TABLE_SET, 0x03, "table_set", 3, OP_LAYOUT_u16x3)*/ \
   X(OPCODE_ADD, 0x04, "add", 3, OP_LAYOUT_u16x3) \
   X(OPCODE_SUB, 0x05, "sub", 3, OP_LAYOUT_u16x3) \
   X(OPCODE_MUL, 0x06, "mul", 3, OP_LAYOUT_u16x3) \

@@ -27,41 +27,69 @@ static math_operation_func mathOpLookup[FLUFFYVM_OPCODE_LAST] = {
 };
 
 int interpreter_exec(struct call_state* callstate) {
-  uint32_t ip = 0;
+  vm_instruction_pointer ip = 0;
   int flagRegister = 0;
   const struct prototype* proto = callstate->proto;
-  bool jumped = false;
 
   struct value a;
   struct value b;
   struct vm* F = callstate->owner;
 
-  // Interpreting loop
-  for (; ip < proto->codeLen; ip++) {
-    // When jumped `ip` not incremented
-    // this is cleanest way
-    if (jumped)
-      ip--;
-    jumped = false;
+#  define interpreter_dispatch switch
+#  define interpreter_case(name) case name:
+#  define interpreter_break do { \
+  interpreter_increment_ip(); \
+  interpreter_fetch_instruction(); \
+  goto break_current_cycle; \
+} while (0)
+#  define interpreter_break_no_increment_ip do { \
+  interpreter_fetch_instruction(); \
+  goto break_current_cycle; \
+} while (0)
 
+//#undef CONFIG_USE_GOTO_POINTER
+# if IS_ENABLED(CONFIG_USE_GOTO_POINTER)
+#   include "jumptable.h"
+  
+  // For supressing unused goto labels warnings
+  if (0)
+    goto break_current_cycle;
+# endif
+  
+    // Interpreting loop
+  for (;;) {
     struct instruction instructionRegister;
-    if (opcode_decode_instruction(&instructionRegister, proto->code[ip]) < 0)
-      goto execution_error;
+#   define interpreter_increment_ip() do { \
+      ip++; \
+    } while (0)
+#   define interpreter_fetch_instruction() do { \
+      /* printf("%d\n", ip); */ \
+      if (ip >= proto->codeLen) \
+        goto exit_func; \
+       \
+      instructionRegister = proto->preDecoded[ip]; \
+      /* assert(opcode_decode_instruction(&instructionRegister, proto->code[ip]) >= 0); */ \
+      int condFlags = instructionRegister.cond & 0x0F; \
+      int condFlagsMask = (instructionRegister.cond & 0xF0) >> 4; \
+       \
+      /* Condition didn't met skip current */ \
+      if ((condFlags & FLUFFYVM_FLAG_EQUAL_MASK) != \
+          ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_EQUAL_MASK) || \
+          (condFlags & FLUFFYVM_FLAG_LESS_MASK) !=  \
+          ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_LESS_MASK)) { \
+        interpreter_increment_ip(); \
+        goto skip_to_next_cycle; \
+      } \
+    } while (0)
 
-    int condFlags = instructionRegister.cond & 0x0F;
-    int condFlagsMask = (instructionRegister.cond & 0xF0) >> 4;
+    skip_to_next_cycle:
+    interpreter_fetch_instruction();
 
-    // Condition didn't met skip current    
-    if ((condFlags & FLUFFYVM_FLAG_EQUAL_MASK) != 
-        ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_EQUAL_MASK) ||
-        (condFlags & FLUFFYVM_FLAG_LESS_MASK) != 
-        ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_LESS_MASK))
-      continue;
-    
-    switch (instructionRegister.op) {
-      case FLUFFYVM_OPCODE_NOP:
-        break;
-      case FLUFFYVM_OPCODE_LOAD_INTEGER:
+    break_current_cycle:
+    interpreter_dispatch(instructionRegister.op) {
+      interpreter_case(FLUFFYVM_OPCODE_NOP)
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_LOAD_INTEGER)
         if (call_state_set_register(callstate, 
               instructionRegister.arg.u16_s32.a, 
               value_new_int(
@@ -69,17 +97,19 @@ int interpreter_exec(struct call_state* callstate) {
                 instructionRegister.arg.u16_s32.b
               ), true) < 0)
           goto illegal_instruction;
-        break;
-      case FLUFFYVM_OPCODE_MOV:
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_MOV)
         if (call_state_move_register(callstate,
               instructionRegister.arg.u16x3.a, 
               instructionRegister.arg.u16x3.b) < 0)
           goto illegal_instruction;
-        break;
-      case FLUFFYVM_OPCODE_ADD:
-      case FLUFFYVM_OPCODE_SUB:
-      case FLUFFYVM_OPCODE_MUL:
-      case FLUFFYVM_OPCODE_DIV:
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_ADD)
+      interpreter_case(FLUFFYVM_OPCODE_SUB)
+      interpreter_case(FLUFFYVM_OPCODE_MUL)
+      interpreter_case(FLUFFYVM_OPCODE_DIV)
+      interpreter_case(FLUFFYVM_OPCODE_POW)
+      interpreter_case(FLUFFYVM_OPCODE_MOD)
         if (call_state_get_register(callstate, 
               &a, instructionRegister.arg.u16x3.b, true) < 0)
           goto illegal_instruction;
@@ -96,8 +126,8 @@ int interpreter_exec(struct call_state* callstate) {
               instructionRegister.arg.u16x3.a, 
               a, true) < 0)
           goto illegal_instruction;
-        break;
-      case FLUFFYVM_OPCODE_CMP:
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_CMP)
         if (call_state_get_register(callstate,
               &a, instructionRegister.arg.u16x3.a, true) < 0)
           goto illegal_instruction;
@@ -109,31 +139,26 @@ int interpreter_exec(struct call_state* callstate) {
         flagRegister = 0x00;
         flagRegister |= value_is_equal(F, a, b) ? FLUFFYVM_FLAG_EQUAL_MASK : 0;
         flagRegister |= value_is_less(F, a, b) ? FLUFFYVM_FLAG_LESS_MASK : 0;
-        break;
-      case FLUFFYVM_OPCODE_GET_CONSTANT:
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_GET_CONSTANT)
         if (bytecode_get_constant(callstate->proto->owner, F, &a, instructionRegister.arg.u16x3.b) < 0)
           goto illegal_instruction;
         if (call_state_set_register(callstate, instructionRegister.arg.u16x3.a, a, true) < 0)
           goto illegal_instruction;
-        break;
-      case FLUFFYVM_OPCODE_JMP_FORWARD:
+        interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_JMP_FORWARD)
         ip += instructionRegister.arg.u32;
-        jumped = true;
-        continue;
-      case FLUFFYVM_OPCODE_JMP_BACKWARD:
+        interpreter_break_no_increment_ip;
+      interpreter_case(FLUFFYVM_OPCODE_JMP_BACKWARD)
         ip -= instructionRegister.arg.u32;
-        jumped = true;
-        continue;
-      default:
+        interpreter_break_no_increment_ip;
+      interpreter_case(FLUFFYVM_OPCODE_LAST)
         goto illegal_instruction;
     }
   }
-  assert(ip == proto->codeLen);
 
+  exit_func:
   return 0;
-
-  execution_error:
-  return -EFAULT;
 
   illegal_instruction:
   return -EINVAL;

@@ -6,19 +6,23 @@
 #include "vm_types.h"
 
 struct bytecode;
+struct instruction;
 
 struct prototype {
   struct bytecode* owner;
 
   size_t codeLen;
   vm_instruction* code;  
+  struct instruction* preDecoded;
 };
 
 struct prototype* prototype_new();
 
-/* Errors:
- * -EINVAL: Code too big
- * -ENOMEM: Not enough memory
+/* On error the prototype remain untouched
+ * Errors:
+ * -EINVAL: Verification error
+ * -ENOMEM: Not enough memory 
+ * -E2BIG : Code size too big
  */
 int prototype_set_code(struct prototype* self, size_t codeLen, vm_instruction* code);
 

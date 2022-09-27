@@ -23,13 +23,13 @@
 #define TiB * 1024 GiB
 
 int main2() {
-  fluffygc_state* heap = fluffygc_v1_new(
+  fluffygc_state* heap = NULL; /*fluffygc_v1_new(
       8 MiB, 
       16 MiB, 
       64 KiB, 
       100, 
       0.45f,
-      65536);
+      65536);*/
   struct vm* F = vm_new(heap);
   struct bytecode* bytecode = bytecode_new();
   struct prototype* prototypes[] = {
@@ -55,7 +55,7 @@ int main2() {
     
     0x0E00000400000000, // R(4) = 0x00 (0)
                         // current loop count
-    0x0E0000050000000A,//F4240, // R(5) = 0x00 (1000000)
+    0x0E000005000F4240, //F4240 R(5) = 0x00 (1000000)
                         // loop count
     
     // Just off by one errors
@@ -112,9 +112,9 @@ int main2() {
   
   //////////////////////
   clock_t start = clock();
-  interpreter_exec(callstate);
+  int ret = interpreter_exec(callstate);
   double time = ((double) (clock() - start)) / CLOCKS_PER_SEC * 1000;
-  printf("Time took: %.2lf ms\n", time);
+  printf("Time took: %.2lf ms (ret: %d)\n", time, ret);
   //////////////////////
 
   struct value tmp;

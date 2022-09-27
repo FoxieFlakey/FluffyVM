@@ -137,6 +137,9 @@ menu Performance
       As always with inlining guides. Compare result with 
       before and after enabling this option to see is which
       is better
+
+  config USE_GOTO_POINTER
+    bool "Use goto pointer"
 endmenu
 
 
