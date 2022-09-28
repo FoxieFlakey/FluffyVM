@@ -65,7 +65,7 @@ static void selfRestart(char** argv) {
 }
 
 void special_premain(int argc, char** argv) {
-  if (!IS_ENABLED(CONFIG_LLVM_XRAY) || true)
+  if (!IS_ENABLED(CONFIG_LLVM_XRAY))
     return;
 
   const char* var;
