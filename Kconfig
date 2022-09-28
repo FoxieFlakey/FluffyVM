@@ -10,7 +10,7 @@ menu Debugging
  
   choice
     prompt "Additional sanitizer"
-    depends on DEBUG
+    depends on DEBUG && !LLVM_XRAY
     optional
 
     config ASAN
@@ -21,13 +21,54 @@ menu Debugging
       bool "Enable Memory Sanitizer"
   endchoice
   
-  config UBSAN
-    bool "Enable Undefined behavior Sanitizer"
-    default n
+  menu "Address Sanitizer"
+    depends on ASAN
 
+    config ASAN_OPTS
+      string "Default ASAN options"
+      default "fast_unwind_on_malloc=0:detect_invalid_pointer_pairs=10:strict_string_checks=1:strict_init_order=1:check_initialization_order=1:print_stats=1:detect_stack_use_after_return=1:atexit=1" 
+  endmenu   
+
+  menu "Memory Sanitizer"  
+    depends on MSAN
+
+    config MSAN_OPTS
+      string "Default MSAN options"
+      default ""
+  endmenu
+
+  menu "Thread Sanitizer"  
+    depends on TSAN
+
+    config TSAN_OPTS
+      string "Default TSAN options"
+      default "second_deadlock_stack=1"
+  endmenu
+  
   config LLVM_XRAY
     bool "Enable LLVM's XRay instrumentation"
     default n
+    select DONT_START_SEPERATE_MAIN_THREAD
+
+  menu "LLVM XRay"
+    depends on LLVM_XRAY
+
+    config LLVM_XRAY_OPTS
+      string "Default XRay options"
+      default "xray_mode=xray-basic:patch_premain=true:verbosity=1"
+  endmenu
+  
+  config UBSAN
+    bool "Enable Undefined behavior Sanitizer"
+    default n
+  
+  menu "Undefined Sanitizer"
+    depends on UBSAN
+
+    config UBSAN_OPTS
+      string "Default UBSAN options"
+      default "print_stacktrace=1:suppressions=suppressions/UBSan.supp"
+  endmenu
 endmenu
 
 menu General
@@ -121,26 +162,15 @@ menu General
 endmenu
 
 menu Performance
-  config ADDITIONAL_INLINING
-    bool 
-#"Additional inlining"
-    default n
-    help
-      If you don't understand what this is, answer `n`
-      In most cases you don't need touch this option
-
-      This option forces some function to be inlined if
-      compiler supports force inlining for improving 
-      performance if compiler missed inlining oppurtunity 
-      on hot functions
-
-      As always with inlining guides. Compare result with 
-      before and after enabling this option to see is which
-      is better
-
   config USE_GOTO_POINTER
     bool "Use goto pointer"
 endmenu
+
+config DONT_START_SEPERATE_MAIN_THREAD
+  bool "Don't start seperate main thread"
+  default n
+
+
 
 
 

@@ -54,7 +54,7 @@ macro(AddDependencies)
   # AddPkgConfigLib(FluffyGC FluffyGC>=1.0.0)
   AddPkgConfigLib(FluffyGC FluffyGC>=1.0.0)
 
-  link_libraries(-lm)
+  link_libraries(-lm -lprotobuf-c)
 endmacro()
 
 
