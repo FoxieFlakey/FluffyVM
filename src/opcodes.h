@@ -20,19 +20,17 @@ struct vm;
 #define FLUFFYVM_OPCODES \
   X(OPCODE_NOP, 0x00, "nop", 0, OP_LAYOUT_u16x3) \
   X(OPCODE_MOV, 0x01, "mov", 2, OP_LAYOUT_u16x3) \
-  /*X(OPCODE_TABLE_GET, 0x02, "table_get", 3, OP_LAYOUT_u16x3)*/ \
-  /*X(OPCODE_TABLE_SET, 0x03, "table_set", 3, OP_LAYOUT_u16x3)*/ \
-  X(OPCODE_ADD, 0x04, "add", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_SUB, 0x05, "sub", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_MUL, 0x06, "mul", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_DIV, 0x07, "div", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_MOD, 0x08, "mod", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_POW, 0x09, "pow", 3, OP_LAYOUT_u16x3) \
-  X(OPCODE_JMP_FORWARD, 0x0A, "jmp_forward", 2, OP_LAYOUT_u32) \
-  X(OPCODE_JMP_BACKWARD, 0x0B, "jmp_backward", 2, OP_LAYOUT_u32) \
-  X(OPCODE_CMP, 0x0C, "cmp", 2, OP_LAYOUT_u16x3) \
-  X(OPCODE_GET_CONSTANT, 0x0D, "get_constant", 3, OP_LAYOUT_u16_u32) \
-  X(OPCODE_LOAD_INTEGER, 0x0E, "load_integer", 3, OP_LAYOUT_u16_s32)
+  X(OPCODE_ADD, 0x02, "add", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_SUB, 0x03, "sub", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_MUL, 0x04, "mul", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_DIV, 0x05, "div", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_MOD, 0x06, "mod", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_POW, 0x07, "pow", 3, OP_LAYOUT_u16x3) \
+  X(OPCODE_JMP_FORWARD, 0x08, "jmp_forward", 2, OP_LAYOUT_u32) \
+  X(OPCODE_JMP_BACKWARD, 0x09, "jmp_backward", 2, OP_LAYOUT_u32) \
+  X(OPCODE_CMP, 0x0A, "cmp", 2, OP_LAYOUT_u16x3) \
+  X(OPCODE_GET_CONSTANT, 0x0B, "get_constant", 3, OP_LAYOUT_u16_u32) \
+  X(OPCODE_LOAD_INTEGER, 0x0C, "load_integer", 3, OP_LAYOUT_u16_s32)
 
 /*
  * Instruction format

@@ -16,6 +16,7 @@ struct prototype* prototype_new() {
   self->owner = NULL;
   self->code = NULL;
   self->codeLen = 0;
+  self->preDecoded = NULL;
   return self;
 }
 
