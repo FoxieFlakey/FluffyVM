@@ -29,7 +29,7 @@ struct vm;
   X(OPCODE_JMP_FORWARD, 0x08, "jmp_forward", 2, OP_LAYOUT_u32) \
   X(OPCODE_JMP_BACKWARD, 0x09, "jmp_backward", 2, OP_LAYOUT_u32) \
   X(OPCODE_CMP, 0x0A, "cmp", 2, OP_LAYOUT_u16x3) \
-  X(OPCODE_GET_CONSTANT, 0x0B, "get_constant", 3, OP_LAYOUT_u16_u32) \
+  X(OPCODE_LOAD_CONSTANT, 0x0B, "load_constant", 3, OP_LAYOUT_u16_u32) \
   X(OPCODE_LOAD_INTEGER, 0x0C, "load_integer", 3, OP_LAYOUT_u16_s32)
 
 /*
@@ -41,6 +41,16 @@ struct vm;
  * Byte 4-5 : Field B
  * Byte 6-7 : Field C
  */
+
+#define OP_ARG_OPCODE(op) ((op & 0xFFLL) << 56)
+#define OP_ARG_COND(op) ((op & 0xFFLL) << 48)
+#define OP_ARG_A_U16x3(op) ((op & 0xFFFFLL) << 32)
+#define OP_ARG_B_U16x3(op) ((op & 0xFFFFLL) << 16)
+#define OP_ARG_C_U16x3(op) (op & 0xFFFFLL)
+
+#define OP_ARG_A_U16_U32(op) ((op & 0xFFFFLL) << 32)
+#define OP_ARG_B_U16_U32(op) (op & 0xFFFFFFFFLL)
+#define OP_ARG_A_U32(op) ((op & 0xFFFFFFFFLL) << 16)
 
 enum fluffyvm_opcode {
 # define X(name, op, ...) FLUFFYVM_ ## name = op,

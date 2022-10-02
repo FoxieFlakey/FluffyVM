@@ -35,18 +35,6 @@ int interpreter_exec(struct call_state* callstate) {
   struct value b;
   struct vm* F = callstate->owner;
 
-#  define interpreter_dispatch switch
-#  define interpreter_case(name) case name:
-#  define interpreter_break do { \
-  interpreter_increment_ip(); \
-  interpreter_fetch_instruction(); \
-  goto break_current_cycle; \
-} while (0)
-#  define interpreter_break_no_increment_ip do { \
-  interpreter_fetch_instruction(); \
-  goto break_current_cycle; \
-} while (0)
-
 //#undef CONFIG_USE_GOTO_POINTER
 # if IS_ENABLED(CONFIG_USE_GOTO_POINTER)
 #   include "jumptable.h"
@@ -54,6 +42,18 @@ int interpreter_exec(struct call_state* callstate) {
   // For supressing unused goto labels warnings
   if (0)
     goto break_current_cycle;
+# else
+#   define interpreter_dispatch switch
+#   define interpreter_case(name) case name:
+#   define interpreter_break do { \
+      interpreter_increment_ip(); \
+      interpreter_fetch_instruction(); \
+      goto break_current_cycle; \
+    } while (0)
+#   define interpreter_break_no_increment_ip do { \
+      interpreter_fetch_instruction(); \
+      goto break_current_cycle; \
+    } while (0)
 # endif
   
     // Interpreting loop
@@ -140,7 +140,7 @@ int interpreter_exec(struct call_state* callstate) {
         flagRegister |= value_is_equal(F, a, b) ? FLUFFYVM_FLAG_EQUAL_MASK : 0;
         flagRegister |= value_is_less(F, a, b) ? FLUFFYVM_FLAG_LESS_MASK : 0;
         interpreter_break;
-      interpreter_case(FLUFFYVM_OPCODE_GET_CONSTANT)
+      interpreter_case(FLUFFYVM_OPCODE_LOAD_CONSTANT)
         if (bytecode_get_constant(callstate->proto->owner, F, &a, instructionRegister.arg.u16x3.b) < 0)
           goto illegal_instruction;
         if (call_state_set_register(callstate, instructionRegister.arg.u16x3.a, a, true) < 0)

@@ -45,8 +45,8 @@ set(BUILD_PUBLIC_HEADERS
   include/FluffyVM/dummy.h
 )
 
-set(BUILD_CFLAGS "-O3")
-set(BUILD_LDFLAGS "-O3")
+set(BUILD_CFLAGS "")
+set(BUILD_LDFLAGS "")
 
 # AddPkgConfigLib is in ./buildsystem/CMakeLists.txt
 macro(AddDependencies)

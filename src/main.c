@@ -55,7 +55,7 @@ int main2() {
     
     0x0C00000400000000, // R(4) = 0x00 (0)
                         // current loop count
-    0x0C00000500014240, //F4240 R(5) = 0x00 (1000000)
+    0x0C000005000F4240, // R(5) = 0x00 (1000000)
                         // loop count
     
     // Just off by one errors

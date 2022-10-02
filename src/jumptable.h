@@ -8,11 +8,6 @@
 # error "Included without CONFIG_USE_GOTO_POINTER enabled"
 #endif
 
-#undef interpreter_dispatch
-#undef interpreter_case
-#undef interpreter_break
-#undef interpreter_break_no_increment_ip
-
 #define interpreter_dispatch(...) goto *jumpTable[instructionRegister.op];
 #define interpreter_case(name) do_ ## name:
 #define interpreter_break do { \
