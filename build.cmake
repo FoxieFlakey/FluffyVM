@@ -11,7 +11,6 @@ set(BUILD_INSTALL_EXECUTABLE YES)
 
 # Sources which common between exe and library
 set(BUILD_SOURCES
-  src/format/bytecode.pb-c.c
   src/fiber.c
   src/vm.c
   src/coroutine.c
@@ -47,6 +46,10 @@ set(BUILD_PUBLIC_HEADERS
 
 set(BUILD_CFLAGS "")
 set(BUILD_LDFLAGS "")
+
+set(BUILD_PROTOBUF_FILES
+  src/format/bytecode.proto
+)
 
 # AddPkgConfigLib is in ./buildsystem/CMakeLists.txt
 macro(AddDependencies)
