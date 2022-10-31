@@ -29,4 +29,13 @@ saved.vim
 .config
 .config.*
 .cache
+*.fluff_bin
+golf.lua
+.vscode
 *.class
+node_modules
+*.vsix
+theme-defaults
+.vscode/**
+.vscode-test/**
+vsc-extension-quickstart.md
