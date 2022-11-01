@@ -31,84 +31,8 @@ int main2() {
       0.45f,
       65536);*/
   struct vm* F = vm_new(heap);
-  struct bytecode* bytecode = bytecode_new();
-  struct prototype* prototypes[] = {
-    prototype_new()
-  };
-
-  /*
-  local COND_AL = 0x00  -- Always     (0b0000'0000)
-
-  local COND_EQ = 0x11  -- Equal      (0b0001'0001)
-  local COND_LT = 0x32  -- Less than  (0b0011'0010)
-  local COND_NE = 0x10  -- Not equal  (0b0001'0000)
-  local COND_GT = 0x30  -- Greater    (0b0011'0000)
-  local COND_GE = COND_GT | COND_EQ -- 0x31
-  local COND_LE = COND_LT | COND_EQ -- 0x33
-  */
-
-  vm_instruction prog_factorial[] = {
-    0x0C0000020000000F, // R(2) = 0x0F (16)
-                        // n
-    0x0C00000300000001, // R(3) = 0x01 (1)
-                        // constant one
-    
-    0x0C00000400000000, // R(4) = 0x00 (0)
-                        // current loop count
-    0x0C000005000F4240, // R(5) = 0x00 (1000000)
-                        // loop count
-    
-    // Just off by one errors
-    0x0200000200020003, // R(2) = R(2) + R(3)
-    
-    0x0A00000400050000, // Compare R(4) with R(5)
-    0x08110000000A0000, // IP += 10 if equal-than
-      0x0C00000000000001, // R(0) = 0x00 (0)
-                          // current_product
-      0x0C00000100000001, // R(1) = 0x01 (1)
-                          // counter
-    
-      0x0A00000100020000, // Compare R(1) with R(2)
-      0x0830000000040000, // IP += 4 if greater-than
-        0x0400000000000001, // R(0) = R(0) * R(1)
-        0x0200000100010003, // R(1) = R(1) + R(3)
-      0x0900000000040000, // IP -= 4
-
-      0x0200000400040003, // R(4) = R(4) + R(3)
-    0x09000000000A0000, // IP -= 10
-    0x0000000000000000, // No-op
-    
-    0x0B00000100010000, // R(1) = Const[1]
-    0x0B00000200020000, // R(2) = Const[2]
-    0x0200000300010002 // R(3) = R(1) + R(2)
-  };
-
-  struct constant prog_factorial_const[] = {
-    {
-      .type = BYTECODE_CONSTANT_INTEGER,
-      .data.integer = 0
-    },
-    {
-      .type = BYTECODE_CONSTANT_INTEGER,
-      .data.integer = 9028
-    },
-    {
-      .type = BYTECODE_CONSTANT_NUMBER,
-      .data.number = 3.14
-    }
-  };
-
-  vm_instruction* code = prog_factorial;
-  struct constant* constants = prog_factorial_const;
-
-  size_t codeCount = sizeof(prog_factorial) / sizeof(*prog_factorial);
-  size_t constantsCount = sizeof(prog_factorial_const) / sizeof(*prog_factorial_const);
-
-  prototype_set_code(prototypes[0], codeCount, code);
-  bytecode_set_prototypes(bytecode, sizeof(prototypes) / sizeof(struct prototype*), prototypes);
-  bytecode_set_constants(bytecode, constantsCount, constants);
-
-  struct call_state* callstate = call_state_new(F, prototypes[0]);
+  struct bytecode* bytecode = NULL;
+  struct call_state* callstate = call_state_new(F, bytecode->mainPrototype);
   
   //////////////////////
   clock_t start = clock();

@@ -5,7 +5,8 @@
 
 #include "opcodes.h"
 #include "prototype.h"
-#include "constants.h"
+#include "vm_limits.h"
+#include "vec.h"
 #include "vm_types.h"
 
 struct prototype* prototype_new() {
@@ -14,39 +15,30 @@ struct prototype* prototype_new() {
     return NULL;
 
   self->owner = NULL;
-  self->code = NULL;
-  self->codeLen = 0;
-  self->preDecoded = NULL;
+  vec_init(&self->code);
+  vec_init(&self->preDecoded);
   return self;
 }
 
 int prototype_set_code(struct prototype* self, size_t codeLen, vm_instruction* code) {
-  if (codeLen >= FLUFFYVM_MAX_CODE)
+  if (codeLen >= VM_LIMIT_MAX_CODE)
     return -E2BIG;
 
-  vm_instruction* copied = calloc(codeLen, sizeof(*copied));
-  struct instruction* preDecoded = calloc(codeLen, sizeof(*preDecoded));
-  if (!copied || !preDecoded)
+  if (!vec_reserve(&self->code, codeLen) || !vec_reserve(&self->preDecoded, codeLen))
     return -ENOMEM;
-  memcpy(copied, code, sizeof(*copied) * codeLen);
+  memcpy(self->code.data, code, sizeof(*self->code.data) * codeLen);
   
   // Pre-decode
   for (vm_instruction_pointer i = 0; i < codeLen; i++)
-    if (opcode_decode_instruction(&preDecoded[i], code[i]) < 0)
+    if (opcode_decode_instruction(&self->preDecoded.data[i], code[i]) < 0)
       goto decode_error;
 
   // Free old code
-  free(self->code);
-  free(self->preDecoded);
-
-  self->codeLen = codeLen;
-  self->code = copied;
-  self->preDecoded = preDecoded;
+  vec_deinit(&self->code);
+  vec_deinit(&self->preDecoded);
   return 0;
 
-  decode_error:
-  free(copied);
-  free(preDecoded);
+decode_error:
   return -EINVAL;
 }
 
@@ -54,7 +46,8 @@ void prototype_free(struct prototype* self) {
   if (!self)
     return;
 
-  free(self->code);
+  vec_deinit(&self->code);
+  vec_deinit(&self->preDecoded);
   free(self);
 }
 

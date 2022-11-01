@@ -1,37 +1,37 @@
-syntax = "proto3";
+syntax = "proto2";
+
 package FluffyVmFormat.Bytecode;
 
-enum ConstantType {
-  NOT_SET = 0;
-  STRING = 1;
-  DOUBLE = 2;
-  LONG = 3;
-}
-
 message Constant {
-  ConstantType type = 1;
   oneof data {
     bytes data_str = 2;
-    sint64 data_longNum = 3;
-    double data_doubleNum = 4;
+    sint64 data_integer = 3;
+    double data_number = 4;
   }
+}
+
+message LineInfo {
+  required string sourceFile = 1;
+  required int32 startColumn = 2;
+  required int32 startLine = 3;
+  required int32 endColumn = 4;
+  required int32 endLine = 5;
 }
 
 message Prototype {
   repeated uint64 instructions = 1;
   repeated Prototype prototypes = 2;
 
-  // Debug info (optional)
-  repeated int32 lineInfo = 3;
-  // Just give 0 length string
-  // if not present
-  string sourceFile = 4;
+  required string symbolName = 3;
+  
+  optional LineInfo definedAt = 4;
+  repeated LineInfo pcToLine = 5;
 }
 
 message Bytecode {
-  uint32 version = 1;
+  required uint64 version = 1;
   repeated Constant constants = 2;
-  Prototype mainPrototype = 3;
+  required Prototype mainPrototype = 3;
 }
 
 

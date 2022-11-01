@@ -4,10 +4,12 @@ set(BUILD_PROJECT_NAME "FluffyVM")
 
 # We're making library
 set(BUILD_IS_LIBRARY YES)
+set(BUILD_IS_KERNEL NO)
 
 # If we want make libary and
 # executable project
 set(BUILD_INSTALL_EXECUTABLE YES)
+set(BUILD_MAXIMUM_PERFORMANCE NO)
 
 # Sources which common between exe and library
 set(BUILD_SOURCES
@@ -22,6 +24,10 @@ set(BUILD_SOURCES
   src/bytecode/bytecode.c
   src/bytecode/prototype.c
   src/interpreter.c
+  
+  deps/buffer/buffer.c
+  deps/templated-hashmap/hashmap.c
+  deps/vec/vec.c
 )
 
 # Note that exe does not represent Windows' 
@@ -45,10 +51,16 @@ set(BUILD_PUBLIC_HEADERS
 )
 
 set(BUILD_CFLAGS "")
-set(BUILD_LDFLAGS "")
+set(BUILD_LDFLAGS "-L/usr/local/lib/")
 
 set(BUILD_PROTOBUF_FILES
   src/format/bytecode.proto
+)
+
+set(BUILD_INCLUDE_DIRS 
+  ./deps/buffer
+  ./deps/vec
+  ./deps/templated-hashmap/
 )
 
 # AddPkgConfigLib is in ./buildsystem/CMakeLists.txt

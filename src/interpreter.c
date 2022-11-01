@@ -8,7 +8,7 @@
 #include "attributes.h"
 #include "bytecode/bytecode.h"
 #include "bytecode/prototype.h"
-#include "constants.h"
+#include "vm_limits.h"
 #include "interpreter.h"
 #include "call_state.h"
 #include "performance.h"
@@ -29,6 +29,7 @@ static math_operation_func mathOpLookup[FLUFFYVM_OPCODE_LAST] = {
 int interpreter_exec(struct call_state* callstate) {
   vm_instruction_pointer ip = 0;
   int flagRegister = 0;
+  int res = 0;
   const struct prototype* proto = callstate->proto;
 
   struct value a;
@@ -64,28 +65,28 @@ int interpreter_exec(struct call_state* callstate) {
     } while (0)
 #   define interpreter_fetch_instruction() do { \
       /* printf("%d\n", ip); */ \
-      if (ip >= proto->codeLen) \
+      if (ip >= proto->code.length) \
         goto exit_func; \
        \
-      instructionRegister = proto->preDecoded[ip]; \
+      instructionRegister = proto->preDecoded.data[ip]; \
       /* assert(opcode_decode_instruction(&instructionRegister, proto->code[ip]) >= 0); */ \
       int condFlags = instructionRegister.cond & 0x0F; \
       int condFlagsMask = (instructionRegister.cond & 0xF0) >> 4; \
        \
       /* Condition didn't met skip current */ \
-      if ((condFlags & FLUFFYVM_FLAG_EQUAL_MASK) != \
-          ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_EQUAL_MASK) || \
-          (condFlags & FLUFFYVM_FLAG_LESS_MASK) !=  \
-          ((flagRegister & condFlagsMask) & FLUFFYVM_FLAG_LESS_MASK)) { \
+      if ((condFlags & OP_COND_EQ_MASK) != \
+          ((flagRegister & condFlagsMask) & OP_COND_EQ_MASK) || \
+          (condFlags & OP_COND_LT_MASK) !=  \
+          ((flagRegister & condFlagsMask) & OP_COND_LT_MASK)) { \
         interpreter_increment_ip(); \
         goto skip_to_next_cycle; \
       } \
     } while (0)
 
-    skip_to_next_cycle:
+skip_to_next_cycle:
     interpreter_fetch_instruction();
 
-    break_current_cycle:
+break_current_cycle:
     interpreter_dispatch(instructionRegister.op) {
       interpreter_case(FLUFFYVM_OPCODE_NOP)
         interpreter_break;
@@ -95,14 +96,18 @@ int interpreter_exec(struct call_state* callstate) {
               value_new_int(
                 callstate->owner, 
                 instructionRegister.arg.u16_s32.b
-              ), true) < 0)
+              ), true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         interpreter_break;
       interpreter_case(FLUFFYVM_OPCODE_MOV)
         if (call_state_move_register(callstate,
               instructionRegister.arg.u16x3.a, 
-              instructionRegister.arg.u16x3.b) < 0)
+              instructionRegister.arg.u16x3.b) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         interpreter_break;
       interpreter_case(FLUFFYVM_OPCODE_ADD)
       interpreter_case(FLUFFYVM_OPCODE_SUB)
@@ -111,34 +116,45 @@ int interpreter_exec(struct call_state* callstate) {
       interpreter_case(FLUFFYVM_OPCODE_POW)
       interpreter_case(FLUFFYVM_OPCODE_MOD)
         if (call_state_get_register(callstate, 
-              &a, instructionRegister.arg.u16x3.b, true) < 0)
+              &a, instructionRegister.arg.u16x3.b, true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         
         if (call_state_get_register(callstate, 
-              &b, instructionRegister.arg.u16x3.c, true) < 0)
+              &b, instructionRegister.arg.u16x3.c, true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
 
-        assert(mathOpLookup[instructionRegister.op]);
-        if (mathOpLookup[instructionRegister.op](F, &a, a, b) < 0)
+        if (mathOpLookup[instructionRegister.op](F, &a, a, b) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
 
         if (call_state_set_register(callstate, 
               instructionRegister.arg.u16x3.a, 
-              a, true) < 0)
+              a, true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         interpreter_break;
       interpreter_case(FLUFFYVM_OPCODE_CMP)
         if (call_state_get_register(callstate,
-              &a, instructionRegister.arg.u16x3.a, true) < 0)
+              &a, instructionRegister.arg.u16x3.a, true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         
         if (call_state_get_register(callstate, 
-              &b, instructionRegister.arg.u16x3.b, true) < 0)
+              &b, instructionRegister.arg.u16x3.b, true) < 0) {
+          res = -EINVAL;
           goto illegal_instruction;
+        }
         
         flagRegister = 0x00;
-        flagRegister |= value_is_equal(F, a, b) ? FLUFFYVM_FLAG_EQUAL_MASK : 0;
-        flagRegister |= value_is_less(F, a, b) ? FLUFFYVM_FLAG_LESS_MASK : 0;
+        flagRegister |= value_is_equal(F, a, b) ? OP_COND_EQ_MASK : 0;
+        flagRegister |= value_is_less(F, a, b) ? OP_COND_LT_MASK : 0;
         interpreter_break;
       interpreter_case(FLUFFYVM_OPCODE_LOAD_CONSTANT)
         if (bytecode_get_constant(callstate->proto->owner, F, &a, instructionRegister.arg.u16x3.b) < 0)
@@ -152,16 +168,23 @@ int interpreter_exec(struct call_state* callstate) {
       interpreter_case(FLUFFYVM_OPCODE_JMP_BACKWARD)
         ip -= instructionRegister.arg.u32;
         interpreter_break_no_increment_ip;
+      interpreter_case(FLUFFYVM_OPCODE_RET)
+        goto exit_func;
       interpreter_case(FLUFFYVM_OPCODE_LAST)
         goto illegal_instruction;
+      
+      interpreter_case(FLUFFYVM_OPCODE_IMPLDEP1) 
+      interpreter_case(FLUFFYVM_OPCODE_IMPLDEP2) 
+      interpreter_case(FLUFFYVM_OPCODE_IMPLDEP3) 
+      interpreter_case(FLUFFYVM_OPCODE_IMPLDEP4)
+      interpreter_case(FLUFFYVM_OPCODE_LOAD_PROTOTYPE) 
+        abort();
     }
   }
 
-  exit_func:
-  return 0;
-
-  illegal_instruction:
-  return -EINVAL;
+illegal_instruction:
+exit_func:
+  return res;
 }
 
 

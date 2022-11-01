@@ -4,14 +4,18 @@
 #include <stddef.h>
 #include <stdint.h>
 
+#include "vec.h"
 #include "vm_types.h"
+#include "buffer.h"
 
 struct vm;
 struct value;
+struct prototype;
 
 enum constant_type {
   BYTECODE_CONSTANT_INTEGER,
-  BYTECODE_CONSTANT_NUMBER
+  BYTECODE_CONSTANT_NUMBER,
+  BYTECODE_CONSTANT_STRING
 };
 
 struct constant {
@@ -19,32 +23,27 @@ struct constant {
   union {
     vm_int integer;
     vm_number number;
+    const char* string;
   } data;
 };
 
 struct bytecode {
-  size_t constantsLen;
-  struct constant* constants;
-
-  size_t prototypesLen;
-  struct prototype** prototypes;
+  vec_t(struct constant) constants;
+  struct prototype* mainPrototype;
 };
 
 struct bytecode* bytecode_new();
-
-/* Errors:
- * -EINVAL: Too many prototypes
- * -ENOMEM: Not enough memory
- */
-int bytecode_set_prototypes(struct bytecode* self, size_t prototypesLen, struct prototype** prototypes);
-
-/* Errors:
- * -EINVAL: Too many constants
- * -ENOMEM: Not enough memory
- */
-int bytecode_set_constants(struct bytecode* self, size_t constantsLen, struct constant* constants);
-
 void bytecode_free(struct bytecode* self);
+
+// bytecode_add_constant_* return constant index
+// On error return negative errno
+// Errors:
+// -ENOMEM: Not enough memory
+// -ENOSPC: Number of constants exceeded VM_LIMIT_MAX_CONSTANT
+int bytecode_add_constant_generic(struct bytecode* self, struct constant constant);
+int bytecode_add_constant_int(struct bytecode* self, vm_int integer);
+int bytecode_add_constant_number(struct bytecode* self, vm_number number);
+int bytecode_add_constant_string(struct bytecode* self, const char* integer);
 
 /* Errors:
  * -ERANGE: Invalid constant index

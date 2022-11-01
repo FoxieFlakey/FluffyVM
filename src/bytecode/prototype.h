@@ -4,28 +4,24 @@
 #include <stddef.h>
 
 #include "vm_types.h"
+#include "vec.h"
 
 struct bytecode;
 struct instruction;
 
 struct prototype {
+  const char* sourceFile;
+  const char* prototypeName;
+  int definedAtLine;
+  int definedAtColumn;
+  
   struct bytecode* owner;
 
-  size_t codeLen;
-  vm_instruction* code;  
-  struct instruction* preDecoded;
+  vec_t(vm_instruction) code;  
+  vec_t(struct instruction) preDecoded;
 };
 
 struct prototype* prototype_new();
-
-/* On error the prototype remain untouched
- * Errors:
- * -EINVAL: Verification error
- * -ENOMEM: Not enough memory 
- * -E2BIG : Code size too big
- */
-int prototype_set_code(struct prototype* self, size_t codeLen, vm_instruction* code);
-
 void prototype_free(struct prototype* self);
 
 #endif

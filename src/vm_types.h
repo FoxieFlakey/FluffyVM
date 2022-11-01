@@ -11,6 +11,9 @@ typedef double vm_number;
 typedef uint64_t vm_instruction;
 typedef uint32_t vm_instruction_pointer;
 
+#define VM_INT_MAX INT64_MAX
+#define VM_INT_MIN INT64_MIN
+
 #define PRINT_VM_INT_X PRIX64
 #define PRINT_VM_INT_x PRIx64
 #define PRINT_VM_INT_d PRId64

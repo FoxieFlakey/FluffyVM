@@ -4,7 +4,6 @@
 #include <stdint.h>
 
 #include "call_state.h"
-#include "constants.h"
 #include "opcodes.h"
 #include "value.h"
 
