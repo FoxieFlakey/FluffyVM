@@ -15,7 +15,8 @@ struct prototype;
 enum constant_type {
   BYTECODE_CONSTANT_INTEGER,
   BYTECODE_CONSTANT_NUMBER,
-  BYTECODE_CONSTANT_STRING
+  BYTECODE_CONSTANT_STRING,
+  BYTECODE_CONSTANT_NIL
 };
 
 struct constant {
@@ -23,7 +24,11 @@ struct constant {
   union {
     vm_int integer;
     vm_number number;
-    const char* string;
+    
+    struct {
+      const char* string;
+      size_t len;
+    } string;
   } data;
 };
 
@@ -43,7 +48,8 @@ void bytecode_free(struct bytecode* self);
 int bytecode_add_constant_generic(struct bytecode* self, struct constant constant);
 int bytecode_add_constant_int(struct bytecode* self, vm_int integer);
 int bytecode_add_constant_number(struct bytecode* self, vm_number number);
-int bytecode_add_constant_string(struct bytecode* self, const char* integer);
+int bytecode_add_constant_cstring(struct bytecode* self, const char* string);
+int bytecode_add_constant_string(struct bytecode* self, const char* string, size_t len);
 
 /* Errors:
  * -ERANGE: Invalid constant index

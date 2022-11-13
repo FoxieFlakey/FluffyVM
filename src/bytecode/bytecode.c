@@ -3,6 +3,7 @@
 #include <string.h>
 #include <stdio.h>
 
+#include "bug.h"
 #include "bytecode.h"
 #include "prototype.h"
 #include "value.h"
@@ -31,7 +32,7 @@ void bytecode_free(struct bytecode* self) {
   struct constant constant;
   vec_foreach(&self->constants, constant, i)
     if (constant.type == BYTECODE_CONSTANT_STRING)
-      free((char*) constant.data.string);
+      free((char*) constant.data.string.string);
   
   vec_deinit(&self->constants);
   free(self);
@@ -60,14 +61,26 @@ int bytecode_add_constant_number(struct bytecode* self, vm_number number) {
   });
 }
 
-int bytecode_add_constant_string(struct bytecode* self, const char* str) {
+int bytecode_add_constant_cstring(struct bytecode* self, const char* str) {
   char* cloned = strdup(str);
   if (!cloned)
     return -ENOMEM;
   
+  return bytecode_add_constant_string(self, cloned, strlen(cloned));
+}
+
+int bytecode_add_constant_string(struct bytecode* self, const char* str, size_t len) {
+  char* cloned = malloc(len);
+  if (!cloned)
+    return -ENOMEM;
+  memcpy(cloned, str, len);
+  
   return bytecode_add_constant_generic(self, (struct constant) {
     .type = BYTECODE_CONSTANT_STRING,
-    .data.string = cloned
+    .data.string = {
+      .string = cloned,
+      .len = len
+    }
   });
 }
 
@@ -83,8 +96,11 @@ int bytecode_get_constant(struct bytecode* self, struct vm* vm, struct value* re
     case BYTECODE_CONSTANT_NUMBER:
       *result = value_new_number(vm, constant->data.number);
       break;
+    case BYTECODE_CONSTANT_STRING:
+      *result = value_new_string(vm, constant->data.string.string, constant->data.string.len);
+      break;
     default:
-      abort();
+      BUG();
   }
 
   return 0;

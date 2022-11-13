@@ -29,7 +29,10 @@ message Prototype {
 }
 
 message Bytecode {
-  required uint64 version = 1;
+  // 0 cannot appear (for implementation use to signals unknown version or somthing)
+  // but [-1, INT32_MIN] reserved while [1, INT32_MAX] encodes version
+  // (the number assumed to not incremented but smaller always mean older) 
+  required int32 version = 1;
   repeated Constant constants = 2;
   required Prototype mainPrototype = 3;
 }

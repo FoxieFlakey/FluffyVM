@@ -6,6 +6,7 @@
 
 #include "fiber.h"
 #include "fiber_impl/ucontext.h"
+#include "bug.h"
 #include "config.h"
 
 #if IS_ENABLED(CONFIG_ASAN)
@@ -32,13 +33,13 @@ static inline void sanitizer_finish_switch_fiber() {
 // Replace the function with one that aborts
 
 static int getcontext_fake(ucontext_t* ctx) {
-  abort();
+  BUG();
 }
 static int swapcontext_fake(ucontext_t* restrict oldCtx, const ucontext_t* restrict newCtx) {
-  abort();
+  BUG();
 }
 static void makecontext_fake(ucontext_t* ctx, void (*func)(), int argCount, ...) {
-  abort();
+  BUG();
 }
 
 #define getcontext getcontext_fake
@@ -60,6 +61,9 @@ static void ctxEntryPoint() {
 }
 
 struct fiber_ucontext* fiber_impl_ucontext_new(void (*entryPoint)(struct fiber*), struct fiber* owner, struct fiber_ucontext** alsoSaveTo) {
+  if (!IS_ENABLED(CONFIG_USE_SETCONTEXT))
+    BUG();
+  
   struct fiber_ucontext* self = malloc(sizeof(*self));
   if (!self)
     return NULL;
@@ -97,6 +101,9 @@ struct fiber_ucontext* fiber_impl_ucontext_new(void (*entryPoint)(struct fiber*)
 }
 
 void fiber_impl_ucontext_send_command_and_wait(struct fiber_ucontext* self, enum fiber_command command, void** result) {
+  if (!IS_ENABLED(CONFIG_USE_SETCONTEXT))
+    BUG();
+  
   self->command = command;
     
   sanitizer_start_switch_fiber(&self->resumeContext.uc_stack.ss_sp, 
@@ -114,9 +121,14 @@ void fiber_impl_ucontext_send_command_and_wait(struct fiber_ucontext* self, enum
 }
 
 void fiber_impl_ucontext_send_command_completion(struct fiber_ucontext* self, void* result) {  
+  if (!IS_ENABLED(CONFIG_USE_SETCONTEXT))
+    BUG();
 }
 
 enum fiber_command fiber_impl_ucontext_wait_command(struct fiber_ucontext* self) {
+  if (!IS_ENABLED(CONFIG_USE_SETCONTEXT))
+    BUG();
+  
   sanitizer_start_switch_fiber(self->suspendContext.uc_stack.ss_sp, 
                                self->suspendContext.uc_stack.ss_size);
   swapcontext(&self->resumeContext, &self->suspendContext);
@@ -126,6 +138,9 @@ enum fiber_command fiber_impl_ucontext_wait_command(struct fiber_ucontext* self)
 }
 
 void fiber_impl_ucontext_free(struct fiber_ucontext* self) {
+  if (!IS_ENABLED(CONFIG_USE_SETCONTEXT))
+    BUG();
+  
   if (!self)
     return;
 

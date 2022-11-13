@@ -4,6 +4,7 @@
 #include "call_state.h"
 #include "vm_limits.h"
 #include "vm.h"
+#include "constants.h"
 
 struct call_state* call_state_new(struct vm* owner, struct prototype* proto) {
   struct call_state* self = malloc(sizeof(*self));
@@ -12,7 +13,7 @@ struct call_state* call_state_new(struct vm* owner, struct prototype* proto) {
 
   self->owner = owner;
   self->proto = proto;
-  for (int i = 0; i < VM_REGISTER_COUNT; i++)
+  for (int i = 0; i < VM_MAX_REGISTERS; i++)
     self->registers[i] = (struct value) {};
 
   return self;

@@ -1,0 +1,63 @@
+/* Assembly 
+.register_usage #3, hcany, chan;
+;
+bruh*/
+
+ldr $r1, #0;
+/* Constant 1 */
+ldr $r2, #1;
+/* Factorial iteration count */
+ldr $r5, #16;
+
+/* new_array $r6, #32;
+ldr $r5, #12;
+set_array $r6, $r5, $r5; */
+
+:loop: 
+  cmp $r1, $r0;
+  b.ge =quit_benchmark_loop;
+  /* Factorial result */
+  ldr $r3, #1;
+  /* Factorial iteration counter */
+  ldr $r4, #0;
+  :factorial_loop:
+    cmp $r4, $r5;
+    b.ge =quit_factorial_loop;
+    mul $r3, $r3, $r4;
+    add $r4, $r4, $r2;
+  b =factorial_loop;
+  :quit_factorial_loop:
+add $r1, $r1, $r2;
+b =loop;
+:quit_benchmark_loop:
+
+/* 
+Return value always at r0
+for testing string at this moment this 
+returned and printed by C code to check the code 
+*/
+ldr $r0, "Hello World! Hello Fox! Hello UwU! (string loaded from bytecode yay)";
+ret;
+
+ldr $r4, =test_proto;
+
+.start_prototype test_proto;
+  ldr $r0, "Hello World!1";
+  ldr $r1, "Hello World!2";
+  ldr $r2, "Hello World!3";
+  .start_prototype test_proto_nest;
+    ldr $r0, "Hello World!1";
+    ldr $r1, "Hello World!2";
+    ldr $r2, "Hello World!3";
+  .end_prototype;
+.end_prototype;
+
+ldr $r3, =test_proto;
+ldr $r1, "yay lets go1";
+ldr $r1, "yay lets go2";
+ldr $r2, #4294967296;
+
+
+
+
+

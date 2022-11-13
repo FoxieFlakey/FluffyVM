@@ -5,14 +5,22 @@
 #include <stdatomic.h>
 #include <FluffyGC/v1.h>
 
+#define VM_SUBSYSTEMS \
+  X(string) \
+
+struct string_subsystem_data;
+
 struct vm {
   fluffygc_state* heap;
-
   atomic_int threadAttachedCount;
-
   pthread_key_t osThreadLocalDataKey;
   
   bool osThreadLocalDataKeyInited;
+  
+  int initState;
+# define X(name, ...) bool name ## Inited; struct name ## _subsystem_data* name ## Data;
+  VM_SUBSYSTEMS
+# undef X
 };
 
 struct vm* vm_new(fluffygc_state* heap);

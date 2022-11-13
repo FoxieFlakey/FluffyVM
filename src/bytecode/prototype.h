@@ -22,6 +22,7 @@ struct prototype {
 };
 
 struct prototype* prototype_new();
+int prototype_set_code(struct prototype* self, size_t codeLen, vm_instruction* code);
 void prototype_free(struct prototype* self);
 
 #endif

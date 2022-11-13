@@ -6,6 +6,7 @@
 #include <stdlib.h>
 
 #include "attributes.h"
+#include "bug.h"
 #include "bytecode/bytecode.h"
 #include "bytecode/prototype.h"
 #include "vm_limits.h"
@@ -64,8 +65,7 @@ int interpreter_exec(struct call_state* callstate) {
       ip++; \
     } while (0)
 #   define interpreter_fetch_instruction() do { \
-      /* printf("%d\n", ip); */ \
-      if (ip >= proto->code.length) \
+      if (ip >= proto->preDecoded.length) \
         goto exit_func; \
        \
       instructionRegister = proto->preDecoded.data[ip]; \
@@ -173,12 +173,15 @@ break_current_cycle:
       interpreter_case(FLUFFYVM_OPCODE_LAST)
         goto illegal_instruction;
       
+      interpreter_case(FLUFFYVM_OPCODE_NEW_ARRAY)
+      interpreter_case(FLUFFYVM_OPCODE_SET_ARRAY)
+      interpreter_case(FLUFFYVM_OPCODE_GET_ARRAY) 
       interpreter_case(FLUFFYVM_OPCODE_IMPLDEP1) 
       interpreter_case(FLUFFYVM_OPCODE_IMPLDEP2) 
       interpreter_case(FLUFFYVM_OPCODE_IMPLDEP3) 
       interpreter_case(FLUFFYVM_OPCODE_IMPLDEP4)
       interpreter_case(FLUFFYVM_OPCODE_LOAD_PROTOTYPE) 
-        abort();
+        BUG();
     }
   }
 

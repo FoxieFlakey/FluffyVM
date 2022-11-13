@@ -29,7 +29,6 @@ saved.vim
 .config
 .config.*
 .cache
-*.fluff_bin
 golf.lua
 .vscode
 *.class

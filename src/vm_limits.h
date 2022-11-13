@@ -15,7 +15,5 @@
 // larger than any practical purpose
 #define VM_LIMIT_MAX_PROTOTYPE (UINT32_C(1) << 30)
 
-#define VM_REGISTER_COUNT 16
-
 #endif
 

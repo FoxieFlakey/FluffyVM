@@ -26,5 +26,8 @@
 # endif
 #endif
 
+#define ATTRIBUTE_PRINTF(fmtOffset, vaStart) ATTRIBUTE((format(printf, fmtOffset, vaStart)))
+#define ATTRIBUTE_DEPRECATED() ATTRIBUTE((deprecated))
+
 #endif
 

@@ -1,13 +1,16 @@
 #include <stdint.h>
+#include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
 #include <string.h>
+#include <time.h>
 
 #include "opcodes.h"
 #include "prototype.h"
 #include "vm_limits.h"
 #include "vec.h"
 #include "vm_types.h"
+#include "bug.h"
 
 struct prototype* prototype_new() {
   struct prototype* self = malloc(sizeof(*self));
@@ -24,22 +27,29 @@ int prototype_set_code(struct prototype* self, size_t codeLen, vm_instruction* c
   if (codeLen >= VM_LIMIT_MAX_CODE)
     return -E2BIG;
 
-  if (!vec_reserve(&self->code, codeLen) || !vec_reserve(&self->preDecoded, codeLen))
+  if (vec_reserve(&self->code, codeLen) < 0 || vec_reserve(&self->preDecoded, codeLen) < 0)
     return -ENOMEM;
-  memcpy(self->code.data, code, sizeof(*self->code.data) * codeLen);
+  for (int i = 0; i < codeLen; i++)
+    if (vec_push(&self->code, code[i]) < 0)
+      BUG(); // Already reserved memory this cant fail
+  
+  int res = 0;
   
   // Pre-decode
-  for (vm_instruction_pointer i = 0; i < codeLen; i++)
-    if (opcode_decode_instruction(&self->preDecoded.data[i], code[i]) < 0)
+  // TODO: Somehow make this code revert overwritten data to original on failure 
+  for (vm_instruction_pointer i = 0; i < codeLen; i++) {
+    struct instruction tmp;
+    if (opcode_decode_instruction(&tmp, code[i]) < 0) {
+      res = -EINVAL;
       goto decode_error;
-
-  // Free old code
-  vec_deinit(&self->code);
-  vec_deinit(&self->preDecoded);
-  return 0;
+    }
+    
+    if (vec_push(&self->preDecoded, tmp) < 0)
+      BUG(); // Already reserved memory this cant fail
+  }
 
 decode_error:
-  return -EINVAL;
+  return res; 
 }
 
 void prototype_free(struct prototype* self) {

@@ -8,6 +8,7 @@
 #include "value.h"
 #include "vm_limits.h"
 #include "attributes.h"
+#include "constants.h"
 
 struct vm;
 struct prototype;
@@ -16,7 +17,7 @@ struct call_state {
   struct vm* owner;
 
   struct prototype* proto;
-  struct value registers[VM_REGISTER_COUNT];
+  struct value registers[VM_MAX_REGISTERS];
 };
 
 struct call_state* call_state_new(struct vm* owner, struct prototype* proto);
@@ -44,7 +45,7 @@ static inline int call_state_get_register(struct call_state* self, struct value*
 ////////////////////////////////
 
 static inline int call_state_set_register(struct call_state* self, int dest, struct value val, bool isFromVM) {
-  if (dest < 0 || dest >= VM_REGISTER_COUNT)
+  if (dest < 0 || dest >= VM_MAX_REGISTERS)
     return -EINVAL;
   
   //printf("R(%d) <- %s\n", dest, isFromVM ? "VM" : "Host");
@@ -53,7 +54,7 @@ static inline int call_state_set_register(struct call_state* self, int dest, str
 }
 
 static inline int call_state_get_register(struct call_state* self, struct value* dest, int src, bool isFromVM) {
-  if (src < 0 || src >= VM_REGISTER_COUNT)
+  if (src < 0 || src >= VM_MAX_REGISTERS)
     return -EINVAL;
   
   //printf("%s <- R(%d)\n", isFromVM ? "VM" : "Host", src);
@@ -63,8 +64,8 @@ static inline int call_state_get_register(struct call_state* self, struct value*
 
 static inline int call_state_move_register(struct call_state* self, int dest, int src) {
   if (src < 0 || dest < 0 ||
-      src >= VM_REGISTER_COUNT ||
-      dest >= VM_REGISTER_COUNT) {
+      src >= VM_MAX_REGISTERS ||
+      dest >= VM_MAX_REGISTERS) {
     return -EINVAL;
   }
 
