@@ -6,14 +6,15 @@
 
 #include <FluffyGC/v1.h>
 
+// Class for this is lua.Object
 struct object {
   fluffygc_object* gc_this;
-  
-  fluffygc_field_type refType;
   
   // Actual data here
   fluffygc_object* data;
 };
+
+
 
 #endif
 

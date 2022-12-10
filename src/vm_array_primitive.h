@@ -8,11 +8,13 @@
 struct vm;
 struct value;
 
+// Class for this is $(VM_PACKAGE).PrimitiveArray
+
 struct array_primitive_subsystem_data {
   fluffygc_descriptor* desc;
 };
 
-struct array {
+struct primitive_array {
   size_t size;
   fluffygc_object* actualArray; 
 };

@@ -6,6 +6,7 @@
 
 #include "value.h"
 
+// Class for this is lua.Value 
 struct value_container {
   fluffygc_object* gc_this;
   
