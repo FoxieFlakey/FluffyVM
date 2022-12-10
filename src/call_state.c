@@ -35,6 +35,8 @@ int call_state_set_register(struct call_state* self, int dest, struct value val,
   
   //printf("R(%d) <- %s\n", dest, isFromVM ? "VM" : "Host");
   fluffygc_v1_delete_local_ref(self->owner->heap, self->localRefs[dest]);
+  self->localRefs[dest] = NULL;
+  
   fluffygc_object* ref = value_get_gcobject(self->owner, val);
   if (ref) {
     self->localRefs[dest] = fluffygc_v1_new_local_ref(self->owner->heap, ref);

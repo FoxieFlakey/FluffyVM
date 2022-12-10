@@ -15,7 +15,7 @@ struct array_primitive_subsystem_data {
 };
 
 struct primitive_array {
-  size_t size;
+  size_t len;
   fluffygc_object* actualArray; 
 };
 

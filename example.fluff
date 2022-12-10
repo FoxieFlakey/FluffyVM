@@ -11,8 +11,8 @@ ldr $r5, #16;
 
 new_array $r6, #6;
 
-/* ldr $r5, #12;
-set_array $r6, $r5, $r5; */
+ldr $r5, #4;
+set_array $r6, $r5, $r5;
 
 :loop: 
   cmp $r1, $r0;
@@ -38,6 +38,9 @@ for testing string at this moment this
 returned and printed by C code to check the code 
 */
 ldr $r0, "Hello World! Hello Fox! Hello UwU! (string loaded from bytecode yay)";
+
+ldr $r0, #4;
+get_array $r6, $r0, $r0;
 ret;
 
 ldr $r4, =test_proto;

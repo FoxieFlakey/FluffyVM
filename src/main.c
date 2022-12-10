@@ -100,6 +100,9 @@ int main2(int argc, char** argv) {
     case VALUE_INTEGER:
       printf("Result: %" PRINT_VM_INT_d "\n", tmp.data.integer);
       break;
+    case VALUE_NONE:
+      printf("Result: None\n");
+      break;
     case VALUE_STRING: {
       const char* strPtr = NULL;
       printf("Result: %s\n", (strPtr = string_get_critical(F, tmp.data.string)));

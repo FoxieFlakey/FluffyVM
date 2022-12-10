@@ -56,11 +56,11 @@ struct array_primitive_gcobject* array_primitive_new(struct vm* F, size_t len) {
   if (!self)
     return NULL;
   
-  BUG_ON(len <= 0);
   fluffygc_object* actualArrayObj = fluffygc_v1_new_opaque_object(F->heap, sizeof(struct value) * len);
   if (!actualArrayObj)
     goto failure;
   fluffygc_v1_set_object_field(F->heap, self, offsetof(struct primitive_array, actualArray), actualArrayObj);
+  fluffygc_v1_obj_write_data(F->heap, self, offsetof(struct primitive_array, len), FIELD_SIZEOF(struct primitive_array, len), &len);
   fluffygc_v1_delete_local_ref(F->heap, actualArrayObj);
   
   return (struct array_primitive_gcobject*) self;
@@ -72,13 +72,14 @@ failure:
 
 size_t array_primitive_get_length(struct vm* F, struct array_primitive_gcobject* self) {
   size_t len;
-  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, size), sizeof(len), &len);
+  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, len), sizeof(len), &len);
   return len;
 }
 
 int array_primitive_set(struct vm* F, struct array_primitive_gcobject* self, int index, struct value data) {
+  printf("W: %d\n", index);
   size_t len;
-  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, size), sizeof(len), &len);
+  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, len), sizeof(len), &len);
   if (index >= len)
     return -ERANGE;
   
@@ -95,8 +96,10 @@ int array_primitive_set(struct vm* F, struct array_primitive_gcobject* self, int
 }
 
 int array_primitive_get(struct vm* F, struct array_primitive_gcobject* self, int index, struct value* result) {
+  printf("R: %d\n", index);
+  
   size_t len;
-  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, size), sizeof(len), &len);
+  fluffygc_v1_obj_read_data(F->heap, cast_to_gcobj(self), offsetof(struct primitive_array, len), sizeof(len), &len);
   if (index >= len)
     return -ERANGE;
   
