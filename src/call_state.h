@@ -1,6 +1,7 @@
 #ifndef header_1662074719_23d2cbd0_bdf7_4140_a0aa_16526720c194_call_state_h
 #define header_1662074719_23d2cbd0_bdf7_4140_a0aa_16526720c194_call_state_h
 
+#include <FluffyGC/v1.h>
 #include <errno.h>
 #include <stdbool.h>
 
@@ -9,6 +10,9 @@
 #include "vm_limits.h"
 #include "attributes.h"
 #include "constants.h"
+#include "vm.h"
+
+// This structure only valid in the thread which creates it
 
 struct vm;
 struct prototype;
@@ -18,7 +22,11 @@ struct call_state {
 
   struct prototype* proto;
   struct value registers[VM_MAX_REGISTERS];
+  fluffygc_object* localRefs[VM_MAX_REGISTERS];
 };
+
+int callstate_init(struct vm* F);
+void callstate_cleanup(struct vm* F);
 
 struct call_state* call_state_new(struct vm* owner, struct prototype* proto);
 void call_state_free(struct call_state* self);
@@ -32,7 +40,7 @@ static int call_state_move_register(struct call_state* self, int dest, int src);
  * -EINVAL: Invalid argument
  * -ENOMEM: Not enough memory
  */
-static inline int call_state_set_register(struct call_state* self, int dest, struct value val, bool isFromVM);
+int call_state_set_register(struct call_state* self, int dest, struct value val, bool isFromVM);
 
 /* Error:
  * -EINVAL: Invalid argument
@@ -43,15 +51,6 @@ static inline int call_state_get_register(struct call_state* self, struct value*
 ////////////////////////////////
 /// Inlined stuff below here ///
 ////////////////////////////////
-
-static inline int call_state_set_register(struct call_state* self, int dest, struct value val, bool isFromVM) {
-  if (dest < 0 || dest >= VM_MAX_REGISTERS)
-    return -EINVAL;
-  
-  //printf("R(%d) <- %s\n", dest, isFromVM ? "VM" : "Host");
-  self->registers[dest] = val;
-  return 0;
-}
 
 static inline int call_state_get_register(struct call_state* self, struct value* dest, int src, bool isFromVM) {
   if (src < 0 || src >= VM_MAX_REGISTERS)
@@ -70,8 +69,7 @@ static inline int call_state_move_register(struct call_state* self, int dest, in
   }
 
   //printf("R(%d) <- R(%d)\n", dest, src);
-  self->registers[dest] = self->registers[src];
-  return 0;
+  return call_state_set_register(self, dest, self->registers[src], true); 
 }
 
 #endif

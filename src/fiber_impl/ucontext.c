@@ -1,20 +1,22 @@
 #include <assert.h>
+#include <stddef.h>
 #include <stdlib.h>
 #include <signal.h>
 #include <threads.h>
 #include <ucontext.h>
+#include <unistd.h>
 
 #include "fiber.h"
 #include "fiber_impl/ucontext.h"
 #include "bug.h"
 #include "config.h"
 
-#if IS_ENABLED(CONFIG_ASAN)
-# include <sanitizer/asan_interface.h>
-#endif
-
 #if IS_ENABLED(CONFIG_USE_SETCONTEXT)
 # error setcontext support not ready, yet please use posix threads
+#endif
+
+#if IS_ENABLED(CONFIG_ASAN)
+# include <sanitizer/asan_interface.h> 
 #endif
 
 static inline void sanitizer_start_switch_fiber(void* bottom, size_t size) {
@@ -45,6 +47,22 @@ static void makecontext_fake(ucontext_t* ctx, void (*func)(), int argCount, ...)
 #define getcontext getcontext_fake
 #define swapcontext swapcontext_fake
 #define makecontext makecontext_fake
+#endif
+
+#ifndef SIGSTKSZ
+#ifdef _SC_SIGSTKSZ
+static size_t getStackSize() {
+  return (size_t) sysconf(_SC_SIGSTKSZ);
+}
+#else
+static size_t getStackSize() {
+  return 8 * 1024 * 1024; // 8 MiB stack
+}
+#endif
+#else
+static size_t getStackSize() {
+  return SIGSTKSZ;
+}
 #endif
 
 static thread_local struct fiber_ucontext* ctxEntryPoint_context = NULL;
@@ -79,12 +97,12 @@ struct fiber_ucontext* fiber_impl_ucontext_new(void (*entryPoint)(struct fiber*)
     goto failure;
   self->resumeContextInited = true;
    
-  self->resumeContext.uc_stack.ss_sp = calloc(1, SIGSTKSZ);
+  self->resumeContext.uc_stack.ss_sp = calloc(1, getStackSize());
   if (self->resumeContext.uc_stack.ss_sp == NULL)
     goto failure;
 
   self->resumeContext.uc_stack.ss_flags = 0;
-  self->resumeContext.uc_stack.ss_size = SIGSTKSZ;
+  self->resumeContext.uc_stack.ss_size = getStackSize();
   self->resumeContext.uc_link = NULL;
   
   // Somehow convert ptr to vararg of ints???

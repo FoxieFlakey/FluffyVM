@@ -27,6 +27,7 @@ set(BUILD_SOURCES
   src/bytecode/protobuf_deserializer.c
   src/util.c
   src/vm_string.c
+  src/vm_array_primitive.c
   
   deps/buffer/buffer.c
   deps/templated-hashmap/hashmap.c

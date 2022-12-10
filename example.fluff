@@ -9,8 +9,9 @@ ldr $r2, #1;
 /* Factorial iteration count */
 ldr $r5, #16;
 
-/* new_array $r6, #32;
-ldr $r5, #12;
+new_array $r6, #6;
+
+/* ldr $r5, #12;
 set_array $r6, $r5, $r5; */
 
 :loop: 

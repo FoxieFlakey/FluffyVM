@@ -1,3 +1,4 @@
+#include <stdio.h>
 #include <stdlib.h>
 #include <stddef.h>
 #include <errno.h>
@@ -47,7 +48,7 @@ int opcode_decode_instruction(struct instruction* result, vm_instruction instruc
     .arg.u16x3.b = (instruction >> 16) & 0xFFFF,
     .arg.u16x3.c =  instruction        & 0xFFFF
   };
-
+  
   if (temp.op >= FLUFFYVM_OPCODE_LAST)
     return -EINVAL;
 

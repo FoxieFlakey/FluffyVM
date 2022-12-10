@@ -11,8 +11,6 @@ struct string_subsystem_data {
 };
 
 struct string {
-  fluffygc_object* gc_this;
-
   size_t length;
   
   /* Its opaque object */
@@ -29,8 +27,6 @@ struct string_gcobject* string_from_cstring(struct vm* F, const char* string);
 
 const char* string_get_critical(struct vm* F, struct string_gcobject* self);
 void string_release_critical(struct vm* F, struct string_gcobject* self, const char* ptr);
-
-fluffygc_object* string_as_gcobject(struct string_gcobject* self);
 
 #endif
 

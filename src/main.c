@@ -10,6 +10,7 @@
 #include "bug.h"
 #include "bytecode/bytecode.h"
 #include "bytecode/prototype.h"
+#include "vm.h"
 #include "bytecode/protobuf_deserializer.h"
 #include "call_state.h"
 #include "coroutine.h"
@@ -81,7 +82,7 @@ int main2(int argc, char** argv) {
   const char* strPtr = NULL;
   printf("String: %s\n", (strPtr = string_get_critical(F, obj)));
   string_release_critical(F, obj, strPtr);
-  fluffygc_v1_delete_local_ref(heap, string_as_gcobject(obj));
+  fluffygc_v1_delete_local_ref(heap, cast_to_gcobj(obj));
   
   struct call_state* callstate = call_state_new(F, bytecode->mainPrototype);
   call_state_set_register(callstate, 0, value_new_int(F, 1 /* 1000000 */ ), false);

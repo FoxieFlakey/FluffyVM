@@ -6,6 +6,7 @@
 #include "vm.h"
 #include "config.h"
 #include "vm_string.h"
+#include "vm_array_primitive.h"
 
 struct vm* vm_new(fluffygc_state* heap) {
   struct vm* self = malloc(sizeof(*self));

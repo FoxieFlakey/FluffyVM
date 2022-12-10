@@ -1,10 +1,12 @@
 #ifndef header_1660463417_214133f8_ad42_4a8b_9306_246d4dd87889_value_h
 #define header_1660463417_214133f8_ad42_4a8b_9306_246d4dd87889_value_h
 
+#include <FluffyGC/v1.h>
 #include <stdbool.h>
 #include <string.h>
 #include <stddef.h>
 
+#include "vm_array_primitive.h"
 #include "vm_string.h"
 #include "vm_types.h"
 
@@ -17,7 +19,7 @@ enum value_types {
   VALUE_INTEGER,
   VALUE_NUMBER,
   VALUE_STRING,
-  VALUE_ARRAY
+  VALUE_PRIMITIVE_ARRAY,
 };
 
 struct value {
@@ -26,6 +28,7 @@ struct value {
     vm_int integer;
     vm_number number;
     struct string_gcobject* string;
+    struct array_primitive_gcobject* primitiveArray;
   } data;
 };
 
@@ -36,6 +39,7 @@ static inline struct value value_new_number(struct vm* vm, vm_number integer);
 
 static inline struct value value_new_cstring(struct vm* vm, const char* str);
 static inline struct value value_new_string(struct vm* vm, const char* str, size_t len);
+static inline struct value value_new_primitive_array(struct vm* vm, size_t len);
 
 typedef int (*math_operation_func)(struct vm*, struct value*, struct value, struct value);
 
@@ -52,6 +56,10 @@ int value_pow(struct vm* vm, struct value* res, struct value a, struct value b);
 
 bool value_is_less(struct vm* vm, struct value a, struct value b);
 bool value_is_equal(struct vm* vm, struct value a, struct value b);
+bool value_is_byref(struct vm* vm, struct value a);
+
+// NULL if type not appropriate
+fluffygc_object* value_get_gcobject(struct vm* vm, struct value val);
 
 ////////////////////////////////
 /// Inlined stuff below here ///
@@ -92,6 +100,13 @@ static inline struct value value_new_string(struct vm* F, const char* str, size_
   return (struct value) {
     .type = VALUE_STRING,
     .data.string = string_new_string(F, str, len)
+  };
+}
+
+static inline struct value value_new_primitive_array(struct vm* F, size_t len) {
+  return (struct value) {
+    .type = VALUE_PRIMITIVE_ARRAY,
+    .data.primitiveArray = array_primitive_new(F, len)
   };
 }
 

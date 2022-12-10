@@ -4,6 +4,7 @@
 #include <math.h>
 
 #include "value.h"
+#include "bug.h"
 #include "vm.h"
 #include "vm_types.h"
 
@@ -22,6 +23,24 @@ static int valueFixTypeToSameType(struct vm* vm, struct value* a, struct value* 
 
   return a->type;
 }
+
+fluffygc_object* value_get_gcobject(struct vm* vm, struct value val) {
+  switch (val.type) { 
+    case VALUE_STRING: 
+      return cast_to_gcobj(val.data.string);
+    case VALUE_PRIMITIVE_ARRAY: 
+      return cast_to_gcobj(val.data.primitiveArray); 
+    default: 
+      return NULL; 
+  } 
+}
+
+bool value_is_byref(struct vm* vm, struct value val) {
+  return value_get_gcobject(vm, val) != NULL;
+}
+
+
+
 
 #define mathOp(name) \
   int name(struct vm* vm, struct value* res, struct value a, struct value b) { \

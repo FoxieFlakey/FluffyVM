@@ -156,6 +156,14 @@ break_current_cycle:
         flagRegister |= value_is_equal(F, a, b) ? OP_COND_EQ_MASK : 0;
         flagRegister |= value_is_less(F, a, b) ? OP_COND_LT_MASK : 0;
         interpreter_break;
+      interpreter_case(FLUFFYVM_OPCODE_NEW_ARRAY)
+        if (call_state_set_register(callstate, 
+              instructionRegister.arg.u16_u32.a, 
+              value_new_primitive_array(F, instructionRegister.arg.u16_u32.b), true) < 0) {
+          res = -EINVAL;
+          goto illegal_instruction;
+        }
+        interpreter_break;
       interpreter_case(FLUFFYVM_OPCODE_LOAD_CONSTANT)
         if (bytecode_get_constant(callstate->proto->owner, F, &a, instructionRegister.arg.u16x3.b) < 0)
           goto illegal_instruction;
@@ -173,7 +181,6 @@ break_current_cycle:
       interpreter_case(FLUFFYVM_OPCODE_LAST)
         goto illegal_instruction;
       
-      interpreter_case(FLUFFYVM_OPCODE_NEW_ARRAY)
       interpreter_case(FLUFFYVM_OPCODE_SET_ARRAY)
       interpreter_case(FLUFFYVM_OPCODE_GET_ARRAY) 
       interpreter_case(FLUFFYVM_OPCODE_IMPLDEP1) 

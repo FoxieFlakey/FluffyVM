@@ -7,6 +7,7 @@
 
 #define VM_SUBSYSTEMS \
   X(string) \
+  X(array_primitive) \
 
 struct string_subsystem_data;
 
@@ -25,6 +26,14 @@ struct vm {
 
 struct vm* vm_new(fluffygc_state* heap);
 void vm_free(struct vm* self);
+
+// Convenience cast for VM's reference types to fluffygc_object
+#define cast_to_gcobj(x) _Generic((x), \
+  struct string_gcobject*: (fluffygc_object*) (x), \
+  struct array_primitive_gcobject*: (fluffygc_object*) (x), \
+  struct value_container_gcobject*: (fluffygc_object*) (x), \
+  struct object_gcobject*: (fluffygc_object*) (x) \
+)
 
 #endif
 

@@ -11,7 +11,7 @@
 #include "vm_string.h"
 #include "vm.h"
 
-static const char* stringSubystemKey = "UwU";
+static const char* subystemKey = "UwU";
 
 #define get_private(F) (F->stringData)
 
@@ -33,7 +33,7 @@ int string_init(struct vm* F) {
     .objectSize = sizeof(struct string),
     .fieldCount = ARRAY_SIZE(fields),
     .fields = fields,
-    .typeID = (uintptr_t) &stringSubystemKey 
+    .typeID = (uintptr_t) &subystemKey 
   };
   
   F->stringData->desc = fluffygc_v1_descriptor_new(F->heap, &tmp);
@@ -80,16 +80,12 @@ struct string_gcobject* string_from_cstring(struct vm* F, const char* string) {
   return string_new_string(F, string, strlen(string));
 }
 
-fluffygc_object* string_as_gcobject(struct string_gcobject* self) {
-  return (fluffygc_object*) self;
-}
-
 const char* string_get_critical(struct vm* F, struct string_gcobject* self) {
-  return fluffygc_v1_get_object_critical(F->heap, fluffygc_v1_get_object_field(F->heap, string_as_gcobject(self), offsetof(struct string, actualString)), NULL);
+  return fluffygc_v1_get_object_critical(F->heap, fluffygc_v1_get_object_field(F->heap, cast_to_gcobj(self), offsetof(struct string, actualString)), NULL);
 }
 
 void string_release_critical(struct vm* F, struct string_gcobject* self, const char* criticalPtr) {
-  return fluffygc_v1_release_object_critical(F->heap, fluffygc_v1_get_object_field(F->heap, string_as_gcobject(self), offsetof(struct string, actualString)), (void*) criticalPtr);
+  return fluffygc_v1_release_object_critical(F->heap, fluffygc_v1_get_object_field(F->heap, cast_to_gcobj(self), offsetof(struct string, actualString)), (void*) criticalPtr);
 }
 
 
