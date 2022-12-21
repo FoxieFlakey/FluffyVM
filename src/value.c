@@ -35,10 +35,24 @@ fluffygc_object* value_get_gcobject(struct vm* vm, struct value val) {
   } 
 }
 
+void value_set_gcobject(struct vm* vm, struct value* val, fluffygc_object* obj) {
+  switch (val->type) { 
+    case VALUE_STRING: 
+      val->data.string = NULL;
+    case VALUE_PRIMITIVE_ARRAY: 
+      val->data.primitiveArray = NULL; 
+    default: 
+      abort(); 
+  } 
+}
+
 bool value_is_byref(struct vm* vm, struct value val) {
   return value_get_gcobject(vm, val) != NULL;
 }
 
+bool value_is_byval(struct vm* vm, struct value val) {
+  return value_get_gcobject(vm, val) == NULL;
+}
 
 
 

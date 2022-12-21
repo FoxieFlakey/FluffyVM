@@ -57,9 +57,11 @@ int value_pow(struct vm* vm, struct value* res, struct value a, struct value b);
 bool value_is_less(struct vm* vm, struct value a, struct value b);
 bool value_is_equal(struct vm* vm, struct value a, struct value b);
 bool value_is_byref(struct vm* vm, struct value a);
+bool value_is_byval(struct vm* vm, struct value a);
 
 // NULL if type not appropriate
 fluffygc_object* value_get_gcobject(struct vm* vm, struct value val);
+void value_set_gcobject(struct vm* vm, struct value* val, fluffygc_object* obj);
 
 ////////////////////////////////
 /// Inlined stuff below here ///
